@@ -1,0 +1,1 @@
+# VAM.Plugin.Catalog
