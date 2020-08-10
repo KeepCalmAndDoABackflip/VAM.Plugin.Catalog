@@ -1,1 +1,1 @@
-# VAM.Plugin.Catalog
+Scripts
