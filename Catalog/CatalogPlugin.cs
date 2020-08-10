@@ -76,7 +76,7 @@ namespace juniperD.StatefullServices
 		//protected UIDynamicButton _captureButton;
 		protected UIDynamicButton _floatingTriggerButton;
 		protected UIDynamicButton _toolTipLabel;
-		protected UIDynamicButton _modeLabel;
+		protected UIDynamicTextField _debugPanel;
 		protected UIDynamicButton _catalogNameLabel;
 		protected UIDynamicButton _popupMessageLabel;
 		//protected int _popupMessageFramesLeft = -1;
@@ -131,13 +131,13 @@ namespace juniperD.StatefullServices
 		// Popup select list
 		public GameObject _dynamicSelectList;
 		public List<UiCatalogSubItem> _dynamicListItems = new List<UiCatalogSubItem>();
+		VerticalLayoutGroup _selectListVLayout;
 
 		// Info Panel...
 		public GameObject _dynamicInfoPanel;
 		protected UIDynamicTextField _infoLabel;
 		protected List<UIDynamicToggle> _infoCheckLabels;
 		VerticalLayoutGroup _infoVLayout;
-		VerticalLayoutGroup _selectListVLayout;
 
 		GameObject _rowContainer;
 		GameObject _columnContainer;
@@ -218,13 +218,12 @@ namespace juniperD.StatefullServices
 		private void FirstTimeInitialization()
 		{
 			// ...set the catalog name, with no callback (to prevent recursing back into this function)
-			_catalog = new Catalog();
+			//_catalog = new Catalog();
 			_catalogName.valNoCallback = GetNewCatalogName();
 			_catalogMode.val = Enums.CATALOG_MODE_VIEW;
 			// Create a new file in which to save temporary catalog data for this catalog instance...
 			var scenePath = GetSceneDirectoryPath();
-			_lastCatalogDirectory = scenePath + "/SavedCatalogs"; //scenePath;
-			SuperController.LogMessage(_lastCatalogDirectory);
+			_lastCatalogDirectory = "Saves/scene/SavedCatalogs"; //scenePath;
 			var filePath = scenePath + "/" + _catalogName.val + "." + _fileExtension;
 			//SaveCatalogToFile(filePath);
 			// Set starting position next to HUD...
@@ -287,8 +286,8 @@ namespace juniperD.StatefullServices
 				if (_atomType == ATOM_TYPE_OBJECT) _catalogModes.Add(Enums.CATALOG_MODE_OBJECT);
 				if (_atomType == ATOM_TYPE_SESSION) _catalogModes.Add(Enums.CATALOG_MODE_SESSION);
 
-				_debugService = new DebugService();
-				_debugService.Init(this);
+				//_debugService = new DebugService();
+				//_debugService.Init(this);
 
 				_dynamicButtonCheckColor = new Color(0.7f, 0.7f, 0.5f, 1);
 				_dynamicButtonUnCheckColor = new Color(0.25f, 0.25f, 0.25f, 1);
@@ -383,48 +382,56 @@ namespace juniperD.StatefullServices
 
 		private void CreateDynamicUi()
 		{
-			CreateDynamicPanel_BackPanel();
-			//CreateDynamicButton_GenerateCatalog();
-			//CreateDynamicButton_CaptureControl();
-			CreateDynamicButton_Trigger();
+			try
+			{
+				CreateDynamicPanel_BackPanel();
+				//CreateDynamicButton_GenerateCatalog();
+				//CreateDynamicButton_CaptureControl();
+				CreateDynamicButton_Trigger();
 
-			// DYNAMIC UI...
-			//Top Right Corner
-			//CreateDynamicButton_Minimize();
-			//CreateDynamicButton_Move();
-			// Left bar
-			CreateDynamicButton_ResetCatalog();
-			CreateDynamicButton_ZoomIn();
-			CreateDynamicButton_ZoomOut();
-			CreateDynamicButton_ScrollUp();
-			CreateDynamicButton_ScrollDown();
-			// Scene helpers...
-			CreateDynamicButton_CycleAtoms();
-			CreateDynamicButton_ResetPivot();
-			// Top bar
-			//CreateDynamicButton_Mode();
-			CreateDynamicButton_Modes();
-			CreateDynamicButton_Save();
-			CreateDynamicButton_Load();
-			CreateDynamicButton_Sort();
-			CreateDynamicButton_Refresh();
-			CreateDynamicButton_CaptureAdditionalAtom();
-			// Top Bar (Capture mode specific)
-			CreateDynamicButton_Capture_Clothes();
-			CreateDynamicButton_Capture_Morphs();
-			CreateDynamicButton_Capture_Hair();
-			//CreateDynamicButton_Reset();
-			// Message UI...
-			//CreateDynamicButton_Label();
-			CreateDynamicPanel_RightInfo();
-			CreateDynamicPanel_LeftInfo();
+				// DYNAMIC UI...
+				//Top Right Corner
+				//CreateDynamicButton_Minimize();
+				//CreateDynamicButton_Move();
+				// Left bar
+				CreateDynamicButton_ResetCatalog();
+				CreateDynamicButton_ZoomIn();
+				CreateDynamicButton_ZoomOut();
+				CreateDynamicButton_ScrollUp();
+				CreateDynamicButton_ScrollDown();
+				// Scene helpers...
+				CreateDynamicButton_CycleAtoms();
+				CreateDynamicButton_ResetPivot();
+				// Top bar
+				//CreateDynamicButton_Mode();
+				CreateDynamicButton_Modes();
+				CreateDynamicButton_Save();
+				CreateDynamicButton_Load();
+				CreateDynamicButton_Sort();
+				CreateDynamicButton_Refresh();
+				CreateDynamicButton_CaptureAdditionalAtom();
+				// Top Bar (Capture mode specific)
+				CreateDynamicButton_Capture_Clothes();
+				CreateDynamicButton_Capture_Morphs();
+				CreateDynamicButton_Capture_Hair();
+				//CreateDynamicButton_Reset();
+				// Message UI...
+				//CreateDynamicButton_Label();
+				CreateDynamicPanel_RightInfo();
+				CreateDynamicPanel_LeftInfo();
 
-			CreateDynamicButton_SideLabel();
-			CreateDynamicButton_Tooltip();
-			CreateDynamicButton_SelectList();
-			CreateDynamicButton_QuickLoad();
-			CreateDynamicButton_PopupMessage();
-			CreateDynamicButton_DynamicConfirm();
+				CreateDynamicButton_SideLabel();
+				CreateDynamicButton_Tooltip();
+				CreateDynamicButton_SelectList();
+				CreateDynamicButton_QuickLoad();
+				CreateDynamicButton_PopupMessage();
+				CreateDynamicButton_DynamicConfirm();
+				//CreateDynamicButton_DebugPanel();
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+			}
 		}
 
 
@@ -899,7 +906,8 @@ namespace juniperD.StatefullServices
 				_dynamicButtonRefresh.button.transform.localScale = Vector3.one;
 				_dynamicButtonRefresh.button.image.sprite = iconForCaptureObject;
 				SetTooltipForDynamicButton(_dynamicButtonRefresh, () => "Capture Object");
-				_dynamicButtonRefresh.button.onClick.AddListener(() => {
+				_dynamicButtonRefresh.button.onClick.AddListener(() =>
+				{
 					RequestNextCaptureSet(1, CaptureRequest.MUTATION_AQUISITION_MODE_CAPTURE_OBJECT);
 				});
 			}
@@ -913,7 +921,8 @@ namespace juniperD.StatefullServices
 				_dynamicButtonRefresh.button.transform.localScale = Vector3.one;
 				_dynamicButtonRefresh.button.image.sprite = iconForCaptureSelectedObject;
 				SetTooltipForDynamicButton(_dynamicButtonRefresh, () => "Capture Selected Object");
-				_dynamicButtonRefresh.button.onClick.AddListener(() => {
+				_dynamicButtonRefresh.button.onClick.AddListener(() =>
+				{
 					if (SuperController.singleton.GetSelectedAtom() == null)
 					{
 						ShowPopupMessage("Please select an atom from the scene", 2);
@@ -1383,7 +1392,14 @@ namespace juniperD.StatefullServices
 			var button = _catalogUi.CreateButton(_windowContainer, "", 35, 35, _windowWidth - 120 - 10, 0, new Color(0.5f, 0.5f, 1f), Color.green, new Color(1f, 1f, 1f), texture);
 			button.button.onClick.AddListener(() =>
 			{
-				ShowRecentDirectoryFileList();
+				try
+				{
+					ShowRecentDirectoryFileList();
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
 			});
 
 			SetTooltipForDynamicButton(button, () => "Catalog Listing");
@@ -1395,15 +1411,23 @@ namespace juniperD.StatefullServices
 			Dictionary<string, UnityAction> filesToLoad = new Dictionary<string, UnityAction>();
 			foreach (var file in files)
 			{
-				var name = file.Replace("\\", "/").Replace(_lastCatalogDirectory + "/", "").Replace("." + _fileExtension, "");
+				var fileName = file.Replace("\\", "/").Replace(_lastCatalogDirectory + "/", "").Replace("." + _fileExtension, "");
 				UnityAction selectAction = () =>
 				{
-					ResetCatalog();
-					LoadCatalogFromFile(_lastCatalogDirectory + "/" + name + "." + _fileExtension);
+					try
+					{
+						ResetCatalog();
+						var filePath = _lastCatalogDirectory + "/" + fileName + "." + _fileExtension;
+						LoadCatalogFromFile(filePath);
+					}
+					catch (Exception e)
+					{
+						SuperController.LogError(e.ToString());
+					}
 				};
-				filesToLoad.Add(name, selectAction);
+				filesToLoad.Add(fileName, selectAction);
 			}
-			ShowDynamicSelectList(filesToLoad);
+			ShowSelectList(filesToLoad);
 		}
 
 		private void CreateDynamicButton_Mode()
@@ -1484,14 +1508,15 @@ namespace juniperD.StatefullServices
 					var atomNameAndSelectAction = new Dictionary<string, UnityAction>();
 					foreach (var atomUid in selectList)
 					{
-						UnityAction action = () => {
+						UnityAction action = () =>
+						{
 							var atom = SuperController.singleton.GetAtomByUid(atomUid);
 							_mutationsService.CaptureAdditionalAtom(atom, _currentCatalogEntry);
 							SelectCatalogEntry(_currentCatalogEntry);
 						};
 						atomNameAndSelectAction.Add(atomUid, action);
 					}
-					ShowDynamicSelectList(atomNameAndSelectAction, _dynamicSelectList.transform.position);
+					ShowSelectList(atomNameAndSelectAction, _dynamicSelectList.transform.position);
 				});
 				SetTooltipForDynamicButton(_dynamicButtonAddAtom, () => "Add atom to capture");
 			}
@@ -1585,7 +1610,8 @@ namespace juniperD.StatefullServices
 		{
 			var texture = TextureLoader.LoadTexture(GetPluginPath() + "/Resources/Reset3.png");
 			var button = _catalogUi.CreateButton(_windowContainer, "", 30, 30, 0, 80, new Color(1f, 0.5f, 0.05f, 0.5f), new Color(1f, 0.5f, 0.05f, 1f), new Color(1f, 1f, 1f), texture);
-			button.button.onClick.AddListener(() => {
+			button.button.onClick.AddListener(() =>
+			{
 				Action confirmAction = () => ResetCatalog();
 				ShowConfirm("Reset catalog?", confirmAction);
 			});
@@ -1636,13 +1662,30 @@ namespace juniperD.StatefullServices
 			var texture = TextureLoader.LoadTexture(GetPluginPath() + "/Resources/NextObject2.png");
 			var button = _catalogUi.CreateButton(_windowContainer, "", 35, 35, 0, 120, new Color(0.25f, 0.5f, 0.5f), Color.green, new Color(1f, 1f, 1f), texture);
 			button.buttonText.fontSize = 20;
-			button.button.onClick.AddListener(() => SelectNextAtom());
+			button.button.onClick.AddListener(() => ShowSelectAtomFromSceneList());
 			SetTooltipForDynamicButton(button, () =>
 			{
 				var currentAtom = SuperController.singleton.GetSelectedAtom();
 				var currentAtomName = currentAtom?.name;
-				return $"Current Atom: {currentAtomName ?? "(none)"}. Click to select next atom.";
+				return $"Select Atom in Scene. Current Atom: {currentAtomName ?? "(none)"}";
 			});
+		}
+
+		private void ShowSelectAtomFromSceneList()
+		{
+			var atomNames = SuperController.singleton.GetAtomUIDs();
+			Dictionary<string, UnityAction> atomsToSelect = new Dictionary<string, UnityAction>();
+			foreach (var atomName in atomNames)
+			{
+				UnityAction selectAction = () =>
+				{
+					var atom = SuperController.singleton.GetAtomByUid(atomName);
+					if (atom == null) return;
+					SuperController.singleton.SelectController(atom.mainController);
+				};
+				atomsToSelect.Add(atomName, selectAction);
+			}
+			ShowSelectList(atomsToSelect);
 		}
 
 		private void CreateDynamicButton_ResetPivot()
@@ -1689,7 +1732,8 @@ namespace juniperD.StatefullServices
 			var backPanel = CatalogUiHelper.CreatePanel(_dynamicConfirmPanel, _windowWidth, 210, 0, -_windowHeight, new Color(0.25f, 0.25f, 0.25f), Color.green);
 			_confirmLabel = _catalogUi.CreateTextField(_dynamicConfirmPanel, "", _windowWidth - 20, 140, 10, -_windowHeight + 10, new Color(0.25f, 0.25f, 0.25f), Color.white);
 			var confirmButton = _catalogUi.CreateButton(_dynamicConfirmPanel, "OK", 160, 40, _windowWidth - 320 - 10, -_windowHeight + 160, new Color(0.2f, 0.2f, 0.2f, 1f), new Color(0.5f, 0.5f, 0.5f, 1f), new Color(1f, 0.3f, 0.3f, 1));
-			confirmButton.button.onClick.AddListener(() => {
+			confirmButton.button.onClick.AddListener(() =>
+			{
 				_lastConfirmAction.Invoke();
 				HideConfirmMessage();
 			});
@@ -1725,7 +1769,8 @@ namespace juniperD.StatefullServices
 			// Add stop tracking button
 			var texture = TextureLoader.LoadTexture(GetPluginPath() + "/Resources/Delete3.png");
 			var stopTrackingButton = _catalogUi.CreateButton(buttonRow, "", 20, 20, 0, 0, Color.red, new Color(1f, 0.5f, 0.5f), Color.black, texture);
-			stopTrackingButton.button.onClick.AddListener(() => {
+			stopTrackingButton.button.onClick.AddListener(() =>
+			{
 				stopTrackingAction.Invoke(label);
 				RemoveUiCatalogSubItem(labelXButtonAndGroup);
 			});
@@ -1736,7 +1781,8 @@ namespace juniperD.StatefullServices
 			checkButton.buttonText.fontSize = 15;
 			checkButton.buttonText.fontStyle = FontStyle.Italic;
 			checkButton.buttonText.alignment = TextAnchor.MiddleLeft;
-			checkButton.button.onClick.AddListener(() => {
+			checkButton.button.onClick.AddListener(() =>
+			{
 				var newValue = checkButton.textColor == new Color(0.3f, 0.3f, 0.3f, 1) ? true : false;
 				checkButton.textColor = newValue ? new Color(1f, 0.3f, 0.3f, 1) : new Color(0.3f, 0.3f, 0.3f, 1);
 				onToggle.Invoke(newValue);
@@ -1746,7 +1792,7 @@ namespace juniperD.StatefullServices
 			return labelXButtonAndGroup;
 		}
 
-		public void ShowDynamicSelectList(Dictionary<string, UnityAction> itemList, Vector3? position = null)
+		public void ShowSelectList(Dictionary<string, UnityAction> itemList, Vector3? position = null)
 		{
 			foreach (var item in _dynamicListItems)
 			{
@@ -1767,7 +1813,8 @@ namespace juniperD.StatefullServices
 			button.buttonText.fontSize = 15;
 			button.buttonText.fontStyle = FontStyle.Italic;
 			button.buttonText.alignment = TextAnchor.MiddleLeft;
-			button.button.onClick.AddListener(() => {
+			button.button.onClick.AddListener(() =>
+			{
 				onSelect.Invoke();
 				_dynamicSelectList.transform.localScale = Vector3.zero;
 			});
@@ -1778,9 +1825,16 @@ namespace juniperD.StatefullServices
 
 		public void RemoveUiCatalogSubItem(UiCatalogSubItem catalogSubItemItem)
 		{
-			if (catalogSubItemItem.ItemActiveCheckbox != null) RemoveButton(catalogSubItemItem.ItemActiveCheckbox);
-			if (catalogSubItemItem.StopTrackingItemButton != null) RemoveButton(catalogSubItemItem.StopTrackingItemButton);
-			if (catalogSubItemItem.ButtonRow != null) Destroy(catalogSubItemItem.ButtonRow);
+			try
+			{
+				if (catalogSubItemItem.ItemActiveCheckbox != null) RemoveButton(catalogSubItemItem.ItemActiveCheckbox);
+				if (catalogSubItemItem.StopTrackingItemButton != null) RemoveButton(catalogSubItemItem.StopTrackingItemButton);
+				if (catalogSubItemItem.ButtonRow != null) Destroy(catalogSubItemItem.ButtonRow);
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+			}
 		}
 
 		private void CreateDynamicButton_Tooltip()
@@ -1791,13 +1845,11 @@ namespace juniperD.StatefullServices
 			_toolTipLabel.transform.localScale = Vector3.zero;
 		}
 
-		private void CreateDynamicButton_Label()
+		private void CreateDynamicButton_DebugPanel()
 		{
-			_modeLabel = _catalogUi.CreateButton(_catalogUi.canvas.gameObject, "Hello", _windowWidth - 90, 40, 0, 0, new Color(0.0f, 0.0f, 0.0f, 0.7f), new Color(0.0f, 0.0f, 0.0f, 0.7f), new Color(0.7f, 0.7f, 0.7f, 1));
-			_modeLabel.buttonText.fontSize = 20;
-			_modeLabel.buttonText.alignment = TextAnchor.MiddleRight;
-			//_windowLabel.buttonText.alignment = TextAnchor.MiddleLeft;
-			//_toolTipLabel.transform.localScale = Vector3.zero;
+			_debugPanel = _catalogUi.CreateTextField(_catalogUi.canvas.gameObject, "Hello", 250, 250, 0, -550, Color.gray, Color.white);
+			_debugPanel.UItext.fontSize = 20;
+			_debugPanel.UItext.alignment = TextAnchor.UpperLeft;
 		}
 
 		private void CreateDynamicButton_SideLabel()
@@ -1827,11 +1879,18 @@ namespace juniperD.StatefullServices
 			};
 			Action onStartDraggingEvent = () =>
 			{
-				positionTracker.AllowDragX = IsAnchoredOnHUD(); // ...only allow dragging if anchored on HUD
-				positionTracker.AllowDragY = IsAnchoredOnHUD();// ...only allow dragging if anchored on HUD
-				positionTracker.IsIn3DSpace = !IsAnchoredOnHUD();
-				positionTracker.XMultiplier = positionTracker.IsIn3DSpace ? 1f : -1f;
-				positionTracker.YMultiplier = 1f;
+				try
+				{
+					positionTracker.AllowDragX = IsAnchoredOnHUD(); // ...only allow dragging if anchored on HUD
+					positionTracker.AllowDragY = IsAnchoredOnHUD();// ...only allow dragging if anchored on HUD
+					positionTracker.IsIn3DSpace = !IsAnchoredOnHUD();
+					positionTracker.XMultiplier = positionTracker.IsIn3DSpace ? 1f : -1f;
+					positionTracker.YMultiplier = 1f;
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
 			};
 			positionTracker.AddMouseDraggingToObject(_catalogNameLabel.gameObject, _catalogUi.canvas.gameObject, true, true, onStartDraggingEvent, _onCatalogDragFinishedEvent);
 
@@ -1859,28 +1918,37 @@ namespace juniperD.StatefullServices
 			};
 			Action onStartDraggingEvent = () =>
 			{
-				positionTracker.AllowDragX = IsAnchoredOnHUD(); // ...only allow dragging if anchored on HUD
-				positionTracker.AllowDragY = IsAnchoredOnHUD();// ...only allow dragging if anchored on HUD
-				positionTracker.IsIn3DSpace = !IsAnchoredOnHUD();
-				positionTracker.XMultiplier = positionTracker.IsIn3DSpace ? 1f : -1f;
-				positionTracker.YMultiplier = 1f;
+				try
+				{
+					positionTracker.AllowDragX = IsAnchoredOnHUD(); // ...only allow dragging if anchored on HUD
+					positionTracker.AllowDragY = IsAnchoredOnHUD();// ...only allow dragging if anchored on HUD
+					positionTracker.IsIn3DSpace = !IsAnchoredOnHUD();
+					positionTracker.XMultiplier = positionTracker.IsIn3DSpace ? 1f : -1f;
+					positionTracker.YMultiplier = 1f;
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
 			};
 			positionTracker.AddMouseDraggingToObject(_backPanel.gameObject, _catalogUi.canvas.gameObject, true, true, onStartDraggingEvent, _onCatalogDragFinishedEvent);
 
 		}
 
-		private bool DynamicConfirm(string v)
-		{
-			throw new NotImplementedException();
-		}
-
 		private void SelectNextAtom()
 		{
-			_nextAtomIndex++;
-			var atoms = SuperController.singleton.GetAtoms();
-			if (_nextAtomIndex >= atoms.Count) _nextAtomIndex = 0;
-			if (atoms.Count == 0) return;
-			SuperController.singleton.SelectController(atoms[_nextAtomIndex].mainController);
+			try
+			{
+				_nextAtomIndex++;
+				var atoms = SuperController.singleton.GetAtoms();
+				if (_nextAtomIndex >= atoms.Count) _nextAtomIndex = 0;
+				if (atoms.Count == 0) return;
+				SuperController.singleton.SelectController(atoms[_nextAtomIndex].mainController);
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+			}
 		}
 
 		private void SaveCatalogToFile(string filePath)
@@ -1907,6 +1975,7 @@ namespace juniperD.StatefullServices
 
 		private Catalog LoadCatalogFromFile(string filePath)
 		{
+			SuperController.LogMessage("Loading catalog from file...");
 			try
 			{
 				if (string.IsNullOrEmpty(filePath)) return null;
@@ -1954,26 +2023,22 @@ namespace juniperD.StatefullServices
 			//return catalog.ActiveVersionMessage != null && catalog.ActiveVersionMessage.Then == SerializerService_3_0_1.DO_NOT_LOAD;
 		}
 
-		public string GetScenesDirectoryPath()
-		{
-			var dataPath = $"{Application.dataPath}";
-			var currentLoadDir = SuperController.singleton.currentLoadDir;
-			var pathElements = dataPath.Split('/');
-			var scenePath = pathElements.Take(pathElements.Length - 1).ToList().Aggregate((a, b) => $"{a}/{b}") + "/" + currentLoadDir;
-			return scenePath;
-		}
-
 		public string GetSceneDirectoryPath()
 		{
-			var dataPath = $"{Application.dataPath}";
-			SuperController.LogMessage("dataPath: " + dataPath);
-			var currentLoadDir = SuperController.singleton.currentLoadDir;
-			SuperController.LogMessage("currentLoadDir: " + currentLoadDir);
-			var pathElements = dataPath.Split('/');
-			var scenePath = currentLoadDir;
-			//var scenePath = pathElements.Take(pathElements.Length - 1).ToList().Aggregate((a, b) => $"{a}/{b}") + "/" + currentLoadDir;
-			SuperController.LogMessage("scenePath: " + scenePath);
-			return scenePath;
+			try
+			{
+				return SuperController.singleton.currentLoadDir;
+				//var dataPath = $"{Application.dataPath}";
+				//var currentLoadDir = SuperController.singleton.currentLoadDir;
+				//var pathElements = dataPath.Split('/');
+				//var scenePath = currentLoadDir;
+				//var scenePath = pathElements.Take(pathElements.Length - 1).ToList().Aggregate((a, b) => $"{a}/{b}") + "/" + currentLoadDir;
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+				throw e;
+			}
 		}
 
 		private void ZoomOutCatalog()
@@ -1990,42 +2055,56 @@ namespace juniperD.StatefullServices
 
 		private void ResizeCatalogEntry(CatalogEntry catalogEntry, int newSize)
 		{
-			var catalogEntryPanel = catalogEntry.UiCatalogEntryPanel.GetComponents<RectTransform>().First();
-			catalogEntryPanel.sizeDelta = new Vector2(newSize, newSize);
+			try
+			{
+				var catalogEntryPanel = catalogEntry.UiCatalogEntryPanel.GetComponents<RectTransform>().First();
+				catalogEntryPanel.sizeDelta = new Vector2(newSize, newSize);
 
-			var applyButtonRect = catalogEntry.UiApplyButton.GetComponents<RectTransform>().First();
-			applyButtonRect.sizeDelta = new Vector2(10, newSize);
-			CatalogUiHelper.SetAnchors(catalogEntry.UiCatalogEntryPanel, catalogEntry.UiApplyButton.gameObject, "bottom");
+				var applyButtonRect = catalogEntry.UiApplyButton.GetComponents<RectTransform>().First();
+				applyButtonRect.sizeDelta = new Vector2(10, newSize);
+				CatalogUiHelper.SetAnchors(catalogEntry.UiCatalogEntryPanel, catalogEntry.UiApplyButton.gameObject, "bottom");
 
-			var btnHeight = _catalogEntryFrameSize.val / 5;
-			var btnWidth = (_catalogEntryFrameSize.val / 5) - _catalogEntryFrameSize.val / 50;
-			var discardButtonRect = catalogEntry.UiDiscardButton.GetComponents<RectTransform>().First();
-			discardButtonRect.sizeDelta = new Vector2(btnWidth, btnHeight);
-			var keepButtonRect = catalogEntry.UiKeepButton.GetComponents<RectTransform>().First();
-			keepButtonRect.sizeDelta = new Vector2(btnWidth, btnHeight);
-			var selectButtonRect = catalogEntry.UiApplyButton.GetComponents<RectTransform>().First();
-			selectButtonRect.sizeDelta = new Vector2(btnWidth, btnHeight);
-			CatalogUiHelper.SetAnchors(catalogEntry.UiCatalogEntryPanel, catalogEntry.UiBottomButtonGroup, "bottom", 10, 0);
+				var btnHeight = _catalogEntryFrameSize.val / 5;
+				var btnWidth = (_catalogEntryFrameSize.val / 5) - _catalogEntryFrameSize.val / 50;
+				var discardButtonRect = catalogEntry.UiDiscardButton.GetComponents<RectTransform>().First();
+				discardButtonRect.sizeDelta = new Vector2(btnWidth, btnHeight);
+				var keepButtonRect = catalogEntry.UiKeepButton.GetComponents<RectTransform>().First();
+				keepButtonRect.sizeDelta = new Vector2(btnWidth, btnHeight);
+				var selectButtonRect = catalogEntry.UiApplyButton.GetComponents<RectTransform>().First();
+				selectButtonRect.sizeDelta = new Vector2(btnWidth, btnHeight);
+				CatalogUiHelper.SetAnchors(catalogEntry.UiCatalogEntryPanel, catalogEntry.UiBottomButtonGroup, "bottom", 10, 0);
 
-			_catalogRowsVLayout.spacing = relativeBorderWidth;
-			_catalogColumnsHLayout.spacing = relativeBorderWidth;
+				_catalogRowsVLayout.spacing = relativeBorderWidth;
+				_catalogColumnsHLayout.spacing = relativeBorderWidth;
 
-			ResizeBorders(catalogEntry, newSize);
-			ResetScrollPosition();
+				ResizeBorders(catalogEntry, newSize);
+				ResetScrollPosition();
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+			}
 		}
 
 		private void ResizeBorders(CatalogEntry catalogEntry, float newSize)
 		{
-			float originRatio = newSize / defaultFrameSize;
-			relativeBorderWidth = (int)(originRatio * defaultBorderWidth);
-			float height = newSize;
-			float width = newSize;
-			float offsetX = 0;
-			float offsetY = 0;
-			ResizeBorder(catalogEntry.UiCatalogBorder.LeftBorder, relativeBorderWidth, height + relativeBorderWidth + offsetY, width / -2 - offsetX, 0);
-			ResizeBorder(catalogEntry.UiCatalogBorder.RightBorder, relativeBorderWidth, height + relativeBorderWidth + offsetY, width / 2 + offsetX, 0);
-			ResizeBorder(catalogEntry.UiCatalogBorder.TopBorder, width + relativeBorderWidth + offsetX, relativeBorderWidth, 0, height / -2 - offsetY);
-			ResizeBorder(catalogEntry.UiCatalogBorder.BottomBorder, width + relativeBorderWidth + offsetX, relativeBorderWidth, 0, height / 2 + offsetY);
+			try
+			{
+				float originRatio = newSize / defaultFrameSize;
+				relativeBorderWidth = (int)(originRatio * defaultBorderWidth);
+				float height = newSize;
+				float width = newSize;
+				float offsetX = 0;
+				float offsetY = 0;
+				ResizeBorder(catalogEntry.UiCatalogBorder.LeftBorder, relativeBorderWidth, height + relativeBorderWidth + offsetY, width / -2 - offsetX, 0);
+				ResizeBorder(catalogEntry.UiCatalogBorder.RightBorder, relativeBorderWidth, height + relativeBorderWidth + offsetY, width / 2 + offsetX, 0);
+				ResizeBorder(catalogEntry.UiCatalogBorder.TopBorder, width + relativeBorderWidth + offsetX, relativeBorderWidth, 0, height / -2 - offsetY);
+				ResizeBorder(catalogEntry.UiCatalogBorder.BottomBorder, width + relativeBorderWidth + offsetX, relativeBorderWidth, 0, height / 2 + offsetY);
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+			}
 		}
 
 		private static void ResizeBorder(GameObject border, float width, float height, float offsetX = 0, float offsetY = 0)
@@ -2056,6 +2135,8 @@ namespace juniperD.StatefullServices
 
 			try
 			{
+				//_debugPanel.text = string.Join("\n", _catalog.Entries.Select(e => e.UniqueName).ToArray());
+
 				if (_atomType == ATOM_TYPE_PERSON) _mutationsService.Update();
 
 				ManageScreenshotCaptureSequence();
@@ -2268,7 +2349,6 @@ namespace juniperD.StatefullServices
 			{
 				foreach (var infoToggle in entry.InfoToggles)
 				{
-					SuperController.LogMessage("removing atom: " + infoToggle.ItemActiveCheckbox.label);
 					RemoveUiCatalogSubItem(infoToggle);
 				}
 				entry.InfoToggles = new List<UiCatalogSubItem>();
@@ -2277,30 +2357,33 @@ namespace juniperD.StatefullServices
 
 		private void AddItemToggles(CatalogEntry catalogEntry)
 		{
-
-
-			if (_catalogMode.val == Enums.CATALOG_MODE_SESSION)
+			for (var i = 0; i < catalogEntry.Mutation.StoredAtoms.Count; i++)
 			{
-				for (var i = 0; i < catalogEntry.Mutation.StoredAtoms.Count; i++)
+				if (catalogEntry.CatalogMode == Enums.CATALOG_MODE_SESSION)
 				{
 					var storedAtom = catalogEntry.Mutation.StoredAtoms[i];
-					UnityAction<bool> onToggleAction = (value) =>
-					{
-						var atom = SuperController.singleton.GetAtomByUid(storedAtom.AtomName);
-						atom.SetOn(value);
-						storedAtom.Active = value;
-					};
-					UnityAction<string> stopTracking = (atomName) =>
-					{
-						var atomToRemove = catalogEntry.Mutation.StoredAtoms.FirstOrDefault(a => a.AtomName == atomName);
-						catalogEntry.Mutation.StoredAtoms.Remove(atomToRemove);
-						SelectCatalogEntry(catalogEntry);
-					};
-					var currentAtomState = SuperController.singleton.GetAtomByUid(storedAtom.AtomName);
-					UiCatalogSubItem infoToggle = AddInfoCheckbox(storedAtom.AtomName, storedAtom.Active, onToggleAction, stopTracking);
-					catalogEntry.InfoToggles.Add(infoToggle);
+					AddSessionModeItmeToggle(catalogEntry, storedAtom);
 				}
 			}
+		}
+
+		private void AddSessionModeItmeToggle(CatalogEntry catalogEntry, StoredAtom storedAtom)
+		{
+			UnityAction<bool> onToggleAction = (value) =>
+			{
+				var atom = SuperController.singleton.GetAtomByUid(storedAtom.AtomName);
+				atom.SetOn(value);
+				storedAtom.Active = value;
+			};
+			UnityAction<string> stopTracking = (atomName) =>
+			{
+				var atomToRemove = catalogEntry.Mutation.StoredAtoms.FirstOrDefault(a => a.AtomName == atomName);
+				catalogEntry.Mutation.StoredAtoms.Remove(atomToRemove);
+				SelectCatalogEntry(catalogEntry);
+			};
+			var currentAtomState = SuperController.singleton.GetAtomByUid(storedAtom.AtomName);
+			UiCatalogSubItem infoToggle = AddInfoCheckbox(storedAtom.AtomName, storedAtom.Active, onToggleAction, stopTracking);
+			catalogEntry.InfoToggles.Add(infoToggle);
 		}
 
 		private void DefaultCatalogEntrySelectAction(CatalogEntry catalogEntry)
@@ -2504,7 +2587,8 @@ namespace juniperD.StatefullServices
 			catalogEntry.UiApplyButton = applyButton;
 			SetTooltipForDynamicButton(catalogEntry.UiApplyButton, () => "Apply");
 			catalogEntry.ApplyAction = GetAppropriateApplyAction(catalogEntry, customAction);
-			catalogEntry.UiApplyButton.button.onClick.AddListener(() => {
+			catalogEntry.UiApplyButton.button.onClick.AddListener(() =>
+			{
 				// Unhighlight the other apply button...
 				_catalog.Entries.ForEach(e => e.UiApplyButton.buttonColor = new Color(0.7f, 0.7f, 0.7f, 1f));
 				// Highlight this apply button...
@@ -2517,8 +2601,7 @@ namespace juniperD.StatefullServices
 		private void AddEntrySelectionOverlay(CatalogEntry catalogEntry, GameObject catalogEntryPanel)
 		{
 			// Select button
-			//var selectButtonColor = new Color(0.5f, 0.5f, 0.5f, 0f);
-			var selectButtonColor = new Color(1f, 0.5f, 0.5f, 0.5f);
+			var selectButtonColor = new Color(1f, 0.5f, 0.5f, 0f);
 			var selectButtonHighlightColor = selectButtonColor; //new Color(0.0f, 0.0f, 0.5f, 0.2f); ;
 			UIDynamicButton selectButton = _catalogUi.CreateButton(catalogEntryPanel, "", 0, (int)_catalogEntryFrameSize.val, 0, 0, selectButtonColor, selectButtonHighlightColor, Color.white);
 			catalogEntry.UiSelectButton = selectButton;
@@ -2658,6 +2741,13 @@ namespace juniperD.StatefullServices
 
 		void DestroyCatalogEntry(CatalogEntry catalogEntry)
 		{
+			catalogEntry.InfoToggles.ForEach(RemoveUiCatalogSubItem);
+			
+			catalogEntry.Mutation.ActiveMorphs.ForEach(m => RemoveUiCatalogSubItem(m.DynamicCheckbox));
+			catalogEntry.Mutation.ClothingItems.ForEach(m => RemoveUiCatalogSubItem(m.DynamicCheckbox));
+			catalogEntry.Mutation.HairItems.ForEach(m => RemoveUiCatalogSubItem(m.DynamicCheckbox));
+			catalogEntry.Mutation.FaceGenMorphSet.ForEach(m => RemoveUiCatalogSubItem(m.DynamicCheckbox));
+
 			Destroy(catalogEntry.UiApplyButton);
 			Destroy(catalogEntry.UiKeepButton);
 			Destroy(catalogEntry.UiBottomButtonGroup);
@@ -3124,6 +3214,8 @@ namespace juniperD.StatefullServices
 
 		private void CenterPivot(Atom atom)
 		{
+			SuperController.singleton.SelectController(atom.mainController);
+
 			var allJointsController = atom.GetComponentInChildren<AllJointsController>();
 			/// Detach control of joints...
 			allJointsController.SetAllJointsControlOff();
