@@ -1,7 +1,12 @@
-﻿using juniperD.Models;
+﻿using Battlehub.UIControls;
+using juniperD.Models;
 using System;
 using System.Collections;
+using System.Collections.Generic;
+using System.Linq;
+using System.Runtime.CompilerServices;
 using UnityEngine;
+using UnityEngine.Events;
 using UnityEngine.UI;
 using UnityEngine.XR;
 
@@ -11,7 +16,7 @@ namespace juniperD.StatefullServices
 	public class CatalogUiHelper
 	{
 		public Canvas canvas;
-		public bool AlwaysFaceMe {get; set; } = false;
+		public bool AlwaysFaceMe { get; set; } = false;
 		public bool Visible { get; set; } = true;
 		CatalogPlugin _context;
 
@@ -27,7 +32,7 @@ namespace juniperD.StatefullServices
 
 			// Flip canvas so that its facing the user and not the character...
 			//canvasObject.transform.rotation = Quaternion.Euler(0,180,0);
-			
+
 			SuperController.singleton.AddCanvas(canvas);
 			//relative scale of canvas to VAM person
 			float scaleX = 0.001f;
@@ -105,18 +110,31 @@ namespace juniperD.StatefullServices
 			texture.Apply();
 		}
 
-		public static GameObject CreatePanel(GameObject parent, int width, int height, int left, int top, Color backgroundColor, Color borderColor)
+		public static GameObject CreatePanel(GameObject parent, float width, float height, int left, int top, Color backgroundColor, Color borderColor, Texture2D texture = null)
 		{
 			try
 			{
 				GameObject panel = new GameObject("Panel");
 				panel.AddComponent<CanvasRenderer>();
 				panel.transform.SetParent(parent.transform, false);
-				Image i = panel.AddComponent<Image>();
-				i.color = backgroundColor;
-				RectTransform r = i.rectTransform;
+				Image imageObject = panel.AddComponent<Image>();
+
+				imageObject.color = backgroundColor;
+				RectTransform r = imageObject.rectTransform;
 				r.sizeDelta = new Vector2(width, height);
 				var target = parent.transform.GetComponent<RectTransform>();
+
+				if (texture != null)
+				{
+					Sprite mySprite = Sprite.Create(texture, new Rect(0.0f, 0.0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100.0f);
+					imageObject.sprite = mySprite;
+					texture.Apply();
+					//string referenceField = "_MainTex" + UnityEngine.Random.value;
+					//Material mat = new Material(imageObject.material);
+					//imageObject.material = mat;
+					//imageObject.material.mainTexture = texture;
+
+				}
 				SetAnchors(parent, panel, "topleft", left, top);
 				return panel;
 			}
@@ -133,10 +151,10 @@ namespace juniperD.StatefullServices
 			{
 				var newBorder = new Border();
 				newBorder.texture = new Texture2D(borderWidth, borderWidth);
-				newBorder.LeftBorder = CreateImagePanel(parent, newBorder.texture, borderWidth, height + borderWidth + offsetY, width/-2 - offsetX, 0);
-				newBorder.RightBorder = CreateImagePanel(parent, newBorder.texture, borderWidth, height + borderWidth + offsetY, width/2 + offsetX, 0);
-				newBorder.TopBorder = CreateImagePanel(parent, newBorder.texture, width + borderWidth + offsetX, borderWidth, 0, height/-2 - offsetY);
-				newBorder.BottomBorder = CreateImagePanel(parent, newBorder.texture, width + borderWidth + offsetX, borderWidth, 0, height/2 + offsetY);
+				newBorder.LeftBorder = CreateImagePanel(parent, newBorder.texture, borderWidth, height + borderWidth + offsetY, width / -2 - offsetX, 0);
+				newBorder.RightBorder = CreateImagePanel(parent, newBorder.texture, borderWidth, height + borderWidth + offsetY, width / 2 + offsetX, 0);
+				newBorder.TopBorder = CreateImagePanel(parent, newBorder.texture, width + borderWidth + offsetX, borderWidth, 0, height / -2 - offsetY);
+				newBorder.BottomBorder = CreateImagePanel(parent, newBorder.texture, width + borderWidth + offsetX, borderWidth, 0, height / 2 + offsetY);
 				AddBorderColorToTexture(newBorder.texture, initialColor, borderWidth);
 				return newBorder;
 			}
@@ -149,7 +167,8 @@ namespace juniperD.StatefullServices
 
 		public GameObject CreateImagePanel(GameObject parent, Texture2D texture, int width, int height, int offsetX = 0, int offsetY = 0)
 		{
-			try {
+			try
+			{
 				//AddBorderColorToTexture(texture, Color.white);
 				GameObject localPanel = new GameObject("Panel");
 				localPanel.transform.SetParent(parent.transform, false);
@@ -165,7 +184,7 @@ namespace juniperD.StatefullServices
 				rect.sizeDelta = new Vector2(width, height);
 				return localPanel;
 			}
-			catch(Exception e)
+			catch (Exception e)
 			{
 				SuperController.LogError(e.ToString());
 				throw e;
@@ -174,7 +193,8 @@ namespace juniperD.StatefullServices
 
 		public void ShiftTextureLeft(Texture2D texture, int xAmount)
 		{
-			for (var i = 0; i < xAmount; i++) { 
+			for (var i = 0; i < xAmount; i++)
+			{
 				Color[] floatingSlice = new Color[texture.height];
 				for (var y = 0; y < texture.height; y++)
 				{
@@ -192,7 +212,7 @@ namespace juniperD.StatefullServices
 				}
 				texture.Apply();
 			}
-			
+
 		}
 		//IEnumerator OffsetMaterial(Material mat, float amount){ 
 		//	yield return new WaitForEndOfFrame();
@@ -246,6 +266,194 @@ namespace juniperD.StatefullServices
 			button.button.colors = colors;
 			return button;
 		}
+
+		public DynamicDropdownField CreateDynamicDropdown(GameObject parent, string name, List<string> items, float width, float height, int left, int top, Color color, Color hoverColor, Color textColor, int? fontSize = null, int infoBoxHeight = 0, UnityAction<string> onOptionSelect = null)
+		{
+			var dynamicDropdown = new DynamicDropdownField();
+
+			dynamicDropdown.label = CreateButton(parent, name, width, height, left, top, Color.clear, Color.clear, textColor * 0.7f);
+			dynamicDropdown.label.buttonText.fontSize = (int)((fontSize ?? 20) * 0.9);
+			dynamicDropdown.label.buttonText.alignment = TextAnchor.LowerLeft;
+
+			dynamicDropdown.selectedOption = CreateButton(parent, "", width, height, left, (int)(top + height), color, hoverColor, textColor);
+			dynamicDropdown.selectedOption.buttonText.fontSize = fontSize ?? 20;
+			dynamicDropdown.items = items;
+
+			if (infoBoxHeight > 0) { 
+				dynamicDropdown.infoBox = CreateTextField(parent, "", width, infoBoxHeight, left, top + (int)(height * 2), color + new Color(0.1f,0.1f,0.1f), textColor);
+				dynamicDropdown.infoBox.UItext.fontSize = (int)(fontSize * 0.9);
+				dynamicDropdown.infoBox.UItext.fontStyle = FontStyle.Italic;
+				dynamicDropdown.infoBox.UItext.alignment = TextAnchor.UpperLeft;	
+			}
+
+			dynamicDropdown.selectedOption.button.onClick.AddListener(() =>
+			{
+				ShowDropDownItems(parent, dynamicDropdown, width, height, left, top, color, hoverColor,textColor,onOptionSelect);
+			});
+
+			dynamicDropdown.onRefresh = () =>
+			{
+				if (dynamicDropdown.infoBox != null) dynamicDropdown.infoBox.UItext.text = string.Join("\n•", dynamicDropdown.items.ToArray());
+			};
+
+			return dynamicDropdown;
+		}
+
+		public void ShowDropDownItems(GameObject parent, DynamicDropdownField dynamicDropdown, float width, float height, int left, int top, Color color, Color hoverColor, Color textColor, UnityAction<string> onOptionSelect = null, bool refreshOnly = false)
+		{
+
+			top = top +5;
+
+			if (dynamicDropdown.isOpen)
+			{
+				ClearDropdownList(dynamicDropdown);
+				dynamicDropdown.isOpen = false;
+				return;
+			}
+
+			try
+			{
+				
+				var panelHeight = dynamicDropdown.items.Count * height + 10;
+				var panelTop = top + height * 2 - 5;
+				dynamicDropdown.backpanel = CreatePanel(parent, width + 10, panelHeight, left - 5, (int)(panelTop), color + new Color(0.5f, 0.3f, 0.3f), Color.white);
+
+				dynamicDropdown.options = new Dictionary<UIDynamicButton, string>();
+				var itemTop = top + (height * 2);
+				foreach (var option in dynamicDropdown.items)
+				{
+					//if (dynamicDropdown.selectedValue == option) continue;
+					var optionButton = CreateButton(parent, option, width, height, left, (int)itemTop, color + new Color(0.1f, 0.1f, 0.1f), hoverColor + new Color(0.1f, 0.1f, 0.1f), textColor + new Color(0.1f, 0.1f, 0.1f));
+					optionButton.buttonText.fontSize = dynamicDropdown.label.buttonText.fontSize;
+					optionButton.button.onClick.AddListener(() =>
+					{
+						try
+						{
+							dynamicDropdown.selectedOption.buttonText.text = option;
+							dynamicDropdown.selectedValue = option;
+							ClearDropdownList(dynamicDropdown);
+							dynamicDropdown.isOpen = false;
+							onOptionSelect.Invoke(option);
+						}
+						catch (Exception e)
+						{
+							SuperController.LogError(e.ToString());
+						}
+					});
+					dynamicDropdown.options.Add(optionButton, option);
+					itemTop += height;
+				}
+				dynamicDropdown.isOpen = true;
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+			}
+		}
+
+		public DynamicListBox CreateDynamicListField(GameObject parent, string name, List<string> items, float width, float height, int left, int top, Color color, Color hoverColor, Color textColor, int? fontSize = null, UnityAction<string> onItemSelect = null)
+		{
+			var dynamicListBox = new DynamicListBox();
+			
+			dynamicListBox.label = CreateButton(parent, name, width, height, left, top, Color.clear, Color.clear, textColor);
+			dynamicListBox.label.buttonText.alignment = TextAnchor.LowerLeft;
+			dynamicListBox.label.buttonText.fontSize = fontSize ?? 20;
+			dynamicListBox.items = items;
+			dynamicListBox.onRefresh = () =>
+			{
+				try
+				{
+					foreach (var prevOption in dynamicListBox.itemButtons)
+					{
+						if (prevOption.Key == null) return;
+						_context.RemoveButton(prevOption.Key);
+					}
+
+					dynamicListBox.itemButtons = new Dictionary<UIDynamicButton, string>();
+					var itemTop = top + (height);
+					foreach (var item in dynamicListBox.items)
+					{
+						var optionButton = CreateButton(parent, item, width, height, left, (int)itemTop, color + new Color(0.1f, 0.1f, 0.1f), hoverColor + new Color(0.1f, 0.1f, 0.1f), textColor + new Color(0.1f, 0.1f, 0.1f));
+						optionButton.buttonText.fontSize = dynamicListBox.label.buttonText.fontSize;
+						optionButton.button.onClick.AddListener(() =>
+						{
+							try
+							{
+								onItemSelect.Invoke(item);
+							}
+							catch (Exception e)
+							{
+								SuperController.LogError(e.ToString());
+							}
+						});
+						dynamicListBox.itemButtons.Add(optionButton, item);
+						itemTop += height;
+					}
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
+			};
+			return dynamicListBox;
+		}
+
+		public void ClearDropdownList(DynamicDropdownField dynamicDropdown)
+		{
+			foreach (var prevOption in dynamicDropdown.options)
+			{
+				if (prevOption.Key == null) return;
+				_context.RemoveButton(prevOption.Key);
+			}			
+			GameObject.Destroy(dynamicDropdown.backpanel);
+			dynamicDropdown.backpanel = null;
+			//var backpanelRect = dynamicDropdown.backpanel.GetComponents<RectTransform>().First();
+			//backpanelRect.sizeDelta = new Vector2(backpanelRect.rect.width, 0);
+			//dynamicDropdown.options = new Dictionary<UIDynamicButton, string>();
+		}
+
+		//public UIDynamicPopup CreatePopupField(GameObject parent, string name, string[] options, float width, float height, int left, int top, Color backColor, Color textColor)
+		//{
+		//	Transform field = GameObject.Instantiate<Transform>(_context.manager.configurablePopupPrefab);
+
+		//	field.transform.localPosition = new Vector3(left, top, 0.0f);
+		//	field.SetParent(parent.transform, false);
+
+		//	RectTransform rt = field.GetComponent<RectTransform>();
+		//	rt.sizeDelta = new Vector2(width, height);
+
+		//	RectTransform parentRectTransform = field.GetComponent<RectTransform>();
+		//	SetAnchors(parent, field.gameObject, "topleft", left, top);
+
+		//	UIDynamicPopup uiField = field.GetComponent<UIDynamicPopup>();
+		//	uiField.label = name;
+		//	uiField.name = name;
+		//	options = new[] { "Test1", "Test2"};
+		//	uiField.popup.numPopupValues = options.Length;
+		//	for (var i = 0; i <  options.Length; i++)
+		//	{
+		//		SuperController.LogMessage("setting: " + i + " to " + options[i]);
+		//		uiField.popup.setPopupValue(i, options[i] );
+		//		uiField.popup.setDisplayPopupValue(i, options[i]);
+		//	}
+		//	SuperController.LogMessage("checking: " + string.Join(",", uiField.popup.popupValues));
+		//	//uiField.popup.normalColor = backColor;
+		//	//uiField.labelTextColor = textColor;
+		//	//uiField.popupPanelHeight = 300;
+		//	//uiField.labelWidth = 200;
+		//	//uiField.popup.
+		//	uiField.popup.normalBackgroundColor = backColor;
+		//	uiField.popup.showSlider = true;
+		//	uiField.popup.visible = true;
+		//	uiField.popup.popupPanel.position = field.position;
+		//	uiField.popup.normalColor = backColor;
+		//	uiField.height = 200;
+		//	uiField.popup.onOpenPopupHandlers = () => { 
+		//		SuperController.LogMessage("Opening");
+		//	};
+
+		//	return uiField;
+		//}
 
 		public UIDynamicTextField CreateTextField(GameObject parent, string name, float width, float height, int left, int top, Color backColor, Color textColor, Texture2D texture = null)
 		{
@@ -307,7 +515,8 @@ namespace juniperD.StatefullServices
 			UIDynamicButton uiButton = button.GetComponent<UIDynamicButton>();
 			uiButton.label = name;
 
-			if (texture != null) {
+			if (texture != null)
+			{
 				Sprite mySprite = Sprite.Create(texture, new Rect(0.0f, 0.0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100.0f);
 				uiButton.buttonImage.sprite = mySprite;
 			}

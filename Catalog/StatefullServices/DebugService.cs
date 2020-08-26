@@ -1,6 +1,8 @@
 ﻿using juniperD.Models;
 using juniperD.Services;
+using MVR.FileManagementSecure;
 using PrefabEvolution;
+using SimpleJSON;
 using System;
 using System.Collections;
 using System.Collections.Generic;
@@ -18,32 +20,125 @@ namespace juniperD.StatefullServices
 		// Experimental...
 		List<Vector3> _vertexCache = new List<Vector3>();
 
-
-		//public void parentLinkAtPosition(Atom a, Atom parent, JSONStorable toPosition, string toPositionName)
-		//{
-		//	a.parentAtom = parent;
-		//	Vector3 p = toPosition.transform.position;
-		//	a.mainController.currentPositionState = FreeControllerV3.PositionState.On;
-		//	a.mainController.transform.position = new Vector3(p.x, p.y, p.z);
-		//	a.mainController.SetLinkToAtom(parent.uid);
-		//	a.mainController.SetLinkToRigidbodyObject(toPositionName);
-		//	a.mainController.currentPositionState = FreeControllerV3.PositionState.ParentLink;
-		//	a.mainController.canGrabPosition = false;
-		//	a.mainController.canGrabRotation = false;
-		//}
-
-
-
-		//IEnumerator TurnOnJoints()
-		//{
-		//	//yield return new WaitForFixedUpdate();// WaitForEndOfFrame();
-
-		//}
-
-
 		public void Init(CatalogPlugin context)
 		{
 			_context = context;
+
+			_context.CreateButton("DEBUG show serialized storables").button.onClick.AddListener(() =>
+			{
+				try
+				{
+					var atom = SuperController.singleton.GetSelectedAtom();
+					var atomStorables = atom.GetStorableIDs();
+					//SuperController.LogMessage("Has geometry: " + atomStorables.Any(s => s == "geometry"));
+					foreach (var storableId in atom.GetStorableIDs())
+					{
+						_context.ShowDebugPanel("");
+					}
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
+			});
+
+			_context.CreateButton("DEBUG List clothing items").button.onClick.AddListener(() =>
+			{
+				try
+				{
+					var atom = SuperController.singleton.GetSelectedAtom();
+					JSONStorable geometry = atom.GetStorableByID("geometry");
+					DAZCharacterSelector character = geometry as DAZCharacterSelector;
+					foreach (var item in character.clothingItems)
+					{
+						SuperController.LogMessage("Clothing item: " + item.uid);
+					}
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
+			});
+
+			_context.CreateButton("DEBUG Register new Storable").button.onClick.AddListener(() =>
+			{
+				try
+				{
+					var atom = SuperController.singleton.GetSelectedAtom();
+					var newStorable = new JSONStorable();
+					newStorable.containingAtom = atom;
+
+					atom.RegisterBool(new JSONStorableBool("Test", true));
+					//var newStorableBool = 
+					//newStorable.overrideId = "bob";
+					//newStorable.RegisterBool(newStorableBool);
+					var jClass = new JSONClass();
+					jClass["id"] = "bob";
+					jClass["testprop"] = "testval";
+					//newStorable.RestoreFromJSON(jClass);
+					//newStorable.containingAtom = atom;
+					//newStorable.name = "Bob";
+					_context.StartCoroutine(AfterRestoring(atom, newStorable));
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
+			});
+
+			_context.CreateButton("DEBUG Show Atom Storables").button.onClick.AddListener(() =>
+			{
+				try
+				{
+					var atom = SuperController.singleton.GetSelectedAtom();
+					var atomStorables = atom.GetStorableIDs();
+					SuperController.LogMessage("Has geometry: " + atomStorables.Any(s => s == "geometry"));
+					foreach (var storableId in atom.GetStorableIDs())
+					{
+						SuperController.LogMessage("Storable: " + storableId);
+					}
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
+			});
+
+			_context.CreateButton("DEBUG Show geometry Storable").button.onClick.AddListener(() =>
+			{
+				try
+				{
+					var atom = SuperController.singleton.GetSelectedAtom();
+					var atomStorables = atom.GetStorableIDs();
+					//SuperController.LogMessage("Has geometry: " + atomStorables.Any(s => s == "geometry"));
+					foreach (var storableId in atom.GetStorableIDs().Where(s => s == "geometry"))
+					{
+						var storable = atom.GetStorableByID(storableId);
+						SuperController.LogMessage("StorableId: " + storableId);
+						var json = storable.GetJSON();
+						SuperController.LogMessage("JSON: " + json.ToString());
+						SuperController.LogMessage("character: " + storable.GetStringParamValue("character"));
+						//SuperController.LogMessage("clothing: " + storable.GetClot("clothing"));
+					}
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
+			});
+
+			_context.CreateButton("DEBUG Delete File").button.onClick.AddListener(() =>
+			{
+				try
+				{
+					
+					FileManagerSecure.DeleteFile("Saved");
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
+			});
 
 			_context.CreateButton("DEBUG Show Plugin name").button.onClick.AddListener(() =>
 			{
@@ -106,7 +201,7 @@ namespace juniperD.StatefullServices
 					//var allJoints = _context.containingAtom.GetComponentsInChildren<ConfigurableJoint>();
 					//foreach (var joint in allJoints)
 					//{
-						
+
 					//	//joint.transform.position = joint.transform.position + new Vector3(0.5f, 0.5f, 0.5f);
 					//}
 				}
@@ -207,7 +302,7 @@ namespace juniperD.StatefullServices
 
 					SuperController.LogMessage($"SuperController Animation step count: " + SuperController.singleton.GetAllAnimationSteps().Count());
 					SuperController.LogMessage($"SuperController Animation pattern count: " + SuperController.singleton.GetAllAnimationPatterns().Count());
-					
+
 					//foreach (var step in animation)
 					//{
 					//	SuperController.LogMessage($"Step: " + step.point.position.x);
@@ -740,10 +835,11 @@ namespace juniperD.StatefullServices
 					//newFreecontroller.transform.Translate(UnityEngine.Random.insideUnitSphere);
 					//box_FreeControllerV3.MoveLinkConnectorTowards(_context.transform, 10);
 				}
-				catch (Exception e){
+				catch (Exception e)
+				{
 					SuperController.LogError(e.ToString());
 					throw (e);
-				} 
+				}
 			});
 
 			_context.CreateButton("DEBUG: Print Object properties").button.onClick.AddListener(() =>
@@ -760,7 +856,7 @@ namespace juniperD.StatefullServices
 					//var control_Rigidbody = box_FreeControllerV3[0].GetComponent<Rigidbody>();
 					//var control_SphereCollider = control_Rigidbody.GetComponent<SphereCollider>();
 					//var control_MotionAnimationControl = control_SphereCollider.GetComponent<MotionAnimationControl>();
-					
+
 					//var x = new Atom();
 					GameObject cylinder = GameObject.CreatePrimitive(PrimitiveType.Cylinder);
 					_cylinder = cylinder;
@@ -772,12 +868,12 @@ namespace juniperD.StatefullServices
 					if (_Cube_evolvePrefab == null) SuperController.LogMessage("_Cube_evolvePrefab is null");
 					var _reParentObject_transform = _Cube_evolvePrefab.GetComponent<Transform>();
 					if (_reParentObject_transform == null) SuperController.LogMessage("_reParentObject_transform is null");
-					
-					
+
+
 					var _control_transform = _reParentObject_transform.gameObject.GetComponent<Transform>();
 					_control_transform.name = "control";
 
-					
+
 
 					if (_control_transform == null) SuperController.LogMessage("_control_transform is null");
 					var cylinder_FreeControllerV3 = _control_transform.gameObject.AddComponent<FreeControllerV3>();
@@ -795,7 +891,7 @@ namespace juniperD.StatefullServices
 
 					var _control_MotionAnimationControl = _control_SphereCollider.gameObject.AddComponent<MotionAnimationControl>();
 					if (_control_MotionAnimationControl == null) SuperController.LogMessage("_control_MotionAnimationControl is null");
-					
+
 					//var cylinderMesh = cylinder.GetComponent<Mesh>();
 					_control_Rigidbody.useGravity = false;
 					cylinder_FreeControllerV3.name = "control";
@@ -1084,7 +1180,7 @@ namespace juniperD.StatefullServices
 					//SuperController.LogMessage("controls count: " + control.name);
 					//control.currentRotationState = FreeControllerV3.RotationState.Off;
 					//control.currentPositionState = FreeControllerV3.PositionState.Off;
-					
+
 					//control.controlMode = FreeControllerV3.ControlMode.Off;
 					//control.positionGridMode = FreeControllerV3.GridMode.None;
 					//control.rotationGridMode = FreeControllerV3.GridMode.None;
@@ -1154,8 +1250,8 @@ namespace juniperD.StatefullServices
 					SuperController.LogMessage("atomAssets.Count: " + SuperController.singleton.atomAssets.Count());
 					foreach (var atomAsset in SuperController.singleton.atomAssets)
 					{
-						SuperController.LogMessage("atomAsset: " + atomAsset.category + "\\" + atomAsset.assetName );
-						
+						SuperController.LogMessage("atomAsset: " + atomAsset.category + "\\" + atomAsset.assetName);
+
 					}
 					AtomAsset cubeAtomAsset = SuperController.singleton.atomAssets.First(a => a.category == "Shapes" && a.assetName == "Cube");
 					//SuperController.singleton.LoadAtomFromBundleAsync(cubeAtomAsset);
@@ -1277,8 +1373,8 @@ namespace juniperD.StatefullServices
 					throw (e);
 				}
 			});
-			
-			
+
+
 			/// Works on a cube object, but not a Person...
 			_context.CreateButton("DEBUG: Affect HUD Anchor").button.onClick.AddListener(() =>
 			{
@@ -1321,12 +1417,12 @@ namespace juniperD.StatefullServices
 
 			_context.CreateButton("List active morphs").button.onClick.AddListener(() =>
 			{
-				_context._mutationsService.GetActiveMorphs().Take(1).ToList().ForEach(m => SuperController.LogMessage($"Active Morph: {m.Name}: {m.Value}"));
+				_context._mutationsService.GetActiveMorphs().Take(1).ToList().ForEach(m => SuperController.LogMessage($"Active Morph: {m.Id}: {m.Value}"));
 			});
 
 			_context.CreateButton("List base morphs").button.onClick.AddListener(() =>
 			{
-				_context._mutationsService.GetCurrentMorphBaseValues().ForEach(m => SuperController.LogMessage($"Morph Base: {m.Name}: {m.Value}"));
+				_context._mutationsService.GetCurrentMorphBaseValues().ForEach(m => SuperController.LogMessage($"Morph Base: {m.Id}: {m.Value}"));
 			});
 
 			_context.CreateButton("Set active morphs").button.onClick.AddListener(() =>
@@ -1337,14 +1433,32 @@ namespace juniperD.StatefullServices
 
 		} // end of Init()
 
-
+		IEnumerator AfterRestoring(Atom atom, JSONStorable newStorable)
+		{
+			yield return new WaitForSeconds(1);
+			try
+			{
+				SuperController.LogMessage("Storable is null: " + (newStorable == null));
+				//newStorable.exclude = false;
+				//newStorable.enabled = true;
+				//atom.UnregisterAdditionalStorable(newStorable);
+				var success = atom.RegisterAdditionalStorable(newStorable);
+				SuperController.LogMessage("Registered storable: " + success);
+				//atom.RegisterBool(newStorable);
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+			}
+		}
 
 		IEnumerator SendOffCylinder()
 		{
 			float speed = 1;
-			while (_cylinder.transform.position.x < 2) {  
-					yield return null;
-				_cylinder.transform.Translate(_cylinder.transform.up * speed* Time.deltaTime);
+			while (_cylinder.transform.position.x < 2)
+			{
+				yield return null;
+				_cylinder.transform.Translate(_cylinder.transform.up * speed * Time.deltaTime);
 			}
 		}
 

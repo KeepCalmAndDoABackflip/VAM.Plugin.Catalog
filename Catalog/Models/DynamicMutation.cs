@@ -8,9 +8,9 @@
 		
 
 		// Non-Serialized...
-		public UIDynamicToggle UiToggle;
-		public DAZDynamicItem DAZDynamicItem;
-		public UIDynamicButton UiToggleInfoBox { get; set; }
+	//	public UIDynamicToggle UiToggle { get; set; }
+	//public DAZDynamicItem DAZDynamicItem { get; set; }
+		//public UIDynamicButton UiToggleInfoBox { get; set; }
 	}
 
 }

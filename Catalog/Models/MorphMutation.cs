@@ -2,18 +2,19 @@
 
 namespace juniperD.Models
 {
-	public class MorphMutation
+	public class MorphMutation: BaseMutation
 	{
 		// Serialized...
-		public string Name { get; set; }
+		//public string Id { get; set; }
+		//public bool Active { get; set; } = true;
 		public float PreviousValue { get; set; }
 		public float Value { get; set; }
-		public bool Active { get; set; } = true;
+		
 
 		// Non-Serialized...
 		public UIDynamicToggle UiToggle {get;set; }
 		public DAZMorph MorphItem {get;set; }
-		public UiCatalogSubItem DynamicCheckbox { get; set; }
+		//public EntrySubItem DynamicCheckbox { get; set; }
 	}
 
 }

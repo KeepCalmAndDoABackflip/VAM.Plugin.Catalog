@@ -69,8 +69,10 @@ namespace juniperD.StatefullServices
 
 			try
 			{
+				Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+				if (selectedAtom == null) return;
 				// Cache morphs...
-				JSONStorable geometry = _context.containingAtom.GetStorableByID("geometry");
+				JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 				DAZCharacterSelector character = geometry as DAZCharacterSelector;
 				GenerateDAZMorphsControlUI morphControl = character.morphsControlUI;
 
@@ -253,7 +255,9 @@ namespace juniperD.StatefullServices
 
 		private bool IsPersonAtom()
 		{
-			return _context.containingAtom.type == "Person";
+			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			if (selectedAtom == null) return false;
+			return selectedAtom.type == "Person";
 		}
 
 		public Mutation CaptureCurrentMutation()
@@ -376,34 +380,47 @@ namespace juniperD.StatefullServices
 
 		public StoredAtom CaptureAtom(Atom atom)
 		{
+			JSONClass atomsJSON = SuperController.singleton.GetSaveJSON(atom);
+			JSONArray atomsArrayJSON = atomsJSON["atoms"].AsArray;
+			JSONClass atomJSON = (JSONClass)atomsArrayJSON[0];
+			JSONArray storablesArrayJSON = atomJSON["storables"].AsArray;
+
+
 			StoredAtom catalogAtom = new StoredAtom();
 			catalogAtom.Active = atom.on;
 			catalogAtom.AtomType = atom.type;
 			catalogAtom.AtomName = atom.name;
-			var storableIds = atom.GetStorableIDs();
+			
 			var storables = new List<JSONClass>();
-			foreach (var storableId in storableIds)
+			for (int i = 0; i < storablesArrayJSON.Count; i++)
 			{
-				var storable = atom.GetStorableByID(storableId);
-				var storableJson = storable.GetJSON();
-				storables.Add(storableJson);
+				JSONClass storableJSON = (JSONClass)storablesArrayJSON[i];
+				storables.Add(storableJSON);
 			}
+			//var storableIds = atom.GetStorableIDs();
+			//foreach (var storableId in storableIds)
+			//{
+			//	var storable = atom.GetStorableByID(storableId);
+			//	var storableJson = storable.GetJSON();
+			//	storables.Add(storableJson);
+			//}
 			catalogAtom.Storables = storables;
+			//catalogAtom.FullAtom = atom.GetJSON(); //...this doesn't work. Only records the atom's id
 			return catalogAtom;
 		}
 
-		public List<JSONClass> CaptureStorables(Atom atom)
-		{
-			var storableIds = atom.GetStorableIDs();
-			var storables = new List<JSONClass>();
-			foreach (var storableId in storableIds)
-			{
-				var storable = atom.GetStorableByID(storableId);
-				var storableJson = storable.GetJSON();
-				storables.Add(storableJson);
-			}
-			return storables;
-		}
+		//public List<JSONClass> CaptureStorables(Atom atom)
+		//{
+		//	var storableIds = atom.GetStorableIDs();
+		//	var storables = new List<JSONClass>();
+		//	foreach (var storableId in storableIds)
+		//	{
+		//		var storable = atom.GetStorableByID(storableId);
+		//		var storableJson = storable.GetJSON();
+		//		storables.Add(storableJson);
+		//	}
+		//	return storables;
+		//}
 
 		//public JSONStorable CloneStorable(JSONStorable inputStorable)
 		//{
@@ -486,10 +503,10 @@ namespace juniperD.StatefullServices
 			{
 				foreach (var morph in mutation.FaceGenMorphSet)
 				{
-					if (finalMorphSet.Any(m => m.Name == morph.Name)) continue;
+					if (finalMorphSet.Any(m => m.Id == morph.Id)) continue;
 					finalMorphSet.Add(new MorphMutation()
 					{
-						Name = morph.Name,
+						Id = morph.Id,
 						Value = morph.Value
 					});
 				}
@@ -503,7 +520,7 @@ namespace juniperD.StatefullServices
 			for (int mIndex = 0; mIndex < activeMorphs.Count; mIndex++)
 			{
 				var newMorph = activeMorphs[mIndex];
-				var morphBase = _morphBaseValues.FirstOrDefault(m => m.Name == newMorph.Name);
+				var morphBase = _morphBaseValues.FirstOrDefault(m => m.Id == newMorph.Id);
 				if (morphBase == null)
 				{
 					_morphBaseValues.Add(newMorph);
@@ -522,8 +539,8 @@ namespace juniperD.StatefullServices
 		private float GetBaseValueForMorph(string displayName, DAZMorph morph = null)
 		{
 			try { 
-				if (morph==null) morph = GetMorphByName(displayName);
-				var baseMorph = _morphBaseValues.FirstOrDefault(b => b.Name == displayName);
+				if (morph==null) morph = GetMorphByNameOrDefault(displayName);
+				var baseMorph = _morphBaseValues.FirstOrDefault(b => b.Id == displayName);
 				if (baseMorph == null) return morph.startValue;
 				return baseMorph.Value;
 			}
@@ -534,9 +551,11 @@ namespace juniperD.StatefullServices
 			}
 		}
 
-		public DAZMorph GetMorphByName(string displayName)
+		public DAZMorph GetMorphByNameOrDefault(string displayName)
 		{
-			JSONStorable geometry = _context.containingAtom.GetStorableByID("geometry");
+			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			if (selectedAtom == null) return null;
+			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
 			GenerateDAZMorphsControlUI morphControl = character.morphsControlUI;
 			return morphControl
@@ -546,7 +565,9 @@ namespace juniperD.StatefullServices
 
 		public List<MorphMutation> GetActiveMorphs()
 		{
-			JSONStorable geometry = _context.containingAtom.GetStorableByID("geometry");
+			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			if (selectedAtom == null) return new List<MorphMutation>();
+			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
 			GenerateDAZMorphsControlUI morphControl = character.morphsControlUI;
 
@@ -559,7 +580,7 @@ namespace juniperD.StatefullServices
 				var morph = allMorphs[m];
 				if (alreadyChecked.Contains(morph.displayName)) continue;
 				alreadyChecked.Add(morph.displayName);
-				var baseMorph = _morphBaseValues.FirstOrDefault(mo => mo.Name == morph.displayName);
+				var baseMorph = _morphBaseValues.FirstOrDefault(mo => mo.Id == morph.displayName);
 				var baseValue = baseMorph?.Value ?? morph.startValue;
 				var currentValue = morph.morphValue;
 				if (baseValue != currentValue)
@@ -567,7 +588,7 @@ namespace juniperD.StatefullServices
 					updateCount++;
 					var newMorphMutation = new MorphMutation()
 						{
-							Name = morph.displayName,
+							Id = morph.displayName,
 							Value = morph.morphValue,
 							PreviousValue = GetBaseValueForMorph(morph.displayName, morph),
 							MorphItem = morph,
@@ -592,19 +613,23 @@ namespace juniperD.StatefullServices
 
 		public List<HairMutation> GetActiveHair()
 		{
-			JSONStorable geometry = _context.containingAtom.GetStorableByID("geometry");
+			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			if (selectedAtom == null) return new List<HairMutation>();
+			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
 			var items = character.hairItems;
 			return items.Where(h => h.active).Select(item => new HairMutation()
 			{
-				DAZHairGroupName = item.displayName,
+				Id = item.displayName,
 				DAZHairGroup = item
 			}).ToList();
 		}
 
 		public List<DynamicMutation> GetActiveDynamicItems()
 		{
-			JSONStorable geometry = _context.containingAtom.GetStorableByID("geometry");
+			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			if (selectedAtom == null) return new List<DynamicMutation>();
+			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
 			//var items = character.dynami;
 			//return items.Where(h => h.active).Select(item => new DynamicMutation()
@@ -617,12 +642,14 @@ namespace juniperD.StatefullServices
 
 		public List<ClothingMutation> GetActiveClothes()
 		{
-			JSONStorable geometry = _context.containingAtom.GetStorableByID("geometry");
+			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			if (selectedAtom == null) return new List<ClothingMutation>();
+			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
 			var items = character.clothingItems;
 			var itemKeys = items.Where(h => h.active).Select(h => new ClothingMutation()
 			{
-				DAZClothingItemName = h.displayName,
+				Id = h.displayName,
 				DAZClothingItem = h
 			}).ToList();
 			return itemKeys;
@@ -631,7 +658,9 @@ namespace juniperD.StatefullServices
 
 		private void NextHair()
 		{
-			JSONStorable geometry = _context.containingAtom.GetStorableByID("geometry");
+			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			if (selectedAtom == null) return;
+			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
 			// Select a random hair style
 			var hairStyles = character.hairItems;
@@ -656,7 +685,9 @@ namespace juniperD.StatefullServices
 
 		private void MutateClothing(bool removePrevious = false, bool addNewItem = true)
 		{
-			JSONStorable geometry = _context.containingAtom.GetStorableByID("geometry");
+			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			if (selectedAtom == null) return;
+			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
 			// Remove previous item...
 			if (_clothingStack.Count > 0 && removePrevious) _clothingStack.Pop();
@@ -725,7 +756,7 @@ namespace juniperD.StatefullServices
 						}
 						newMorphIndex = randomMorphIndex.Next(0, availableMorphCount - 1);
 						morph = morphs.ElementAt(newMorphIndex);
-					} while (morphIndexesToAdjust.Contains(newMorphIndex) || morphUpdateSet.Any(m => m.Name == morph.displayName));
+					} while (morphIndexesToAdjust.Contains(newMorphIndex) || morphUpdateSet.Any(m => m.Id == morph.displayName));
 					morphIndexesToAdjust.Add(newMorphIndex);
 					if (morph == null) continue;
 
@@ -742,7 +773,7 @@ namespace juniperD.StatefullServices
 					string valueDiff = currentVal + ":" + newValue;
 					var newMorph = new MorphMutation
 					{
-						Name = morph.displayName,
+						Id = morph.displayName,
 						Value = newValue,
 						PreviousValue = currentVal,
 						Active = true
@@ -773,7 +804,7 @@ namespace juniperD.StatefullServices
 				{
 					var morphMutation = mutation.FaceGenMorphSet.ElementAt(i);
 					newMorphSet.Add(morphMutation);
-					AddMorphToggle(ref morphMutation, mutation);
+					AddFaceGenMorphToggle(ref morphMutation);
 					if (!morphMutation.Active) continue;
 					ApplyMutationMorphItem(morphMutation);
 				}
@@ -784,7 +815,7 @@ namespace juniperD.StatefullServices
 				{
 					var clothingItem = mutation.ClothingItems.ElementAt(i);
 					newClothingItems.Add(clothingItem);
-					AddClothingToggle(ref clothingItem, mutation);
+					AddClothingToggle(ref clothingItem);
 					if (!clothingItem.Active) continue;
 					ApplyClothingItem(clothingItem);
 				}
@@ -795,7 +826,7 @@ namespace juniperD.StatefullServices
 				{
 					var hairItem = mutation.HairItems.ElementAt(i);
 					newHairItems.Add(hairItem);
-					AddHairToggle(ref hairItem, mutation);
+					AddHairToggle(ref hairItem);
 					if (!hairItem.Active) continue;
 					ApplyHairItem(hairItem);
 				}
@@ -817,7 +848,7 @@ namespace juniperD.StatefullServices
 				{
 					var item = mutation.ActiveMorphs.ElementAt(i);
 					newActiveMorphItems.Add(item);
-					AddActiveMorphToggle(ref item, mutation);
+					AddActiveMorphToggle(ref item);
 					if (!item.Active) continue;
 					ApplyActiveMorphItem(item);
 				}
@@ -832,42 +863,70 @@ namespace juniperD.StatefullServices
 			}
 		}
 
-		private void ApplyMutationMorphItem(MorphMutation morphMutation)
+		public void ApplyMutationMorphItem(MorphMutation morphMutation)
 		{
-			var morph = _morphs.First(m => m.displayName == morphMutation.Name);
+			var morph = _morphs.First(m => m.displayName == morphMutation.Id);
 			morph.morphValue = morphMutation.Value;
 		}
 
-		private void ApplyClothingItem(ClothingMutation clothingItem)
+		public void ApplyClothingItem(ClothingMutation clothingItem)
 		{
-			JSONStorable geometry = _context.containingAtom.GetStorableByID("geometry");
+			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			if (selectedAtom == null) return;
+			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
-			DAZClothingItem dazClothingItem = character.clothingItems.First(h => h.displayName == clothingItem.DAZClothingItemName);
+			DAZClothingItem dazClothingItem = character.clothingItems.First(h => h.displayName == clothingItem.Id);
 			character.SetActiveClothingItem(dazClothingItem, true);
 		}
 
-		private void ApplyHairItem(HairMutation hairItem)
+		private static Atom GetSelectedPersonAtomOrDefault()
 		{
-			JSONStorable geometry = _context.containingAtom.GetStorableByID("geometry");
+			var selectedAtom = SuperController.singleton.GetSelectedAtom();
+			if (selectedAtom == null)
+			{
+				SuperController.LogMessage("Please select a Person in the scene");
+				return null;
+			}
+			if (selectedAtom.type != "Person")
+			{
+				SuperController.LogMessage("Please select a Person atom");
+				return null;
+			}
+			return selectedAtom;
+		}
+
+		public void ApplyHairItem(HairMutation hairItem)
+		{
+			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			if (selectedAtom == null) return;
+			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
-			DAZHairGroup item = character.hairItems.First(h => h.displayName == hairItem.DAZHairGroupName);
+			DAZHairGroup item = character.hairItems.First(h => h.displayName == hairItem.Id);
 			character.SetActiveHairItem(item, true);
 		}
 
-		private void ApplyDynamicItem(DynamicMutation mutationItem)
-		{
-			JSONStorable geometry = _context.containingAtom.GetStorableByID("geometry");
-			DAZCharacterSelector character = geometry as DAZCharacterSelector;
+		//public void ApplyDynamicItem(DynamicMutation mutationItem)
+		//{
+		//	Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+		//	if (selectedAtom == null) return;
+		//	JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
+		//	DAZCharacterSelector character = geometry as DAZCharacterSelector;
 			
-			//DAZDynamicItem item = geometry.
-			//character.SetActiveDynamicItem(item, true);
-		}
+		//	//DAZDynamicItem item = geometry.
+		//	//character.SetActiveDynamicItem(item, true);
+		//}
 
-		private void ApplyActiveMorphItem(MorphMutation mutationItem)
+		public void ApplyActiveMorphItem(MorphMutation mutationItem)
 		{
-			JSONStorable geometry = _context.containingAtom.GetStorableByID("geometry");
+			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+
+			SuperController.LogMessage("Applying morph to: " + selectedAtom.name);
+			if (selectedAtom == null) return;
+			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
-			DAZMorph item = _morphs.First(h => h.displayName == mutationItem.Name);
+			GenerateDAZMorphsControlUI morphControl = character.morphsControlUI;
+			var morphs = morphControl.GetMorphs();
+			DAZMorph item = morphs.First(h => h.displayName == mutationItem.Id);
 			//item.active = true;
 			item.SetValue(mutationItem.Value);
 		}
@@ -896,7 +955,7 @@ namespace juniperD.StatefullServices
 				foreach (var item in mutation.FaceGenMorphSet)
 				{
 					_context.RemoveToggle(item.UiToggle);
-					_context.RemoveUiCatalogSubItem(item.DynamicCheckbox);
+					//_context.RemoveUiCatalogSubItem(item.DynamicCheckbox);
 					//if (!mutationMorph.Active) continue;
 					UndoMutationMorph(item);
 				}
@@ -904,7 +963,7 @@ namespace juniperD.StatefullServices
 				foreach (var item in mutation.ClothingItems)
 				{
 					_context.RemoveToggle(item.UiToggle);
-					_context.RemoveUiCatalogSubItem(item.DynamicCheckbox);
+					//_context.RemoveUiCatalogSubItem(item.DynamicCheckbox);
 					if (!item.Active) continue;
 					RemoveClothingItem(item);
 				}
@@ -912,7 +971,7 @@ namespace juniperD.StatefullServices
 				foreach (var item in mutation.HairItems)
 				{
 					_context.RemoveToggle(item.UiToggle);
-					_context.RemoveUiCatalogSubItem(item.DynamicCheckbox);
+					//_context.RemoveUiCatalogSubItem(item.DynamicCheckbox);
 					if (!item.Active) continue;
 					RemoveHairItem(item);
 				}
@@ -920,7 +979,7 @@ namespace juniperD.StatefullServices
 				foreach (var item in mutation.ActiveMorphs)
 				{
 					_context.RemoveToggle(item.UiToggle);
-					_context.RemoveUiCatalogSubItem(item.DynamicCheckbox);
+					//_context.RemoveUiCatalogSubItem(item.DynamicCheckbox);
 					if (!item.Active) continue;
 					RemoveActiveMorphItem(item);
 				}
@@ -931,10 +990,10 @@ namespace juniperD.StatefullServices
 			}
 		}
 
-		private void UndoMutationMorph(MorphMutation mutationMorph)
+		public void UndoMutationMorph(MorphMutation mutationMorph)
 		{
 			//if (!mutationMorph.Active) return;
-			var morphName = mutationMorph.Name;
+			var morphName = mutationMorph.Id;
 			var morph = _morphs.First(m => m.displayName == morphName);
 			if (morph != null) {
 				//SuperController.("UnChanging morph item " + morphName + " to " + mutationMorph.PreviousValue);
@@ -942,13 +1001,15 @@ namespace juniperD.StatefullServices
 			}
 		}
 
-		private void RemoveHairItem(HairMutation removeHairItem)
+		public void RemoveHairItem(HairMutation removeHairItem)
 		{
-			JSONStorable geometry = _context.containingAtom.GetStorableByID("geometry");
+			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			if (selectedAtom == null) return;
+			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
 			foreach (var item in character.hairItems)
 			{
-				if (item.displayName == removeHairItem.DAZHairGroupName)
+				if (item.displayName == removeHairItem.Id)
 				{
 					character.SetActiveHairItem(item, false);
 					return;
@@ -956,28 +1017,32 @@ namespace juniperD.StatefullServices
 			}
 		}
 
-		private void RemoveDynamicItem(DynamicMutation removeHairItem)
-		{
-			JSONStorable geometry = _context.containingAtom.GetStorableByID("geometry");
-			DAZCharacterSelector character = geometry as DAZCharacterSelector;
-			//foreach (var item in character.dynam)
-			//{
-			//	if (item.displayName == removeHairItem.DAZDynamicItemName)
-			//	{
-			//		character.SetActiveDynamicItem(item, false);
-			//		return;
-			//	}
-			//}
-		}
+		//public void RemoveDynamicItem(DynamicMutation removeHairItem)
+		//{
+		//	Atom selectedAtom = GetSelectedPersonAtom();
+		//	if (selectedAtom == null) return;
+		//	JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
+		//	DAZCharacterSelector character = geometry as DAZCharacterSelector;
+		//	//foreach (var item in character.dynam)
+		//	//{
+		//	//	if (item.displayName == removeHairItem.DAZDynamicItemName)
+		//	//	{
+		//	//		character.SetActiveDynamicItem(item, false);
+		//	//		return;
+		//	//	}
+		//	//}
+		//}
 
-		private void RemoveActiveMorphItem(MorphMutation removeItem)
+		public void RemoveActiveMorphItem(MorphMutation removeItem)
 		{
-			JSONStorable geometry = _context.containingAtom.GetStorableByID("geometry");
+			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			if (selectedAtom == null) return;
+			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
 			GenerateDAZMorphsControlUI morphControl = character.morphsControlUI;
-			var morph = morphControl.GetMorphs().FirstOrDefault(m => removeItem.Name == m.displayName);
+			var morph = morphControl.GetMorphs().FirstOrDefault(m => removeItem.Id == m.displayName);
 			if (morph == null) throw new Exception($"Could not find morph by the name of '{removeItem}'");
-			var baseValue = GetBaseValueForMorph(removeItem.Name);
+			var baseValue = GetBaseValueForMorph(removeItem.Id);
 			morph.SetValue(baseValue);
 			//foreach (var item in _morphNewValues)
 			//{
@@ -991,30 +1056,19 @@ namespace juniperD.StatefullServices
 		}
 
 
-		private void RemoveClothingItem(ClothingMutation removeClothingItem)
+		public void RemoveClothingItem(ClothingMutation removeClothingItem)
 		{
-			JSONStorable geometry = _context.containingAtom.GetStorableByID("geometry");
+			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			if (selectedAtom == null) return;
+			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
 			foreach (var item in character.clothingItems)
 			{
-				if (item.displayName == removeClothingItem.DAZClothingItemName)
+				if (item.displayName == removeClothingItem.Id)
 				{
 					character.SetActiveClothingItem(item, false);
 					return;
 				}
-			}
-		}
-
-
-		private void RemoveToggle(UIDynamicToggle toggle)
-		{
-			try
-			{
-				
-			}
-			catch (Exception e)
-			{
-				SuperController.LogError(e.ToString());
 			}
 		}
 
@@ -1121,11 +1175,11 @@ namespace juniperD.StatefullServices
 			return morphs.Where(m => m.favorite).ToList();
 		}
 
-		private void AddMorphToggle(ref MorphMutation mutationComponent, Mutation parentMutation)
+		private void AddFaceGenMorphToggle(ref MorphMutation mutationComponent)
 		{
 			try
 			{
-				var itemName = mutationComponent.Name;
+				var itemName = mutationComponent.Id;
 				var toggleData = new JSONStorableBool(itemName, mutationComponent.Active);
 				var newToggle = _context.CreateToggle(toggleData, true);
 				//_context.RegisterBool(toggleData);
@@ -1136,14 +1190,9 @@ namespace juniperD.StatefullServices
 					if (isChecked) ApplyMutationMorphItem(mutation);
 					else UndoMutationMorph(mutation);
 				};
-				UnityAction<string> stopTracking = (name) =>
-				{
-					parentMutation.FaceGenMorphSet = parentMutation.FaceGenMorphSet.Where(m => m.Name != name).ToList();
-				};
-				var infoToggle = _context.AddInfoCheckbox(itemName, mutation.Active, toggleAction, stopTracking);
 				newToggle.toggle.onValueChanged.AddListener(toggleAction);
 				mutationComponent.UiToggle = newToggle;
-				mutationComponent.DynamicCheckbox = infoToggle;
+				
 			}
 			catch (Exception exc)
 			{
@@ -1152,14 +1201,13 @@ namespace juniperD.StatefullServices
 			}
 		}
 
-		private void AddHairToggle(ref HairMutation mutationComponent, Mutation parentMutation)
+		private void AddHairToggle(ref HairMutation mutationComponent)
 		{
 			try
 			{
-				var itemName = mutationComponent.DAZHairGroupName;
+				var itemName = mutationComponent.Id;
 				var toggleData = new JSONStorableBool(itemName, mutationComponent.Active);
 				var newToggle = _context.CreateToggle(toggleData, true);
-				//_context.RegisterBool(toggleData);
 				var mutation = mutationComponent;
 
 				UnityAction<bool> toggleAction = (isChecked) =>
@@ -1168,14 +1216,14 @@ namespace juniperD.StatefullServices
 					if (isChecked) ApplyHairItem(mutation);
 					else RemoveHairItem(mutation);
 				};
-				UnityAction<string> stopTracking = (name) =>
-				{
-					parentMutation.HairItems = parentMutation.HairItems.Where(m => m.DAZHairGroupName != name).ToList();
-				};
-				var infoToggle = _context.AddInfoCheckbox(itemName, mutation.Active, toggleAction, stopTracking);
+				//UnityAction<string> stopTracking = (name) =>
+				//{
+				//	parentMutation.HairItems = parentMutation.HairItems.Where(m => m.Id != name).ToList();
+				//};
+				//var infoToggle = _context.AddEntrySubItemToggle(itemName, mutation.Active, toggleAction, stopTracking);
+				//mutationComponent.DynamicCheckbox = infoToggle;
 				newToggle.toggle.onValueChanged.AddListener(toggleAction);
 				mutationComponent.UiToggle = newToggle;
-				mutationComponent.DynamicCheckbox = infoToggle;
 			}
 			catch (Exception exc)
 			{
@@ -1215,11 +1263,11 @@ namespace juniperD.StatefullServices
 		//	}
 		//}
 
-		private void AddActiveMorphToggle(ref MorphMutation mutationComponent, Mutation parentMutation)
+		private void AddActiveMorphToggle(ref MorphMutation mutationComponent)
 		{
 			try
 			{
-				var itemName = mutationComponent.Name;
+				var itemName = mutationComponent.Id;
 				var toggleData = new JSONStorableBool(itemName, mutationComponent.Active);
 				var newToggle = _context.CreateToggle(toggleData, true);
 				var mutation = mutationComponent;
@@ -1229,14 +1277,14 @@ namespace juniperD.StatefullServices
 					if (isChecked) ApplyActiveMorphItem(mutation);
 					else RemoveActiveMorphItem(mutation);
 				};
-				UnityAction<string> stopTracking = (name) =>
-				{
-					parentMutation.ActiveMorphs = parentMutation.ActiveMorphs.Where(m => m.Name != name).ToList();
-				};
-				var infoToggle = _context.AddInfoCheckbox(itemName, mutation.Active, toggleAction, stopTracking);
+				//UnityAction<string> stopTracking = (name) =>
+				//{
+				//	parentMutation.ActiveMorphs = parentMutation.ActiveMorphs.Where(m => m.Id != name).ToList();
+				//};
+				//var infoToggle = _context.AddEntrySubItemToggle(itemName, mutation.Active, toggleAction, stopTracking);
+				//mutationComponent.DynamicCheckbox = infoToggle;
 				newToggle.toggle.onValueChanged.AddListener(toggleAction);
 				mutationComponent.UiToggle = newToggle;
-				mutationComponent.DynamicCheckbox = infoToggle;
 			}
 			catch (Exception exc)
 			{
@@ -1245,11 +1293,11 @@ namespace juniperD.StatefullServices
 			}
 		}
 
-		private void AddClothingToggle(ref ClothingMutation mutationComponent, Mutation parentMutation)
+		private void AddClothingToggle(ref ClothingMutation mutationComponent)
 		{
 			try
 			{
-				var itemName = mutationComponent.DAZClothingItemName;
+				var itemName = mutationComponent.Id;
 				var toggleData = new JSONStorableBool(itemName, mutationComponent.Active);
 				var newToggle = _context.CreateToggle(toggleData, true);
 				//_context.RegisterBool(toggleData);
@@ -1260,14 +1308,14 @@ namespace juniperD.StatefullServices
 					if (isChecked) ApplyClothingItem(mutation);
 					else RemoveClothingItem(mutation);
 				};
-				UnityAction<string> stopTracking = (name) =>
-				{
-					parentMutation.ClothingItems = parentMutation.ClothingItems.Where(m => m.DAZClothingItemName != name).ToList();
-				};
+				//UnityAction<string> stopTracking = (name) =>
+				//{
+				//	parentMutation.ClothingItems = parentMutation.ClothingItems.Where(m => m.Id != name).ToList();
+				//};
 				newToggle.toggle.onValueChanged.AddListener(toggleAction);
 				mutationComponent.UiToggle = newToggle;
-				var infoToggle = _context.AddInfoCheckbox(itemName, mutation.Active, toggleAction, stopTracking);
-				mutationComponent.DynamicCheckbox = infoToggle;
+				//var infoToggle = _context.AddEntrySubItemToggle(itemName, mutation.Active, toggleAction, stopTracking);
+				//mutationComponent.DynamicCheckbox = infoToggle;
 			}
 			catch (Exception exc)
 			{

@@ -2,17 +2,17 @@
 
 namespace juniperD.Models
 {
-	public class HairMutation
+	public class HairMutation: BaseMutation
 	{
 		// Serialized...
-		public string DAZHairGroupName { get; set; }
-		public bool Active { get; set; } = true;
+		//public string Id { get; set; }
+		//public bool Active { get; set; } = true;
 		
 
 		// Non-Serialized...
 		public UIDynamicToggle UiToggle { get; set; }
 		public DAZHairGroup DAZHairGroup { get; set; }
-		public UiCatalogSubItem DynamicCheckbox { get; set; }
+		//public EntrySubItem DynamicCheckbox { get; set; }
 	}
 
 }

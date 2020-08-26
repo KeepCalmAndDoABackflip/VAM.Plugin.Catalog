@@ -15,6 +15,8 @@ namespace juniperD.StatefullServices
 		public float YMultiplier { get; set; } = 1;
 		public Vector2? LimitX = null; // limit: left, right
 		public Vector2? LimitY = null; // limit: up, down
+		public float XStep = 0;
+		public float YStep = 0;
 		public bool AllowDragX = true;
 		public bool AllowDragY = true;
 		public GameObject ObjectToDrag;
@@ -29,7 +31,7 @@ namespace juniperD.StatefullServices
 		Vector3 _draggedObjectInitialPosition = Vector3.zero;
 		GameObject _objectToDrag = null;
 		//hold all created transforms for non canvas parented objects
-		Action _finishedDraggingCallback = null;
+		Action<DragHelper> _finishedDraggingCallback = null;
 		Func<float, float, bool> _whileDragCallback = null;
 
 		private void StartDragging(GameObject objectToDrag, bool dragX = true, bool dragY = true, bool in3DSpace = true)
@@ -41,7 +43,7 @@ namespace juniperD.StatefullServices
 			IsIn3DSpace = in3DSpace;
 		}
 
-		public void AddMouseDraggingToObject(GameObject triggerObject, GameObject dragObject, bool dragX = true, bool dragY = true, Action beforeDrag = null, Action finishedDragCallback = null, Func<float, float, bool> whileDrag_newX_newY = null)
+		public void AddMouseDraggingToObject(GameObject triggerObject, GameObject dragObject, bool dragX = true, bool dragY = true, Action<DragHelper> beforeDrag = null, Action<DragHelper> finishedDragCallback = null, Func<float, float, bool> whileDrag_newX_newY = null)
 		{
 			_finishedDraggingCallback = finishedDragCallback;
 			_whileDragCallback = whileDrag_newX_newY;
@@ -58,7 +60,7 @@ namespace juniperD.StatefullServices
 			pointerDown.callback.RemoveAllListeners();
 			pointerDown.callback.AddListener((e) =>
 			{
-				if (beforeDrag != null) beforeDrag.Invoke();
+				if (beforeDrag != null) beforeDrag.Invoke(this);
 				StartDragging(ObjectToDrag, AllowDragX, AllowDragY, IsIn3DSpace);
 			});
 			triggerDown.triggers.RemoveAll(t => t.eventID == EventTriggerType.BeginDrag);
@@ -74,7 +76,7 @@ namespace juniperD.StatefullServices
 			pointerUp.callback.AddListener((e) =>
 			{
 				StopDragging();
-				if (finishedDragCallback != null) _finishedDraggingCallback.Invoke();
+				if (finishedDragCallback != null) _finishedDraggingCallback.Invoke(this);
 			});
 			triggerUp.triggers.RemoveAll(t =>t.eventID == EventTriggerType.EndDrag);
 			triggerUp.triggers.Add(pointerUp);
@@ -134,7 +136,6 @@ namespace juniperD.StatefullServices
 		{
 			if (_isDraggingObject)
 			{
-				
 				Vector3 newPos = GetDragLocationForElement(_objectToDrag.transform.localPosition.x, _objectToDrag.transform.localPosition.y, _objectToDrag.transform.localPosition.z);
 				if (LimitX != null) {
 					Vector2 limitX = LimitX ?? Vector2.zero;
@@ -146,6 +147,9 @@ namespace juniperD.StatefullServices
 					if (newPos.y > limitY.x) newPos.y = limitY.x; // LimitY.x is Y1 and LimitY.y is Y2
 					if (newPos.y < limitY.y) newPos.y = limitY.y; 
 				}
+
+				if (XStep > 0) newPos.x = (float)((Math.Round(newPos.x / XStep)) * XStep);
+				if (YStep > 0) newPos.y = (float)((Math.Round(newPos.y / YStep)) * YStep);
 				CurrentPosition = newPos;
 				_objectToDrag.transform.localPosition = new Vector3(newPos.x, newPos.y, newPos.z);
 				if (_whileDragCallback != null) _whileDragCallback.Invoke(newPos.x, newPos.y);

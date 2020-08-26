@@ -88,19 +88,31 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Contracts\Enums.cs" />
+    <Compile Include="Contracts\PointAddOptionEnum.cs" />
+    <Compile Include="Contracts\LinkTypeEnum.cs" />
+    <Compile Include="Contracts\CatalogModeEnum.cs" />
     <Compile Include="Contracts\Global.cs" />
+    <Compile Include="Contracts\Mappings.cs" />
+    <Compile Include="Models\BaseMutation.cs" />
+    <Compile Include="Models\ControllerLink.cs" />
     <Compile Include="Models\Border.cs" />
     <Compile Include="Models\Catalog.cs" />
     <Compile Include="Models\CatalogEntry.cs" />
     <Compile Include="Models\CaptureRequest.cs" />
+    <Compile Include="Models\DynamicListBox.cs" />
+    <Compile Include="Models\DynamicDropdownField.cs" />
+    <Compile Include="Models\DynamicJointPoint.cs" />
+    <Compile Include="Models\DynamicMainWindow.cs" />
+    <Compile Include="Models\DynamicMannequinPicker.cs" />
+    <Compile Include="Models\EntrySubItemAction.cs" />
     <Compile Include="Models\ImageInfo.cs" />
     <Compile Include="Models\ClothingMutation.cs" />
     <Compile Include="Models\DynamicMutation.cs" />
     <Compile Include="Models\HairMutation.cs" />
     <Compile Include="Models\MorphMutation.cs" />
     <Compile Include="Models\StoredAtom.cs" />
-    <Compile Include="Models\UiCatalogSubItem.cs" />
+    <Compile Include="Models\EntrySubItem.cs" />
+    <Compile Include="Models\TriggerForController.cs" />
     <Compile Include="Models\VersionMessage.cs" />
     <Compile Include="CatalogPlugin.cs" />
     <Compile Include="Resources\Icons.cs" />
@@ -109,10 +121,13 @@
     <Compile Include="Services\CatalogSerializers\SerializerService_3_0_2.cs" />
     <Compile Include="Services\DataCompressor.cs" />
     <Compile Include="Models\Mutation.cs" />
+    <Compile Include="Services\MainWindowHelper.cs" />
+    <Compile Include="Services\MannequinHelper.cs" />
     <Compile Include="StatefullServices\CatalogUi.cs" />
     <Compile Include="StatefullServices\DebugService.cs" />
     <Compile Include="StatefullServices\DragHelper.cs" />
     <Compile Include="Services\CatalogSerializers\SerializerService_3_0_1.cs" />
+    <Compile Include="StatefullServices\DynamicUiExtensionMethods.cs" />
     <Compile Include="StatefullServices\MutationsService.cs" />
     <Compile Include="PredefinedMorphSets.cs" />
     <Compile Include="StatefullServices\CatalogUiHelper.cs" />
@@ -123,6 +138,8 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="CatalogFile\" />
+    <Folder Include="Forms\" />
+    <Folder Include="Mappings\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

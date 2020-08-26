@@ -3,16 +3,16 @@ using UnityEngine;
 
 namespace juniperD.Models
 {
-	public class ClothingMutation
+	public class ClothingMutation: BaseMutation
 	{
 		// Serialized...
-		public string DAZClothingItemName { get; set; }
-		public bool Active { get; set; } = true;
+		//public string Id { get; set; } //...DAZClothingItemName
+		//public bool Active { get; set; } = true;
 
 		// Non-Serialized...
 		public UIDynamicToggle UiToggle { get; set; }
 		public DAZClothingItem DAZClothingItem { get; set; }
-		public UiCatalogSubItem DynamicCheckbox { get; set; }
+		//public EntrySubItem DynamicCheckbox { get; set; }
 
 	}
 

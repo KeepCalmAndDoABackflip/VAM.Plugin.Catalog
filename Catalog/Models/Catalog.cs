@@ -1,5 +1,4 @@
-﻿using juniperD.Services;
-using PluginBuilder.Contracts;
+﻿using juniperD.Contracts;
 using System.Collections.Generic;
 
 namespace juniperD.Models

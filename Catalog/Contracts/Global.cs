@@ -1,5 +1,5 @@
 ﻿
-namespace PluginBuilder.Contracts
+namespace juniperD.Contracts
 {
 	public class Global
 	{

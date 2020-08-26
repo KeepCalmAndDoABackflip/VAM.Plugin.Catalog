@@ -1,9 +1,9 @@
-﻿using juniperD.Models;
+﻿using juniperD.Contracts;
+using juniperD.Models;
 using juniperD.Services.CatalogSerializers;
-using PluginBuilder.Contracts;
 using System.Collections.Generic;
 
-namespace PluginBuilder.Services
+namespace juniperD.Services
 {
 	public class CatalogFileManager
 	{
@@ -45,7 +45,7 @@ namespace PluginBuilder.Services
 		{
 			foreach (var entry in catalog.Entries)
 			{
-				if (entry.CatalogMode != Enums.CATALOG_MODE_SESSION) continue;
+				if (entry.CatalogMode != CatalogModeEnum.CATALOG_MODE_SESSION) continue;
 				var mutation = entry.Mutation;
 				var storedAtom = new StoredAtom()
 				{

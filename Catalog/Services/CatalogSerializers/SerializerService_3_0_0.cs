@@ -302,7 +302,7 @@ namespace juniperD.Services.CatalogSerializers
 		public static JSONClass SerializeMorphSet(MorphMutation morphMutation)
 		{
 			var newJson = new JSONClass();
-			newJson.Add("Name", new JSONData(morphMutation.Name));
+			newJson.Add("Name", new JSONData(morphMutation.Id));
 			newJson.Add("PreviousValue", new JSONData(morphMutation.PreviousValue.ToString()));
 			newJson.Add("Value", new JSONData(morphMutation.Value.ToString()));
 			newJson.Add("Active", new JSONData(morphMutation.Active.ToString()));
@@ -314,7 +314,7 @@ namespace juniperD.Services.CatalogSerializers
 			var keys = inputObject.Keys.ToList();
 			var mutationComponent = new MorphMutation()
 			{
-				Name = inputObject.Childs.ElementAt(keys.IndexOf("Name")).Value,
+				Id = inputObject.Childs.ElementAt(keys.IndexOf("Name")).Value,
 				PreviousValue = float.Parse(inputObject.Childs.ElementAt(keys.IndexOf("PreviousValue")).Value),
 				Value = float.Parse(inputObject.Childs.ElementAt(keys.IndexOf("Value")).Value),
 				Active = bool.Parse(inputObject.Childs.ElementAt(keys.IndexOf("Active")).Value)
@@ -325,7 +325,7 @@ namespace juniperD.Services.CatalogSerializers
 		public static JSONClass SerializeClothingMutation(ClothingMutation clothingMutation)
 		{
 			var newJson = new JSONClass();
-			newJson.Add("DAZClothingItemName", new JSONData(clothingMutation.DAZClothingItemName));
+			newJson.Add("DAZClothingItemName", new JSONData(clothingMutation.Id));
 			newJson.Add("Active", new JSONData(clothingMutation.Active.ToString()));
 			return newJson;
 		}
@@ -335,7 +335,7 @@ namespace juniperD.Services.CatalogSerializers
 			var keys = inputObject.Keys.ToList();
 			var clothingMutation = new ClothingMutation()
 			{
-				DAZClothingItemName = inputObject.Childs.ElementAt(keys.IndexOf("DAZClothingItemName")).Value,
+				Id = inputObject.Childs.ElementAt(keys.IndexOf("DAZClothingItemName")).Value,
 				Active = bool.Parse(inputObject.Childs.ElementAt(keys.IndexOf("Active")).Value)
 			};
 			return clothingMutation;
@@ -344,7 +344,7 @@ namespace juniperD.Services.CatalogSerializers
 		public static JSONNode SerializeHairMutation(HairMutation hairMutation)
 		{
 			var newJson = new JSONClass();
-			newJson.Add("DAZHairGroupName", new JSONData(hairMutation.DAZHairGroupName));
+			newJson.Add("DAZHairGroupName", new JSONData(hairMutation.Id));
 			newJson.Add("Active", new JSONData(hairMutation.Active.ToString()));
 			return newJson;
 		}
@@ -354,7 +354,7 @@ namespace juniperD.Services.CatalogSerializers
 			var keys = inputObject.Keys.ToList();
 			var mutationComponent = new HairMutation()
 			{
-				DAZHairGroupName = inputObject.Childs.ElementAt(keys.IndexOf("DAZHairGroupName")).Value,
+				Id = inputObject.Childs.ElementAt(keys.IndexOf("DAZHairGroupName")).Value,
 				Active = bool.Parse(inputObject.Childs.ElementAt(keys.IndexOf("Active")).Value)
 			};
 			return mutationComponent;
@@ -382,7 +382,7 @@ namespace juniperD.Services.CatalogSerializers
 		public static JSONNode SerializeActiveMorphMutation(MorphMutation mutationComponent)
 		{
 			var newJson = new JSONClass();
-			newJson.Add("Name", new JSONData(mutationComponent.Name));
+			newJson.Add("Name", new JSONData(mutationComponent.Id));
 			newJson.Add("Value", new JSONData(mutationComponent.Value));
 			newJson.Add("PreviousValue", new JSONData(mutationComponent.PreviousValue));
 			newJson.Add("Active", new JSONData(mutationComponent.Active));
@@ -394,7 +394,7 @@ namespace juniperD.Services.CatalogSerializers
 			var keys = inputObject.Keys.ToList();
 			var mutationComponent = new MorphMutation()
 			{
-				Name = inputObject.Childs.ElementAt(keys.IndexOf("Name")).Value,
+				Id = inputObject.Childs.ElementAt(keys.IndexOf("Name")).Value,
 				Value = float.Parse(inputObject.Childs.ElementAt(keys.IndexOf("Value")).Value),
 				PreviousValue = float.Parse(inputObject.Childs.ElementAt(keys.IndexOf("PreviousValue")).Value),
 				Active = bool.Parse(inputObject.Childs.ElementAt(keys.IndexOf("Active")).Value)

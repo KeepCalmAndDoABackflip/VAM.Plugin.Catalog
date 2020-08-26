@@ -35,6 +35,9 @@ namespace juniperD.Models
 		public DragHelper PositionTracker {get; set; }
 		public Action<CatalogEntry> ApplyAction {get; set; }
 		public Border UiCatalogBorder { get; set; }
-		public List<UiCatalogSubItem> InfoToggles { get;set;} = new List<UiCatalogSubItem>();
+		public Color CurrentBorderColor { get; set; }
+		public List<EntrySubItem> EntrySubItemToggles { get;set;} = new List<EntrySubItem>();
+		public UIDynamicButton UiShiftLeftButton { get; set; }
+		public UIDynamicButton UiShiftRightButton { get; set; }
 	}
 }

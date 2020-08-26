@@ -18,6 +18,7 @@ namespace juniperD.Models
 		public List<MorphMutation> ActiveMorphs { get; set; } = new List<MorphMutation>();
 		public List<StoredAtom> StoredAtoms { get; set; } = new List<StoredAtom>();
 		public List<JSONClass> Storables { get;set; } = new List<JSONClass>();
+
 		//public string Img_RGB24_W1000H1000_64bEncoded { get; set; }
 		//public string ImageData { get; set; }
 		
