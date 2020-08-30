@@ -9,23 +9,39 @@ namespace juniperD.Models
 	{
 		public CatalogEntry CurrentCatalogEntry { get; set; }
 		public bool Minimized { get; set;} = false;
-		public int _windowWidth { get; set; } = 320;
-		public int _windowHeight { get; set; } = 220;
+		public int WindowWidth { get; set; } = 320;
+		public int WindowHeight { get; set; } = 220;
 
-		public bool ControlPanelMinimized { get; set; } = true;
-		public float ControlPanelMinimizedWidth { get; set; } = 320;
+		public bool ControlPanelMinimized { get; set; } = false;
+		public float ControlPanelMinimizedWidth { get; set; } = 150;
 		public float ControlPanelMinimizedHeight { get; set; } = 50;
 
 		public CatalogUiHelper ParentUiHelper { get; set; }
 		public GameObject ParentWindowContainer { get; set; }
-		public GameObject BackPanel { get; set; }
+		
+		// Panels...
+		public GameObject PanelBackground { get; set; }
+		public GameObject SubPanelMode { get; set; }
+		public GameObject SubPanelFileMenu { get; set; }
+		public GameObject SubPanelCapture { get; set; }
+		public GameObject SubSubPanelCaptureOptions { get; set; }
+		public GameObject SubPanelManageCatalog { get; set; }
+		public GameObject SubPanelSceneTools { get; set; }
+		public GameObject MiniPanelBackground { get; set; }
+		public GameObject MiniSubPanelShortcut { get; set; }
 
-		public GameObject ModeSubPanel { get; set; }
-		public GameObject CaptureSubPanel { get; set; }
-		public GameObject ManageSubPanel { get; set; }
-		public GameObject SceneToolsSubPanel { get; set; }
+		// Panel stacks
+		public HorizontalLayoutGroup SubPanelHorizontalStack { get; set; }
+		public GameObject SubPanelVerticalStack { get; set; }
 
-		public GameObject MainWindow { get; set; }
+		// Catalog File buttons
+		public UIDynamicButton ButtonOpenCatalog { get; set; }
+		public UIDynamicButton ButtonOpenCatalogShortcut { get; set; }
+		public UIDynamicButton ButtonSaveCatalog { get; set; }
+		public UIDynamicButton ButtonQuickload { get; set; }
+		public UIDynamicButton ButtonQuickloadShortcut { get; set; }
+		public UIDynamicButton ButtonMinimizeControlPanel { get; set; }
+		public UIDynamicButton ButtonMaximizeControlPanel { get; set; }
 
 		// Catalog Management buttons
 		public UIDynamicButton ButtonResetCatalog { get; set; }
@@ -41,20 +57,15 @@ namespace juniperD.Models
 		public UIDynamicButton ButtonResetPivot { get; set; }
 		public UIDynamicButton ButtonCreateMannequinPicker { get; set; }
 
-		// Capture Buttons
+		// Capture Buttons...
 		public UIDynamicButton ButtonCapture { get; set; }
 		public UIDynamicButton ButtonAddAtomToCapture { get; set; }
 		public UIDynamicButton ButtonSelectScenesFolder { get; set; }
 		public UIDynamicButton ToggleButtonCaptureMorphs { get; set; }
 		public UIDynamicButton ToggleButtonCaptureClothes { get; set; }
 		public UIDynamicButton ToggleButtonCaptureHair { get; set; }
-
 		
-		public GameObject CatalogRowContainer { get; set; }
-		public GameObject CatalogColumnContainer { get; set; }
-		public VerticalLayoutGroup CatalogRowsVLayout { get; set; }
-		public HorizontalLayoutGroup CatalogColumnsHLayout { get; set; }
-
+		// Info boxes...
 		public Dictionary<string, UIDynamicButton> ModeButtons { get; set; } = new Dictionary<string, UIDynamicButton>();
 		public Sprite MainCaptureButtonIcon { get; set; }
 		public Sprite IconForCapturePerson { get; set; }
@@ -63,19 +74,32 @@ namespace juniperD.Models
 		public Sprite IconForCaptureSelectedObject { get; set; }
 		public Sprite IconForCaptureNone { get; set; }
 
+		public GameObject CatalogRowContainer { get; set; }
+		public GameObject CatalogColumnContainer { get; set; }
+		public VerticalLayoutGroup CatalogRowsVLayout { get; set; }
+		public HorizontalLayoutGroup CatalogColumnsHLayout { get; set; }
 		public List<GameObject> CatalogRows { get; set; } = new List<GameObject>();
 		public List<GameObject> CatalogColumns { get; set; } = new List<GameObject>();
 
 		public UIDynamicTextField TextToolTip { get; set; }
-		public UIDynamicTextField TextDebugPanel { get; set; }
+		public UIDynamicTextField TextDebugPanelText { get; set; }
 		public UIDynamicButton ButtonNameLabel { get; set; }
 		public UIDynamicButton ButtonPopupMessageLabel { get; set; }
+
+		public GameObject DynamicInfoPanel { get; set; }
+		public UIDynamicTextField InfoLabel { get; set; }
+		public List<UIDynamicToggle> InfoCheckLabels { get; set; }
+		public VerticalLayoutGroup InfoVLayout { get; set; }
+		public UIDynamicButton ButtonRemoveAllClothing { get; internal set; }
+		public UIDynamicButton ButtonRemoveAllHair { get; internal set; }
+		public GameObject TextDebugPanel { get; internal set; }
 
 		public DynamicMainWindow(CatalogUiHelper catalogUi, GameObject windowContainer)
 		{
 			ParentUiHelper = catalogUi;
 			ParentWindowContainer = windowContainer;
 		}
+
 
 	}
 }

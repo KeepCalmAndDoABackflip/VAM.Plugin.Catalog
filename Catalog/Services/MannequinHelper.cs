@@ -821,31 +821,38 @@ namespace juniperD.Services
 					_context.SelectNextControllerPositionMode(controllerName, atomName);
 					_context.SelectNextControllerRotationMode(controllerName, atomName);
 					RefreshMannequinControlPoints(picker); // ... On point click
+					_context.SelectController(controllerName, atomName);
 					break;
 				case POINT_ACTION_NEXT_POSITION_MODE:
 					_context.SelectNextControllerPositionMode(controllerName, atomName);
 					RefreshMannequinControlPoints(picker); // ... On point click
+					_context.SelectController(controllerName, atomName);
 					break;
 				case POINT_ACTION_NEXT_ROTATION_MODE:
 					_context.SelectNextControllerPositionMode(controllerName, atomName);
 					RefreshMannequinControlPoints(picker); // ... On point click
+					_context.SelectController(controllerName, atomName);
 					break;
 				case POINT_ACTION_ON_OFF:
 					_context.TogglePositionOnOff(controllerName, atomName);
 					_context.ToggleRotationOnOff(controllerName, atomName);
 					RefreshMannequinControlPoints(picker); // ... On point click
+					_context.SelectController(controllerName, atomName);
 					break;
 				case POINT_ACTION_POSITION_ON_OFF:
 					_context.TogglePositionOnOff(controllerName, atomName);
 					RefreshMannequinControlPoints(picker); // ... On point click
+					_context.SelectController(controllerName, atomName);
 					break;
 				case POINT_ACTION_ROTATION_ON_OFF:
 					_context.ToggleRotationOnOff(controllerName, atomName);
 					RefreshMannequinControlPoints(picker); // ... On point click
+					_context.SelectController(controllerName, atomName);
 					break;
 				default:
 					break;//...POINT_ACTION_NONE
 			}
+
 
 		}
 

@@ -539,7 +539,7 @@ namespace juniperD.StatefullServices
 
 		// General helper functions
 		// Helper to position child relative to target, if no target supplied then parent is used
-		public static void SetAnchors(RectTransform parent, RectTransform child, string placement = "center", int offsetX = 0, int offsetY = 0)
+		public static void SetAnchors(RectTransform parent, RectTransform child, string placement = "center", int offsetX = 0, int offsetY = 0, int knownWidth = -1)
 		{
 			if (parent == null)
 			{
@@ -552,43 +552,46 @@ namespace juniperD.StatefullServices
 					child.transform.localPosition = new Vector3(0, 0, 0);
 					break;
 				case "left":
-					child.transform.localPosition = new Vector3(parent.rect.xMin - child.rect.xMin + offsetX, 0 + offsetY);
+					child.transform.localPosition = new Vector2(parent.transform.localPosition.x + offsetX, 0 + offsetY);
 					break;
 				case "right":
-					child.transform.localPosition = new Vector3(parent.rect.xMax - child.rect.xMax + offsetX, 0 - offsetY);
+					if (knownWidth > -1)
+						child.transform.localPosition = new Vector2(parent.transform.localPosition.x - knownWidth/2 + offsetX, 0);
+					else
+						child.transform.localPosition = new Vector2(parent.rect.xMax - child.rect.xMax + offsetX, 0);
 					break;
 				case "top":
-					child.transform.localPosition = new Vector3(0, parent.rect.yMax - child.rect.yMax + offsetX, 0 - offsetY);
+					child.transform.localPosition = new Vector2(offsetX, parent.rect.yMax - child.rect.yMax + offsetY);
 					break;
 				case "bottom":
-					child.transform.localPosition = new Vector3(0, parent.rect.yMin - child.rect.yMin + offsetX, 0 + offsetY);
+					child.transform.localPosition = new Vector2(offsetX, parent.rect.yMin - child.rect.yMin + offsetY);
 					break;
 
 				case "topleft":
-					child.transform.localPosition = new Vector3(parent.rect.xMin - child.rect.xMin + offsetX, parent.rect.yMax - child.rect.yMax - offsetY);
+					child.transform.localPosition = new Vector2(parent.rect.xMin - child.rect.xMin + offsetX, parent.rect.yMax - child.rect.yMax - offsetY);
 					break;
 				case "topright":
-					child.transform.localPosition = new Vector3(parent.rect.xMax - child.rect.xMax + offsetX, parent.rect.yMax - child.rect.yMax - offsetY);
+					child.transform.localPosition = new Vector2(parent.rect.xMax - child.rect.xMax + offsetX, parent.rect.yMax - child.rect.yMax - offsetY);
 					break;
 
 				case "bottomleft":
-					child.transform.localPosition = new Vector3(parent.rect.xMin - child.rect.xMin + offsetX, parent.rect.yMin - child.rect.yMin + offsetY);
+					child.transform.localPosition = new Vector2(parent.rect.xMin - child.rect.xMin + offsetX, parent.rect.yMin - child.rect.yMin + offsetY);
 					break;
 				case "bottomright":
-					child.transform.localPosition = new Vector3(parent.rect.xMax - child.rect.xMax + offsetX, parent.rect.yMin - child.rect.yMin + offsetY);
+					child.transform.localPosition = new Vector2(parent.rect.xMax - child.rect.xMax + offsetX, parent.rect.yMin - child.rect.yMin + offsetY);
 					break;
 				//Outside Edges
 				case "leftout":
-					child.transform.localPosition = new Vector3(parent.rect.xMin + child.rect.xMin + offsetX, 0 + offsetY);
+					child.transform.localPosition = new Vector2(parent.rect.xMin + child.rect.xMin + offsetX, 0 + offsetY);
 					break;
 				case "rightout":
-					child.transform.localPosition = new Vector3(parent.rect.xMax + child.rect.xMax + offsetX, 0 - offsetY);
+					child.transform.localPosition = new Vector2(parent.rect.xMax + child.rect.xMax + offsetX, 0 - offsetY);
 					break;
 				case "topout":
-					child.transform.localPosition = new Vector3(0, parent.rect.yMax + child.rect.yMax + offsetX, 0 - offsetY);
+					child.transform.localPosition = new Vector2(offsetX, parent.rect.yMax + child.rect.yMax + offsetX);
 					break;
 				case "bottomout":
-					child.transform.localPosition = new Vector3(0, parent.rect.yMin + child.rect.yMin + offsetX, 0 + offsetY);
+					child.transform.localPosition = new Vector2(offsetX, parent.rect.yMin + child.rect.yMin + offsetX);
 					break;
 			}
 

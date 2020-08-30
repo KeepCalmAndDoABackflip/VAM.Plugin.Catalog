@@ -24,16 +24,217 @@ namespace juniperD.StatefullServices
 		{
 			_context = context;
 
+			_context.CreateButton("DEBUG Apply preset").button.onClick.AddListener(() =>
+			{
+				try 
+				{ 
+					SuperController.LogMessage("1");
+					var selectedAtom = SuperController.singleton.GetSelectedAtom();
+
+					var presetFile = "/Custom/Clothing/Female/Builtin/Sweet/SweetTank_Zombies make better boyfriends.vap";
+					//-----------------------------------------------
+					//JSONStorable posePreset = selectedAtom.GetStorableByID("PosePresets");
+					//JSONStorableUrl presetPathJSON = posePreset.GetUrlJSONParam("presetBrowsePath");
+					//presetPathJSON.val = SuperController.singleton.NormalizePath(presetFile);
+					//posePreset.CallAction("LoadPreset");
+					//-----------------------------------------------
+					SuperController.LogMessage("2");
+					JSONStorable clothingPreset = selectedAtom.GetStorableByID("ClothingPresets");
+
+					//foreach (var param in clothingPreset.GetAllParamAndActionNames())
+					//{
+					//	SuperController.LogMessage("Param(all): " + param + ": " + clothingPreset.GetStringParamValue(param));
+					//}
+
+					foreach (var param in clothingPreset.GetStringParamNames())
+					{
+						SuperController.LogMessage("Param(str): " + param + ": " + clothingPreset.GetStringParamValue(param));
+					}
+					foreach (var param in clothingPreset.GetUrlParamNames())
+					{
+						SuperController.LogMessage("Param(url): " + param + ": " + clothingPreset.GetUrlParamValue(param));
+					}
+					SuperController.LogMessage("3");
+					//SuperController.LogMessage("PRESETS " + clothingPreset.GetJSON().ToString());
+					//JSONStorableUrl clothingPresetPath = clothingPreset.GetUrlJSONParam("presetBrowsePath");
+					clothingPreset.GetUrlJSONParam("presetBrowsePath").val = SuperController.singleton.NormalizePath(presetFile);
+					SuperController.LogMessage("4");
+					clothingPreset.GetStringJSONParam("presetName").val = "Zombies make better boyfriends";
+					SuperController.LogMessage("5");
+					//clothingPreset.GetUrlJSONParam("StorePresetWithName").val = "Zombies make better boyfriends";
+					//clothingPreset.GetUrlJSONParam("LoadPresetWithName").val = "Zombies make better boyfriends";
+
+					//clothingPreset.SetUrlParamValue("presetBrowsePath", SuperController.singleton.NormalizePath(presetFile));
+					//clothingPreset.SetUrlParamValue("presetName", "Zombies make better boyfriends");
+					//clothingPreset.SetUrlParamValue("StorePresetWithName", "Zombies make better boyfriends");
+					//clothingPreset.SetUrlParamValue("LoadPresetWithName", "Zombies make better boyfriends");
+
+					//clothingPreset.GetPresetFilePathAction("LoadPresetWithName").actionCallback = (path) => {};
+					//clothingPreset.CallAction("LoadPresetWithName", "Zombies make better boyfriends");
+					//SuperController.LogMessage("appearancePresetPath " + SuperController.singleton.NormalizePath(presetFile));
+					//clothingPresetPath.val = SuperController.singleton.NormalizePath(presetFile);
+					clothingPreset.CallAction("LoadPreset");
+					SuperController.LogMessage("6");
+
+					JSONClass atomsJSON = SuperController.singleton.GetSaveJSON(selectedAtom);
+					SuperController.LogMessage("7");
+					JSONArray atomsArrayJSON = atomsJSON["atoms"].AsArray;
+					SuperController.LogMessage("8");
+					JSONClass atomJSON = atomsArrayJSON.Childs.First().AsObject;
+					SuperController.LogMessage("9");
+					JSONArray atomStorables = atomJSON["storables"]?.AsArray;
+					//var atomStorables = selectedAtom.GetStorableIDs();
+					SuperController.LogMessage("10");
+					JSONNode presetJSON = SuperController.singleton.LoadJSON(presetFile);
+					SuperController.LogMessage("11: " + presetJSON.ToString()?? "NULL");
+					JSONArray presetStorables = presetJSON.AsObject["storables"]?.AsArray;
+					SuperController.LogMessage("12");
+					for (int p = 0; p< presetStorables.Count; p++)
+					{
+						for (int a = 0; a < atomStorables.Count; a++)
+						{
+							var presetStorableId = presetStorables[p]["id"] + "";
+							var atomStorableId = atomStorables[a]["id"] + "";
+							SuperController.LogMessage("Compare: " + presetStorableId + "=" + atomStorableId);
+							_context._mainWindow.TextDebugPanelText.text += "\n" + presetStorableId + "=" + atomStorableId;
+							if (presetStorableId == atomStorableId)
+							{
+								var storable = selectedAtom.GetStorableByID("presetStorableId");
+								storable.RestoreFromJSON(presetStorables[p].AsObject);
+								storable.LateRestoreFromJSON(presetStorables[p].AsObject);
+								_context._mainWindow.TextDebugPanelText.text += "\n-----------------\n";
+								_context._mainWindow.TextDebugPanelText.text += presetStorables[p].AsObject.ToString();
+								//atomJSON["storables"][a] = presetStorables[p];
+								break;
+							}
+							atomJSON["storables"].Add(presetStorables[p]);
+						}
+					}
+
+					selectedAtom.PreRestore();
+					selectedAtom.RestoreTransform(atomJSON);
+					selectedAtom.Restore(atomJSON);
+					selectedAtom.LateRestore(atomJSON);
+					selectedAtom.PostRestore();
+						//clothingPreset.isPresetRestore = true;
+						//clothingPreset.PreRestore();
+						//clothingPreset.PostRestore();
+						//-----------------------------------------------
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
+			});
+
+			_context.CreateButton("DEBUG show info for clothing items").button.onClick.AddListener(() =>
+			{
+				try
+				{
+					var atom = SuperController.singleton.GetSelectedAtom();
+					JSONStorable geometry = atom.GetStorableByID("geometry");
+					DAZCharacterSelector character = geometry as DAZCharacterSelector;
+					foreach (var item in character.clothingItems)
+					{
+						SuperController.LogMessage("Clothing item: " + item.uid);
+						item.RefreshClothingItems();
+						item.PostLoadJSONRestore();
+						//foreach (var materialName in item.skin.materialNames)
+						//{
+						//	SuperController.LogMessage("    skin: " + materialName);
+						//}
+					}
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
+			});
+
+			_context.CreateButton("DEBUG show presets from file").button.onClick.AddListener(() =>
+			{
+				try
+				{
+					_context._mainWindow.TextDebugPanelText.UItext.text = "";
+					string[] files = FileManagerSecure.GetFiles("Custom\\Atom\\Person\\Clothing", "*.vap");
+					foreach (var file in files)
+					{
+						_context._mainWindow.TextDebugPanelText.UItext.text += "\n" + file;
+					}
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
+			});
+
+			_context.CreateButton("DEBUG show presets").button.onClick.AddListener(() =>
+			{
+				try
+				{
+					var atom = SuperController.singleton.GetSelectedAtom();
+					if (atom == null) _context.ShowPopupMessage("Please select atom");
+
+					var atomStorables = atom.GetStorableIDs();
+					_context._mainWindow.TextDebugPanelText.UItext.text = "";
+					foreach (var storableId in atom.GetStorableIDs())
+					{
+						if (storableId.EndsWith("Preset"))
+						{
+							var json = atom.GetStorableByID(storableId).GetJSON();
+							_context._mainWindow.TextDebugPanelText.UItext.text += "\n" +  json.ToString();
+						}
+					}
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
+			});
+
+			_context.CreateButton("DEBUG Log Atom").button.onClick.AddListener(() =>
+			{
+				SuperController.LogMessage("Test");
+
+				try
+				{
+					var selectedAtom = SuperController.singleton.GetSelectedAtom();
+					JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
+					DAZCharacterSelector character = geometry as DAZCharacterSelector;
+					foreach (var charac in character.characters)
+					{
+						SuperController.LogMessage("Character: " + charac.displayName);
+					}
+					//var selectedAtom = SuperController.singleton.GetSelectedAtom();
+					//JSONClass atomsJSON = SuperController.singleton.GetSaveJSON(selectedAtom);
+					//JSONArray atomsArrayJSON = atomsJSON["atoms"].AsArray;
+					//JSONClass atomJSON = atomsArrayJSON.Childs.First().AsObject;
+					//SuperController.LogMessage("AtomJson: " + atomJSON.ToString());
+					//_context._mainWindow.TextDebugPanel.text = atomJSON.ToString();
+					//var path = $"{_context.GetSceneDirectoryPath()}/{selectedAtom.name}-SaveJSON.json";
+					//SuperController.LogMessage("SavbePath: " + path);
+					//SuperController.singleton.SaveStringIntoFile(path, atomJSON.ToString());
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
+			});
+
 			_context.CreateButton("DEBUG show serialized storables").button.onClick.AddListener(() =>
 			{
 				try
 				{
 					var atom = SuperController.singleton.GetSelectedAtom();
 					var atomStorables = atom.GetStorableIDs();
-					//SuperController.LogMessage("Has geometry: " + atomStorables.Any(s => s == "geometry"));
+					_context._mainWindow.TextDebugPanelText.UItext.text = "";
 					foreach (var storableId in atom.GetStorableIDs())
 					{
-						_context.ShowDebugPanel("");
+						var storableValue = atom.GetStorableByID(storableId)?.GetJSON()?.ToString() ?? "";
+						if (storableValue.Length > 100)
+							_context._mainWindow.TextDebugPanelText.UItext.text += "\n" + storableId + ": " + storableValue.Substring(0, 50);
+						else
+							_context._mainWindow.TextDebugPanelText.UItext.text += "\n" + storableId + ": " + storableValue;
 					}
 				}
 				catch (Exception e)
