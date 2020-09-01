@@ -15,6 +15,7 @@ namespace juniperD.Models
 		public string CatalogMode { get; set; }
 		public string UniqueName { get; set; }
 		public ImageInfo ImageInfo { get; set; }
+		public string EntryType { get;set; }
 
 		//public string ImageAsEncodedString { get; set; }
 

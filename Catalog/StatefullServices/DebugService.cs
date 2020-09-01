@@ -24,6 +24,21 @@ namespace juniperD.StatefullServices
 		{
 			_context = context;
 
+			_context.CreateButton("DEBUG: Morph Value").button.onClick.AddListener(() =>
+			{
+				try
+				{
+					var morphs = _context._mutationsService.GetMorphsForSelectedPersonOrDefault();
+					var m = morphs.FirstOrDefault(mo => mo.displayName == "AAsex_browhiAA1");
+					_context.DebugLog($"Morph Value ({m.uid}): " + m.morphValue);
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+					throw (e);
+				}
+			});
+
 			_context.CreateButton("DEBUG Apply preset").button.onClick.AddListener(() =>
 			{
 				try 
@@ -1618,7 +1633,7 @@ namespace juniperD.StatefullServices
 
 			_context.CreateButton("List active morphs").button.onClick.AddListener(() =>
 			{
-				_context._mutationsService.GetActiveMorphs().Take(1).ToList().ForEach(m => SuperController.LogMessage($"Active Morph: {m.Id}: {m.Value}"));
+				_context._mutationsService.CaptureActiveMorphsForCurrentPerson().Take(1).ToList().ForEach(m => SuperController.LogMessage($"Active Morph: {m.Id}: {m.Value}"));
 			});
 
 			_context.CreateButton("List base morphs").button.onClick.AddListener(() =>
@@ -1626,10 +1641,10 @@ namespace juniperD.StatefullServices
 				_context._mutationsService.GetCurrentMorphBaseValues().ForEach(m => SuperController.LogMessage($"Morph Base: {m.Id}: {m.Value}"));
 			});
 
-			_context.CreateButton("Set active morphs").button.onClick.AddListener(() =>
-			{
-				_context._mutationsService.SetMorphBaseValuesCheckpoint();
-			});
+			//_context.CreateButton("Set active morphs").button.onClick.AddListener(() =>
+			//{
+			//	_context._mutationsService.SetMorphBaseValuesForCurrentPerson();
+			//});
 
 
 		} // end of Init()

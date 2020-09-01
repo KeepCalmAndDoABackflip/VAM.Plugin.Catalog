@@ -14,7 +14,6 @@ namespace juniperD.Models
 		public List<MorphMutation> FaceGenMorphSet { get; set; } = new List<MorphMutation>();
 		public List<ClothingMutation> ClothingItems { get; set; } = new List<ClothingMutation>();
 		public List<HairMutation> HairItems { get; set; } = new List<HairMutation>();
-		public List<DynamicMutation> DynamicItems { get; set; } = new List<DynamicMutation>();
 		public List<MorphMutation> ActiveMorphs { get; set; } = new List<MorphMutation>();
 		public List<StoredAtom> StoredAtoms { get; set; } = new List<StoredAtom>();
 		public List<JSONClass> Storables { get;set; } = new List<JSONClass>();

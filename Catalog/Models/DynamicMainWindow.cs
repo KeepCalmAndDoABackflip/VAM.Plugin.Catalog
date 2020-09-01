@@ -92,7 +92,8 @@ namespace juniperD.Models
 		public VerticalLayoutGroup InfoVLayout { get; set; }
 		public UIDynamicButton ButtonRemoveAllClothing { get; internal set; }
 		public UIDynamicButton ButtonRemoveAllHair { get; internal set; }
-		public GameObject TextDebugPanel { get; internal set; }
+		public GameObject DebugPanel { get; internal set; }
+		public UIDynamicButton ButtonClean { get; internal set; }
 
 		public DynamicMainWindow(CatalogUiHelper catalogUi, GameObject windowContainer)
 		{

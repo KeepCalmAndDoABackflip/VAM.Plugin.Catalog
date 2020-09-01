@@ -188,9 +188,9 @@ namespace juniperD.Services.CatalogSerializers
 			var newJson = new JSONClass();
 			newJson.Add("Mutation", SerializeMutation(entry.Mutation));
 			newJson.Add("ImageInfo", SerializeImageInfo(entry.ImageInfo));
-			//newJson.Add("ImageFormat", UseDxtCompression? TextureFormat.DXT1.ToString(): TextureFormat.RGB24.ToString());
 			newJson.Add("CatalogMode", entry.CatalogMode);
 			newJson.Add("UniqueName", entry.UniqueName);
+			newJson.Add("EntryType", entry.EntryType);
 			return newJson;
 		}
 
@@ -202,9 +202,9 @@ namespace juniperD.Services.CatalogSerializers
 			{
 				Mutation = keys.IndexOf("Mutation") > -1 ? DeserializeIntoMutation(inputObject.Childs.ElementAt(keys.IndexOf("Mutation")).AsObject) : new Mutation(),
 				ImageInfo = keys.IndexOf("ImageInfo") > -1 ? DeserializeIntoImageInfo(inputObject.Childs.ElementAt(keys.IndexOf("ImageInfo")).AsObject) : new ImageInfo(),
-				//ImageFormat = LoadStringFromJsonStringProperty(inputObject, "ImageFormat", null),
 				CatalogMode = LoadStringFromJsonStringProperty(inputObject, "CatalogMode", null),
-				UniqueName = LoadStringFromJsonStringProperty(inputObject, "UniqueName", null)
+				UniqueName = LoadStringFromJsonStringProperty(inputObject, "UniqueName", null),
+				EntryType = LoadStringFromJsonStringProperty(inputObject, "EntryType", null)
 			};
 			
 			return newCatalogEntry;
@@ -464,7 +464,7 @@ namespace juniperD.Services.CatalogSerializers
 			newJson.Add("Active", new JSONData(storedAtom.Active));
 			newJson.Add("AtomName", new JSONData(storedAtom.AtomName));
 			newJson.Add("AtomType", new JSONData(storedAtom.AtomType));
-			//newJson.Add("FullAtom", storedAtom.FullAtom);
+			newJson.Add("FullAtom", storedAtom.FullAtom);
 
 			JSONArray storables = new JSONArray();
 			storedAtom.Storables.ForEach(storables.Add);
@@ -481,7 +481,7 @@ namespace juniperD.Services.CatalogSerializers
 				Active = bool.Parse(inputObject.Childs.ElementAt(keys.IndexOf("Active")).Value),
 				AtomType = inputObject.Childs.ElementAt(keys.IndexOf("AtomType")).Value,
 				AtomName = inputObject.Childs.ElementAt(keys.IndexOf("AtomName")).Value,
-				//FullAtom = inputObject["FullAtom"].AsObject,
+				FullAtom = inputObject["FullAtom"].AsObject,
 				Storables = inputObject.Childs.ElementAt(keys.IndexOf("Storables"))
 					.Childs
 					.Select(i => i.AsObject)

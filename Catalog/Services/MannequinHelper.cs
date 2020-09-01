@@ -147,7 +147,7 @@ namespace juniperD.Services
 			UnityAction<string> onAddAction = (selectedLink) =>
 			{
 				if (selectedLink == PointAddOptionEnum.ANIMATION) {
-					AddAnimationToController(newMannequinPicker.SelectedAtomName, newMannequinPicker.SelectedControllerName, newMannequinPicker);
+					AddAnimationToController(newMannequinPicker.SelectedAtomName, newMannequinPicker.SelectedControllerName);
 				}
 				if (selectedLink == PointAddOptionEnum.TRIGGER) {
 					AddTriggerToController(newMannequinPicker.SelectedAtomName, newMannequinPicker.SelectedControllerName, newMannequinPicker);
@@ -318,7 +318,7 @@ namespace juniperD.Services
 			return null;
 		}
 
-		private void AddAnimationToController(string targetAtomName, string targetControllerName, DynamicMannequinPicker picker = null)
+		private void AddAnimationToController(string targetAtomName, string targetControllerName)
 		{
 			var controller = GetControllerOrDefault(targetAtomName, targetControllerName);
 			if (controller == null)
