@@ -22,6 +22,7 @@ namespace juniperD.Models
 
 		public DynamicJointPoint SelectedJoint { get; set; }
 		public List<DynamicJointPoint> JointPoints { get; set; } = new List<DynamicJointPoint>();
+		public UIDynamicButton ButtonSelectionHalo { get; set; }
 		public DynamicDropdownField AtomSelector { get;set; }
 		public DynamicDropdownField PointSelector { get; set; }
 		public DynamicDropdownField PointActionSelector { get;set; }

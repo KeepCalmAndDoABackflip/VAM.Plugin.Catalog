@@ -96,6 +96,7 @@ namespace juniperD.Models
 		public GameObject DebugPanel { get; internal set; }
 		public UIDynamicButton ButtonClean { get; internal set; }
 		public UIDynamicButton ToggleButtonCapturePose { get; internal set; }
+		public UIDynamicButton ButtonHideCatalogShortcut { get; internal set; }
 
 		public DynamicMainWindow(CatalogUiHelper uiHelper)
 		{

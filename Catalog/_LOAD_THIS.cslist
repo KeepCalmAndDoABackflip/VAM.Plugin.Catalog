@@ -1,9 +1,9 @@
+Contracts/Global.cs
+Contracts/Mappings.cs
 Enums/CatalogModeEnum.cs
 Enums/LinkTypeEnum.cs
 Enums/PointAddOptionEnum.cs
 Enums/PointTypeEnum.cs
-Contracts/Global.cs
-Contracts/Mappings.cs
 Models/Border.cs
 Models/Catalog.cs
 Models/CatalogEntry.cs
@@ -14,6 +14,7 @@ Models/HairMutation.cs
 Models/DynamicMutation.cs
 Models/MorphMutation.cs
 Models/PoseMutation.cs
+Models/PoseTransition.cs
 Models/ActiveController.cs
 Models/VersionMessage.cs
 Models/CaptureRequest.cs

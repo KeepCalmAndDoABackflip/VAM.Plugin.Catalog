@@ -43,6 +43,10 @@ namespace juniperD.Services
 			// Create floating window...
 			newMannequinPicker.Window = CatalogUiHelper.CreatePanel(_parentWindow.canvas.gameObject, 0, 0, 0, 0, new Color(0.1f, 0.1f, 0.1f, 1f), Color.clear);
 			newMannequinPicker.BackPanel = CatalogUiHelper.CreatePanel(newMannequinPicker.Window, 520, 600, -10, -360, new Color(0.1f, 0.1f, 0.1f, 1f), Color.clear);
+
+			var selectionHaloIcon = TextureLoader.LoadTexture(_context.GetPluginPath() + "/Resources/PointRotation2.png");
+			newMannequinPicker.ButtonSelectionHalo = _parentWindow.CreateButton(newMannequinPicker.Window, "", 30, 30, 0, 0, new Color(0.5f, 1, 1, 1f), new Color(0.5f, 1, 1, 1f), Color.clear, selectionHaloIcon);
+
 			// Add drag ability to window...
 			_context.AddDragging(newMannequinPicker.BackPanel.gameObject, newMannequinPicker.Window.gameObject);
 
@@ -201,6 +205,7 @@ namespace juniperD.Services
 				picker.AtomMiniLabel.transform.localScale = minimize ? Vector3.one : Vector3.zero;
 				picker.ControllerMiniLabel.transform.localScale = minimize ? Vector3.one : Vector3.zero;
 				picker.MiniOverlay.transform.localScale = minimize ? Vector3.one : Vector3.zero;
+				picker.ButtonSelectionHalo.transform.localScale = minimize ? Vector3.one : Vector3.zero;
 
 				if (picker.AtomSelector != null) picker.AtomSelector.MinimizeDynamicDropdown(_context, minimize);
 				if (picker.PointSelector != null) picker.PointSelector.MinimizeDynamicDropdown(_context, minimize);
@@ -220,8 +225,6 @@ namespace juniperD.Services
 				SuperController.LogError(e.ToString());
 			}
 		}
-
-
 
 		private void AddTriggerToController(string targetAtomName, string targetControllerName, DynamicMannequinPicker picker = null)
 		{
@@ -432,11 +435,17 @@ namespace juniperD.Services
 		{
 			if (picker.SelectedAtomName == null) return;
 			var atom = SuperController.singleton.GetAtomByUid(picker.SelectedAtomName);
-			SuperController.singleton.SelectController(atom.mainController);
-			//var controllerNames = defaultAtom?.GetComponentsInChildren<FreeControllerV3>().Select(c => c.name).ToList() ?? new List<string>();
 
+			//var controllerNames = defaultAtom?.GetComponentsInChildren<FreeControllerV3>().Select(c => c.name).ToList() ?? new List<string>();
 			RefreshMannequinOverlays(atom, picker);
 			RefreshMannequinControlPoints(picker);  // ... On Refresh
+			
+			var selectedController = SuperController.singleton.GetSelectedController();
+			var selectController = (selectedController.containingAtom.name != atom.name) ? atom.mainController : selectedController;
+			//SuperController.singleton.SelectController(selectController);
+
+			var selecteddJoint = picker.JointPoints.FirstOrDefault(jp => jp.controllerName == selectController.name);
+			SelectMannequinJoint(selecteddJoint, picker);
 			picker.AtomSelector.selectedOption.buttonText.text = picker.SelectedAtomName;
 		}
 
@@ -515,6 +524,8 @@ namespace juniperD.Services
 			_context.RemoveButton(picker.MinimizeButton);
 			_context.RemoveButton(picker.RefreshButton);
 
+			_context.RemoveButton(picker.ButtonSelectionHalo);
+
 			_context.RemoveButton(picker.ControllerMiniLabel);
 			_context.RemoveButton(picker.AtomMiniLabel);
 			_context.RemoveButton(picker.MiniOverlay);
@@ -556,7 +567,6 @@ namespace juniperD.Services
 		{
 			if (picker.Minimized) return;
 
-			SuperController.LogMessage("Refreshing control points");
 			var atom = _context.GetAtomById(picker.SelectedAtomName);
 			if (atom == null) return;
 			foreach (var jointPoint in picker.JointPoints)
@@ -634,6 +644,7 @@ namespace juniperD.Services
 				if (joint == null) return;
 				var selectedAtom = picker.SelectedAtomName;
 				picker.SelectedJoint = joint;
+				picker.ButtonSelectionHalo.transform.localPosition = picker.SelectedJoint.positionButton.transform.localPosition;
 				picker.SelectedControllerName = joint.controllerName;
 				picker.ControllerMiniLabel.buttonText.text = joint.controllerName;
 				picker.PointSelector.selectedOption.buttonText.text = joint.controllerName;
@@ -679,12 +690,15 @@ namespace juniperD.Services
 
 			//newDynamicJoint.positionButton.button.onClick.AddListener(() => userSelectsPointCallback(controllerName));
 			newDynamicJoint.rotationButton.button.onClick.AddListener(() => userSelectsPointCallback(controllerName));
+			var controller = atom.GetComponentsInChildren<FreeControllerV3>().SingleOrDefault(c => c.name == controllerName);
 
 			_context.SetTooltipForDynamicButton(newDynamicJoint.rotationButton, () =>
 			{
-				var controller = atom.GetComponentsInChildren<FreeControllerV3>().SingleOrDefault(c => c.name == controllerName);
 				return controllerName + "\n(position: " + controller.currentPositionState + ", rotation: " + controller.currentRotationState + ")";
 			});
+
+			
+			_context.AddDragging(newDynamicJoint.rotationButton.gameObject, controller.gameObject);
 
 			_context.UpdatePointerState(newDynamicJoint, controllerName, atom);
 
@@ -848,13 +862,13 @@ namespace juniperD.Services
 					_context.SelectController(controllerName, atomName);
 					break;
 				case POINT_ACTION_NEXT_ROTATION_MODE:
-					_context.SelectNextControllerPositionMode(controllerName, atomName);
+					_context.SelectNextControllerRotationMode(controllerName, atomName);
 					RefreshMannequinControlPoints(picker); // ... On point click
 					_context.SelectController(controllerName, atomName);
 					break;
 				case POINT_ACTION_ON_OFF:
-					_context.TogglePositionOnOff(controllerName, atomName);
-					_context.ToggleRotationOnOff(controllerName, atomName);
+					string newState = _context.TogglePositionOnOff(controllerName, atomName);
+					_context.ToggleRotationOnOff(controllerName, atomName, newState);
 					RefreshMannequinControlPoints(picker); // ... On point click
 					_context.SelectController(controllerName, atomName);
 					break;

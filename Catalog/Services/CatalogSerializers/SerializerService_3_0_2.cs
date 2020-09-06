@@ -460,6 +460,9 @@ namespace juniperD.Services.CatalogSerializers
 			newJson.Add("Name", new JSONData(mutationComponent.Id));
 			newJson.Add("Rotation", SerializeVector3(mutationComponent.Rotation));
 			newJson.Add("Position", SerializeVector3(mutationComponent.Position));
+			newJson.Add("PositionState", mutationComponent.PositionState.ToString());
+			newJson.Add("RotationState", mutationComponent.RotationState.ToString());
+			newJson.Add("Active", new JSONData(mutationComponent.Active));
 			return newJson;
 		}
 
@@ -500,12 +503,30 @@ namespace juniperD.Services.CatalogSerializers
 			var mutationComponent = new PoseMutation()
 			{
 				Id = inputObject.Childs.ElementAt(keys.IndexOf("Name")).Value,
-				Rotation = DeserializeVector3(inputObject["Rotation"].AsObject),
-				Position = DeserializeVector3(inputObject["Position"].AsObject),
-				Active = bool.Parse(inputObject.Childs.ElementAt(keys.IndexOf("Active")).Value)
+				Rotation = DeserializeVector3(inputObject["Rotation"]?.AsObject),
+				Position = DeserializeVector3(inputObject["Position"]?.AsObject),
+				PositionState = inputObject["PositionState"]?.Value,
+				RotationState = inputObject["RotationState"]?.Value,
+				Active = bool.Parse(inputObject["Active"].Value)
 			};
 			return mutationComponent;
 		}
+
+		//private static FreeControllerV3.RotationState DeserializeIntoRotationState(string value)
+		//{
+		//	if (value == null) return FreeControllerV3.RotationState.On;
+		//	return (FreeControllerV3.RotationState)Enum.Parse(typeof(FreeControllerV3.RotationState), value);
+		//}
+
+		//private static FreeControllerV3.PositionState DeserializeIntoPositionState(string value)
+		//{
+		//	if (value == null) return FreeControllerV3.PositionState.On;
+		//	return (FreeControllerV3.PositionState)Enum.Parse(typeof(FreeControllerV3.PositionState), value);
+		//	//switch (value)
+		//	//{
+		//	//	case FreeControllerV3.PositionState.On + "": return FreeControllerV3.PositionState.On;
+		//	//}
+		//}
 
 		public static JSONNode SerializeStoredAtom(StoredAtom storedAtom)
 		{

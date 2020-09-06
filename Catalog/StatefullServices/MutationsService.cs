@@ -65,7 +65,7 @@ namespace juniperD.StatefullServices
 		protected List<JSONStorableBool> _predefinedMorphsSetToggles = new List<JSONStorableBool>();
 		protected List<JSONStorableBool> _categoryMorphsSetToggles = new List<JSONStorableBool>();
 
-		protected List<Transition> _transitioningAtomControllers = new List<Transition>();
+		protected List<PoseTransition> _transitioningAtomControllers = new List<PoseTransition>();
 
 		protected Dictionary<string, Stack<Mutation>> _mutationStacks = new Dictionary<string, Stack<Mutation>>();
 		protected Dictionary<string, List<MorphMutation>> _activeMorphStackForPerson = new Dictionary<string, List<MorphMutation>>();
@@ -1187,23 +1187,19 @@ namespace juniperD.StatefullServices
 			var posePoints = new List<PoseMutation>();
 			foreach (var controller in controllers)
 			{
-				if (controller.currentPositionState != FreeControllerV3.PositionState.On && controller.currentRotationState != FreeControllerV3.RotationState.On) continue;
-				SuperController.LogMessage("Captureing Controller: " + controller.name);
+
 				var newPosePoint = new PoseMutation();
 				newPosePoint.Id = controller.name;
 				newPosePoint.Active = true;
+				newPosePoint.PositionState = controller.currentPositionState.ToString();
+				newPosePoint.RotationState = controller.currentRotationState.ToString();
+				//if (controller.currentPositionState != FreeControllerV3.PositionState.On && controller.currentRotationState != FreeControllerV3.RotationState.On) continue;
 				newPosePoint.Rotation = controller.transform.localRotation.eulerAngles;
 				newPosePoint.Position = controller.transform.localPosition;
 				if (controller.containingAtom.type == "Person" && controller.name == "control") newPosePoint.Active = false;
 				posePoints.Add(newPosePoint);
 			}
-			//if (!PoseBaseValuesHaveBeenSetForCurrentPerson(trackingKey)) SetPoseBaseValuesForCurrentPerson();
-			//var baseValuesForPerson = _poseBaseValuesForTrackedPerson[trackingKey];
-			//var changedMorphs = DeltaMorphsForCurrentPerson(baseValuesForPerson);
-			//foreach (var changedMorph in changedMorphs)
-			//{
-			//	changedMorph.Active = true;
-			//}
+
 			return posePoints;
 		}
 
@@ -1250,13 +1246,16 @@ namespace juniperD.StatefullServices
 			if (controller == null)
 			{
 				SuperController.LogMessage("WARNING: could not find controller: " + controller.name);
+				return;
 			}
-			else
-			{
-				_context.StartCoroutine(TransitionApplyPose(controller, mutationItem.Position, mutationItem.Rotation, startDelay, duration, 1, whenFinishedCallback));
-				//controller.transform.localPosition = mutationItem.Position;
-				//controller.transform.localRotation = Quaternion.Euler(mutationItem.Rotation);
-			}
+
+			controller.SetPositionStateFromString(mutationItem.PositionState);
+			controller.SetRotationStateFromString(mutationItem.RotationState);
+			if (controller.currentPositionState == FreeControllerV3.PositionState.Off && controller.currentRotationState == FreeControllerV3.RotationState.Off) return;
+			_context.StartCoroutine(TransitionApplyPose(controller, mutationItem.Position, mutationItem.Rotation, startDelay, duration, 1, whenFinishedCallback));
+			//controller.transform.localPosition = mutationItem.Position;
+			//controller.transform.localRotation = Quaternion.Euler(mutationItem.Rotation);
+			
 			//}
 			//if (morphs == null) return;
 			//DAZMorph morph = morphs.FirstOrDefault(h => GetMorphId(h) == mutationItem.Id);
@@ -1280,7 +1279,7 @@ namespace juniperD.StatefullServices
 			yield return new WaitForSeconds(startDelay);
 
 			var transitionKey = _context.GetUniqueName();
-			var newTransition = new Transition(transitionKey);
+			var newTransition = new PoseTransition(transitionKey);
 			
 			if (transitionTimeInSeconds == 0)
 			{
@@ -1291,76 +1290,65 @@ namespace juniperD.StatefullServices
 			{
 				if (smoothMultiplier < 1) smoothMultiplier = 1;
 				float framesPerSecond = 25 * smoothMultiplier;
-				Vector3 currentPosition = controller.transform.localPosition;
-				Vector3 currentRotation = controller.transform.localRotation.eulerAngles;
-				Vector3 totalPositionToAdd = targetPosition - currentPosition;
+				Vector3 newPosition = controller.transform.localPosition;
+				Vector3 newRotation = controller.transform.localRotation.eulerAngles;
+				Vector3 totalPositionToAdd = targetPosition - newPosition;
 				float largestDistanceToTravel = GetLargestMagnitudeFromVector(totalPositionToAdd);
 				//Vector3 totalRotationToAdd = targetRotation - currentRotation;
-				Vector3 shortestRotationVector = GetShortestRotationVector(currentRotation, targetRotation);
+				Vector3 shortestRotationVector = GetShortestRotationVector(newRotation, targetRotation);
 				Vector3 totalRotationToAdd = shortestRotationVector;
 
 
-				if (currentRotation != targetRotation) { 
-					SuperController.LogMessage($"currentRotation: {currentRotation}, targetRotation: {targetRotation}");
-					SuperController.LogMessage($"totalRotationToAdd: {totalRotationToAdd}");
-					SuperController.LogMessage($"largestDistanceToTravel: {largestDistanceToTravel}");
+				if (newRotation != targetRotation) { 
+					//SuperController.LogMessage($"currentRotation: {newRotation}, targetRotation: {targetRotation}");
+					//SuperController.LogMessage($"totalRotationToAdd: {totalRotationToAdd}");
+					//SuperController.LogMessage($"largestDistanceToTravel: {largestDistanceToTravel}");
 				}
 				var numberOfIterations = transitionTimeInSeconds * framesPerSecond;
-				//var maxDistance = GetMaxDistance();
-				//amountOfIterations = maxDistance * speedMultiplier;
-
 				var positionSingleIterationDistance = totalPositionToAdd / numberOfIterations;
 				var rotationSingleIterationDistance = totalRotationToAdd / numberOfIterations;
-
-				//if (ControllerIsAlreadyUnderTransition(controller.containingAtom.name, controller.name))
-				//{
-				//	CancelOverriddenPreviousTransitionComponents(controller.containingAtom.name, controller.name);
-				//}
-				//_transitioningAtomControllers.Add()
-
+				
 				newTransition.XPositionEnabled = totalPositionToAdd.x != 0;
 				newTransition.YPositionEnabled = totalPositionToAdd.y != 0;
 				newTransition.ZPositionEnabled = totalPositionToAdd.z != 0;
 				newTransition.XRotationEnabled = totalRotationToAdd.x != 0;
 				newTransition.YRotationEnabled = totalRotationToAdd.y != 0;
 				newTransition.ZRotationEnabled = totalRotationToAdd.z != 0;
+				
 				RegisterAndMergeTransitionIntoActiveTransitions(newTransition);
 
-				bool transitionCancelled = false;
 				for (int i = 0; i < numberOfIterations; i++)
 				{
 					try
 					{
-						var xPositionCancelled = IsTransitionEnabled(newTransition, Enums.PointTypeEnum.POSITION, OrientAxis.X);
-						var yPositionCancelled = IsTransitionEnabled(newTransition, Enums.PointTypeEnum.POSITION, OrientAxis.Y);
-						var zPositionCancelled = IsTransitionEnabled(newTransition, Enums.PointTypeEnum.POSITION, OrientAxis.Z);
-						var xRotationCancelled = IsTransitionEnabled(newTransition, Enums.PointTypeEnum.ROTATION, OrientAxis.X);
-						var yRotationCancelled = IsTransitionEnabled(newTransition, Enums.PointTypeEnum.ROTATION, OrientAxis.Y);
-						var zRotationCancelled = IsTransitionEnabled(newTransition, Enums.PointTypeEnum.ROTATION, OrientAxis.Z);
-
 						float easeFactor = GetEaseFactor(i, numberOfIterations);
 
 						var positionNudgeDistance = new Vector3(positionSingleIterationDistance.x * easeFactor, positionSingleIterationDistance.y * easeFactor, positionSingleIterationDistance.z * easeFactor);
 						var rotationNudgeDistance = new Vector3(rotationSingleIterationDistance.x * easeFactor, rotationSingleIterationDistance.y * easeFactor, rotationSingleIterationDistance.z * easeFactor);
 
 						// Move point...
-						currentPosition += positionNudgeDistance; //PushPointTowardTarget(currentPosition, targetPosition, positionCurveDistance, controller, true);
-						currentRotation += rotationNudgeDistance;//PushPointTowardTarget(currentRotation, targetRotation, rotationIterationDistance, controller, false);
-						
-						var xPosition = xPositionCancelled ? controller.transform.localPosition.x : currentPosition.x;
-						var yPosition = yPositionCancelled ? controller.transform.localPosition.y : currentPosition.y;
-						var zPosition = zPositionCancelled ? controller.transform.localPosition.z : currentPosition.z;
-						var xRotation = xRotationCancelled ? controller.transform.localRotation.x : currentRotation.x;
-						var yRotation = yRotationCancelled ? controller.transform.localRotation.y : currentRotation.y;
-						var zRotation = zRotationCancelled ? controller.transform.localRotation.z : currentRotation.z;
+						newPosition += positionNudgeDistance;
+						newRotation += rotationNudgeDistance;
+
+						//var xPosition = newTransition.XPositionEnabled ? newPosition.x : controller.transform.localPosition.x;
+						//var yPosition = newTransition.YPositionEnabled ? newPosition.y : controller.transform.localPosition.y;
+						//var zPosition = newTransition.ZPositionEnabled ? newPosition.z : controller.transform.localPosition.z;
+						//var xRotation = newTransition.XRotationEnabled ? newRotation.x : controller.transform.localRotation.x;
+						//var yRotation = newTransition.YRotationEnabled ? newRotation.y : controller.transform.localRotation.y;
+						//var zRotation = newTransition.ZRotationEnabled ? newRotation.z : controller.transform.localRotation.z;
+
+						var xPosition = newPosition.x;
+						var yPosition = newPosition.y;
+						var zPosition = newPosition.z;
+						var xRotation = newRotation.x;
+						var yRotation = newRotation.y;
+						var zRotation = newRotation.z;
 
 						var finalPosition = new Vector3(xPosition, yPosition, zPosition);
 						var finalRotation = new Vector3(xRotation, yRotation, zRotation);
 
 						controller.transform.localPosition = finalPosition;
-						controller.transform.localRotation = Quaternion.Euler(finalRotation);
-						//currentPosition = PushPointTowardTarget(currentPosition, targetPosition, positionCurveDistance, controller, true);
-						//currentRotation = PushPointTowardTarget(currentRotation, targetRotation, rotationCurveDistance, controller, false);
+						controller.transform.Rotate(rotationNudgeDistance);//.localRotation = Quaternion.Euler(finalRotation);
 					}
 					catch (Exception e)
 					{
@@ -1368,41 +1356,32 @@ namespace juniperD.StatefullServices
 					}
 					yield return new WaitForSeconds(1 / numberOfIterations);
 				}
-				//if (transitionCancelled == false) { 
 				controller.transform.localPosition = targetPosition;
 				controller.transform.localRotation = Quaternion.Euler(targetRotation);
 				RemoveActiveTransition(newTransition);
-				//}
 				if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
 			}
 		}
 
-		private void RemoveActiveTransition(Transition newTransition)
+		private void RemoveActiveTransition(PoseTransition newTransition)
 		{
 			_transitioningAtomControllers.Remove(newTransition);
 		}
 
-		private bool IsTransitionEnabled(Transition transition, string value, OrientAxis axis)
+		private void RegisterAndMergeTransitionIntoActiveTransitions(PoseTransition newTransition)
 		{
-			//TODO: Implement this...
-			return true;
-			//switch(axis) transition.XPositionEnabled
-		}
-
-		private void RegisterAndMergeTransitionIntoActiveTransitions(Transition newTransition)
-		{
-			foreach (var transition in _transitioningAtomControllers)
+			foreach (var olderTransition in _transitioningAtomControllers)
 			{
-				if (transition.AtomName == newTransition.AtomName && transition.ControllerName == newTransition.ControllerName)
+				if (olderTransition.AtomName == newTransition.AtomName && olderTransition.ControllerName == newTransition.ControllerName)
 				{
 					// Override previous position control
-					if (newTransition.XPositionEnabled) transition.XPositionEnabled = false;
-					if (newTransition.YPositionEnabled) transition.YPositionEnabled = false;
-					if (newTransition.YPositionEnabled) transition.YPositionEnabled = false;
+					if (newTransition.XPositionEnabled) olderTransition.XPositionEnabled = false;
+					if (newTransition.YPositionEnabled) olderTransition.YPositionEnabled = false;
+					if (newTransition.ZPositionEnabled) olderTransition.ZPositionEnabled = false;
 					// Override previous rotation control
-					if (newTransition.XRotationEnabled) transition.XRotationEnabled = false;
-					if (newTransition.YRotationEnabled) transition.YRotationEnabled = false;
-					if (newTransition.YRotationEnabled) transition.YRotationEnabled = false;
+					if (newTransition.XRotationEnabled) olderTransition.XRotationEnabled = false;
+					if (newTransition.YRotationEnabled) olderTransition.YRotationEnabled = false;
+					if (newTransition.ZRotationEnabled) olderTransition.ZRotationEnabled = false;
 				}
 			}
 			_transitioningAtomControllers.Add(newTransition);
@@ -1420,26 +1399,39 @@ namespace juniperD.StatefullServices
 			var deviation = Math.Abs(mean - interationNumber); //...how far away we are from the center of the bell curve
 			var tail = mean - deviation; //...how far away we are from the edges
 			var tailRatio = tail / mean; //...ratio of how close we are to the center of the bell curve
-			var deviationRatio = deviation / mean; //...ratio of how far away we are from the center of the bell curve
 			var heightFactor = tailRatio * 2;
 			return heightFactor;
 		}
 
 		private Vector3 GetShortestRotationVector(Vector3 currentRotation, Vector3 targetRotation)
 		{
+			//SuperController.LogMessage("X:");
 			var xDist = GetShortestDistanceOnAxisRotation(currentRotation.x, targetRotation.x);
+			//SuperController.LogMessage("Y:");
 			var yDist = GetShortestDistanceOnAxisRotation(currentRotation.y, targetRotation.y);
+			//SuperController.LogMessage("Z:");
 			var zDist = GetShortestDistanceOnAxisRotation(currentRotation.z, targetRotation.z);
 			return new Vector3(xDist, yDist, zDist);
 		}
 
 		private static float GetShortestDistanceOnAxisRotation(float currentAngle, float targetAngle)
 		{
-			var angle1 = targetAngle - currentAngle;
-			var compliment = (360 - angle1 % 360) * (angle1 < 0 ? -1 : 1);
+			var angleDistance = targetAngle - currentAngle;
+			var complimentDistance = (360 - angleDistance % 360) * (angleDistance < 0 ? -1 : 1);
+			//var moveCouterClockwise  = (targetAngle > currentAngle && angleDistance > complimentDistance) || (targetAngle < currentAngle && angleDistance < complimentDistance);
+			var moveClockwise = (targetAngle < currentAngle && angleDistance < complimentDistance) || (targetAngle > currentAngle && angleDistance > complimentDistance);
+			var final = Math.Min(Math.Abs(angleDistance), Math.Abs(complimentDistance)) * (moveClockwise ? -1 : 1);//== Math.Abs(angleDistance) ? angleDistance : complimentDistance;
+
+			//if (angleDistance > 0) {
+			//	SuperController.LogMessage("   ANGLE: " + angleDistance);
+			//	SuperController.LogMessage("   COMPL: " + complimentDistance);
+			//	SuperController.LogMessage("   DIREC: " + (moveClockwise ? "clockwise" : "counterClockwise"));
+			//	SuperController.LogMessage("   FINAL: " + final);
+			//}
+
 			//var counterClockwiseTargetDistance =  Math.Max(currentAngle, targetAngle) - Math.Min(currentAngle, targetAngle);
 			//var clockwiseTargetDistanc = 360 - Math.Max(currentAngle, targetAngle) + Math.Min(currentAngle, targetAngle);
-			var final = Math.Min(Math.Abs(angle1), Math.Abs(compliment)) == Math.Abs(angle1) ? angle1 : compliment;
+			
 			//if (final > 0) SuperController.LogMessage($"   angle1: {angle1}, compliment {compliment}, final: {final}");
 			return final;
 		}

@@ -1,4 +1,5 @@
 ﻿using juniperD.Contracts;
+using juniperD.Enums;
 using juniperD.Models;
 using juniperD.Services.CatalogSerializers;
 using System.Collections.Generic;

@@ -1,7 +1,7 @@
 ﻿
 namespace juniperD.Models
 {
-	public class Transition
+	public class PoseTransition
 	{
 		public string UniqueKey { get; set; }
 		public string AtomName { get; set; }
@@ -15,7 +15,7 @@ namespace juniperD.Models
 		public bool YPositionEnabled { get; internal set; }
 		public bool ZPositionEnabled { get; internal set; }
 
-		public Transition(string uniqueKey)
+		public PoseTransition(string uniqueKey)
 		{
 			UniqueKey = uniqueKey;
 		}

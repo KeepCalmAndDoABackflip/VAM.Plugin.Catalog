@@ -1,8 +1,4 @@
 ﻿
-
-using juniperD.Contracts;
-using juniperD.Models;
-using juniperD.Services;
 using Leap.Unity;
 using SimpleJSON;
 using System;
@@ -14,6 +10,10 @@ using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using UnityEngine.XR;
+using juniperD.Enums;
+using juniperD.Contracts;
+using juniperD.Models;
+using juniperD.Services;
 
 namespace juniperD.StatefullServices
 {
@@ -43,7 +43,7 @@ namespace juniperD.StatefullServices
 		public string pluginDescription = @"Create a catalog of the current scene";
 		#endregion
 		// Config...
-		protected bool _debugMode = true;
+		protected bool _debugMode = false;
 		protected float _defaultNumberOfCatalogColumns = 10;
 		protected float _defaultNumberOfCatalogRows = 1;
 		protected float _defaultNumberOfCatalogEntries = 4;
@@ -81,7 +81,7 @@ namespace juniperD.StatefullServices
 		protected int _skipFrames = 0;
 		protected UIDynamicButton _floatingTriggerButton;
 		protected Vector3 _floatingControlUiPosition;
-		protected Vector3 _rightCatalogUiPosition;
+		protected Vector3 _catalogUnHiddenPosition;
 		protected Mutation _nextMutation;
 		protected static string _generateButtonInitText = "Generate Faces";
 		public CaptureRequest _currentCaptureRequest = null;
@@ -436,7 +436,8 @@ namespace juniperD.StatefullServices
 				// Shortcut menu...
 				CreateDynamicButton_ToggleControlPanelShortcut();
 				CreateDynamicButton_QuickloadShortcut();
-				CreateDynamicButton_LoadShotcut();
+				CreateDynamicButton_LoadShortcut();
+				CreateDynamicButton_HideCatalogShortcut();
 
 				// Capture buttons...
 				CreateDynamicButton_Refresh();
@@ -710,6 +711,11 @@ namespace juniperD.StatefullServices
 			_catalogRelativePath.isRestorable = true;
 			_catalogRelativePath.restoreTime = JSONStorableParam.RestoreTime.Normal;
 
+			CreateButton("Show Catalog").button.onClick.AddListener(() =>
+			{
+				SetCatalogVisibility(true);
+			});
+
 			_catalogMode = new JSONStorableStringChooser("CatalogMode", _catalogModes, _catalogModes.First(), "Catalog Mode");
 			_catalogMode.storeType = JSONStorableParam.StoreType.Full;
 			RegisterStringChooser(_catalogMode);
@@ -719,14 +725,14 @@ namespace juniperD.StatefullServices
 				UpdateUiForMode();
 			});
 
-			CreateButton("Make this a Dependency File").button.onClick.AddListener(() =>
-			{
-				MakeThisACatalogDependencyFile();
-			});
-
 			CreateButton("Reset Catalog").button.onClick.AddListener(() =>
 			{
 				ReinitializeCatalog(); // ...Reset catalog (from settings)
+			});
+
+			CreateButton("Make this a Dependency File").button.onClick.AddListener(() =>
+			{
+				MakeThisACatalogDependencyFile();
 			});
 
 			CreateSpacer();
@@ -878,9 +884,7 @@ namespace juniperD.StatefullServices
 			CreateToggle(_uiVisible);
 			_uiVisible.toggle.onValueChanged.AddListener((value) =>
 			{
-				_floatingControlsUi.Visible = value;
-				_catalogUi.Visible = value;
-				_windowUi.Visible = value;
+				SetCatalogVisibility(value);
 			});
 
 			_triggerButtonVisible = new JSONStorableBool("Show trigger buttons", false);
@@ -942,6 +946,27 @@ namespace juniperD.StatefullServices
 					AnchorOnAtom();
 			});
 
+		}
+
+		private void SetCatalogVisibility(bool setVisible)
+		{
+			_floatingControlsUi.Visible = setVisible;
+			_catalogUi.Visible = setVisible;
+			_windowUi.Visible = setVisible;
+			if (setVisible) {
+				//_mainWindow.ParentWindowContainer.transform.localScale = Vector3.one;
+				_mainWindow.ParentWindowContainer.transform.localPosition = _catalogUnHiddenPosition;
+				//_windowUi.canvas.transform.position = _catalogUnHiddenPosition;
+				//_catalogUi.canvas.transform.localPosition = _catalogUnHiddenPosition;
+				//_floatingControlsUi.canvas.transform.localPosition = _floatingControlUiPosition;
+			}
+			else
+			{
+				//_mainWindow.ParentWindowContainer.transform.localScale = Vector3.zero;
+				_catalogUnHiddenPosition = _mainWindow.ParentWindowContainer.transform.localPosition;
+				_mainWindow.ParentWindowContainer.transform.localPosition = new Vector3(0, -2000, 0);
+				//_catalogUi.canvas.transform.localPosition = new Vector3(10, 0, 0);
+			}
 		}
 
 		private void ResizeUi(float newVal)
@@ -1031,9 +1056,9 @@ namespace juniperD.StatefullServices
 				_catalog.Entries.ForEach(e => e.UiBottomButtonGroup.transform.localScale = Vector3.one);
 				//_dynamicButtonSort.button.transform.localScale = Vector3.one;
 				ShowButtonInGroup(_mainWindow.ButtonCapture, _mainWindow.SubPanelCapture);
-				ShowButtonInGroup(_mainWindow.ToggleButtonCaptureMorphs, _mainWindow.SubPanelCapture);
-				ShowButtonInGroup(_mainWindow.ToggleButtonCaptureHair, _mainWindow.SubPanelCapture);
 				ShowButtonInGroup(_mainWindow.ToggleButtonCaptureClothes, _mainWindow.SubPanelCapture);
+				ShowButtonInGroup(_mainWindow.ToggleButtonCaptureHair, _mainWindow.SubPanelCapture);
+				ShowButtonInGroup(_mainWindow.ToggleButtonCaptureMorphs, _mainWindow.SubPanelCapture);
 				ShowButtonInGroup(_mainWindow.ToggleButtonCapturePose, _mainWindow.SubPanelCapture);
 				ShowButtonInGroup(_mainWindow.ButtonRemoveAllClothing, _mainWindow.SubPanelSceneTools);
 				ShowButtonInGroup(_mainWindow.ButtonRemoveAllHair, _mainWindow.SubPanelSceneTools);
@@ -1594,7 +1619,7 @@ namespace juniperD.StatefullServices
 			SuperController.singleton.fileBrowserUI.Show((filePath) =>
 			{
 				var directoryPath = filePath.Substring(0, filePath.Replace("\\", "/").LastIndexOf("/"));
-				SuperController.LogMessage("Setting scene folder to " + directoryPath);
+				//SuperController.LogMessage("Setting scene folder to " + directoryPath);
 				CreateSceneCatalogEntries(directoryPath);
 			});
 		}
@@ -1634,12 +1659,11 @@ namespace juniperD.StatefullServices
 			for (var i = 0; i < _catalog.Entries.Count; i++)
 			{
 				var catalogEntry = _catalog.Entries[i];
-				if (catalogEntry.CatalogMode == CatalogModeEnum.CATALOG_MODE_SESSION)
-				{
-					var mutation = _catalog.Entries[i].Mutation;
-					_mutationsService.ApplyMutation(ref mutation);
-					yield return new WaitForEndOfFrame();
-				}
+				if (catalogEntry.CatalogMode == CatalogModeEnum.CATALOG_MODE_SCENE) continue;
+				var mutation = _catalog.Entries[i].Mutation;
+				_mutationsService.ApplyMutation(ref mutation);
+				yield return new WaitForEndOfFrame();
+				yield return new WaitForSeconds(1);
 			}
 		}
 
@@ -1659,12 +1683,20 @@ namespace juniperD.StatefullServices
 			SetTooltipForDynamicButton(_mainWindow.ButtonOpenCatalog, () => "Load Catalog");
 		}
 
-		private void CreateDynamicButton_LoadShotcut()
+		private void CreateDynamicButton_LoadShortcut()
 		{
 			var texture = TextureLoader.LoadTexture(GetPluginPath() + "/Resources/Open.png");
 			_mainWindow.ButtonOpenCatalogShortcut = _catalogUi.CreateButton(_mainWindow.MiniSubPanelShortcut, "", 35, 35, 0, 0, new Color(0.5f, 0.5f, 1f), Color.green, new Color(1f, 1f, 1f), texture);
 			_mainWindow.ButtonOpenCatalogShortcut.button.onClick.AddListener(() => BrowseForAndLoadCatalog());
 			SetTooltipForDynamicButton(_mainWindow.ButtonOpenCatalogShortcut, () => "Load Catalog");
+		}
+
+		private void CreateDynamicButton_HideCatalogShortcut()
+		{
+			var texture = TextureLoader.LoadTexture(GetPluginPath() + "/Resources/Close2.png");
+			_mainWindow.ButtonHideCatalogShortcut = _catalogUi.CreateButton(_mainWindow.MiniSubPanelShortcut, "", 35, 35, 0, 10, new Color(0.5f, 0.5f, 1f), Color.red, new Color(1f, 1f, 1f), texture);
+			_mainWindow.ButtonHideCatalogShortcut.button.onClick.AddListener(() => SetCatalogVisibility(false));
+			SetTooltipForDynamicButton(_mainWindow.ButtonHideCatalogShortcut, () => "Hide Catalog");
 		}
 
 		private void CreateDynamicButton_Spacer(GameObject parentObject, int width, int height)
@@ -1706,7 +1738,7 @@ namespace juniperD.StatefullServices
 
 		private void ShowRecentDirectoryFileList()
 		{
-			SuperController.LogMessage("Checking Directory: " + _lastCatalogDirectory);
+			//SuperController.LogMessage("Checking Directory: " + _lastCatalogDirectory);
 			var files = SuperController.singleton.GetFilesAtPath(_lastCatalogDirectory, "*." + _fileExtension);
 			Dictionary<string, UnityAction> filesToLoad = new Dictionary<string, UnityAction>();
 			foreach (var file in files)
@@ -2137,33 +2169,42 @@ namespace juniperD.StatefullServices
 		//	//dynamicMannequinPicker.transform.localScale = Vector3.zero;
 		//}
 
-
-		public void TogglePositionOnOff(string controllerName, string atomName)
+		public void SetPositionState(FreeControllerV3 controller, string positionState)
 		{
-			var atom = SuperController.singleton.GetAtomByUid(atomName);
-			var controller = atom.GetComponentsInChildren<FreeControllerV3>().SingleOrDefault(c => c.name == controllerName);
-			if (controller.currentPositionState != FreeControllerV3.PositionState.Off)
-			{
-				controller.currentPositionState = FreeControllerV3.PositionState.Off;
-			}
-			else
-			{
-				controller.currentPositionState = FreeControllerV3.PositionState.On;
-			}
+			controller.SetPositionStateFromString(positionState);
 		}
 
-		public void ToggleRotationOnOff(string controllerName, string atomName)
+		public void SetRotationState(FreeControllerV3 controller, string state)
+		{
+			controller.SetRotationStateFromString(state);
+		}
+
+		public string TogglePositionOnOff(string controllerName, string atomName, string inputState = null)
 		{
 			var atom = SuperController.singleton.GetAtomByUid(atomName);
 			var controller = atom.GetComponentsInChildren<FreeControllerV3>().SingleOrDefault(c => c.name == controllerName);
-			if (controller.currentRotationState != FreeControllerV3.RotationState.Off)
+			if (inputState == null)
 			{
-				controller.currentRotationState = FreeControllerV3.RotationState.Off;
+				inputState = (controller.currentPositionState != FreeControllerV3.PositionState.Off)
+					? FreeControllerV3.PositionState.Off.ToString()
+					: FreeControllerV3.PositionState.On.ToString();
 			}
-			else
+			controller.SetPositionStateFromString(inputState);
+			return inputState;
+		}
+
+		public string ToggleRotationOnOff(string controllerName, string atomName, string inputState = null)
+		{
+			var atom = SuperController.singleton.GetAtomByUid(atomName);
+			var controller = atom.GetComponentsInChildren<FreeControllerV3>().SingleOrDefault(c => c.name == controllerName);
+			if (inputState == null)
 			{
-				controller.currentRotationState = FreeControllerV3.RotationState.On;
+				inputState = (controller.currentRotationState != FreeControllerV3.RotationState.Off) 
+					? FreeControllerV3.RotationState.Off.ToString() 
+					: FreeControllerV3.RotationState.On.ToString();
 			}
+			controller.SetRotationStateFromString(inputState);
+			return inputState;
 		}
 
 		public void SelectNextControllerPositionMode(string controllerName, string atomName)
@@ -2557,7 +2598,7 @@ namespace juniperD.StatefullServices
 			Action<DragHelper> onFinishedDragEvent = null; //(helper) => FinishedDraggingMainWindow(helper);			
 
 			mainWindow.PanelBackground = CatalogUiHelper.CreatePanel(mainWindow.SubWindow, _mainWindow.WindowWidth, _mainWindow.WindowHeight, -10, -10, new Color(0.1f, 0.1f, 0.1f, 0.99f), Color.clear);
-			mainWindow.MiniPanelBackground = CatalogUiHelper.CreatePanel(mainWindow.SubWindow, 150, _mainWindow.ControlPanelMinimizedHeight, -10, -10, new Color(0.1f, 0.1f, 0.1f, 0.99f), Color.clear);
+			mainWindow.MiniPanelBackground = CatalogUiHelper.CreatePanel(mainWindow.SubWindow, 190, _mainWindow.ControlPanelMinimizedHeight, -10, -10, new Color(0.1f, 0.1f, 0.1f, 0.99f), Color.clear);
 			mainWindow.MiniPanelBackground.transform.localScale = Vector3.zero;
 
 			AddDragging(mainWindow.PanelBackground, mainWindow.ParentWindowContainer, onStartDraggingEvent, onFinishedDragEvent);
@@ -2853,6 +2894,16 @@ namespace juniperD.StatefullServices
 		void Update()
 		{
 
+			//var selectedController = SuperController.singleton.GetSelectedController();
+			//if (selectedController != null)
+			//{
+			//	_mainWindow.TextDebugPanelText.UItext.text = 
+			//		$"{selectedController.name} " +
+			//		$"\n  x:{selectedController.transform.rotation.x}" +
+			//		$"\n  y:{selectedController.transform.rotation.y}" +
+			//		$"\n  z:{selectedController.transform.rotation.z}";
+			//}
+
 			try
 			{
 				if (_atomType == ATOM_TYPE_PERSON) _mutationsService.Update();
@@ -2974,9 +3025,9 @@ namespace juniperD.StatefullServices
 					{
 						--_currentCaptureRequest.CatalogEntriesStillLeftToCreate;
 						_createCatalogEntry_Step = 0;
-						_catalogUi.canvas.transform.localPosition = _rightCatalogUiPosition;
-						_floatingControlsUi.canvas.transform.localPosition = _floatingControlUiPosition;
-						if (_hudWasVisible) SuperController.singleton.ShowMainHUD();
+						
+						ShowUi();
+						
 						AfterNextMutationCallback();
 					}
 
@@ -3322,14 +3373,34 @@ namespace juniperD.StatefullServices
 
 		private void HideUi()
 		{
-			_hudWasVisible = SuperController.singleton.mainHUD.gameObject.activeSelf;
-			if (_hudWasVisible) SuperController.singleton.HideMainHUD();
-			_floatingControlUiPosition = _floatingControlsUi.canvas.transform.localPosition;
-			_floatingControlsUi.canvas.transform.localPosition = new Vector3(10, 0, 0);
-			_floatingControlsUi.Update();
-			_rightCatalogUiPosition = _catalogUi.canvas.transform.localPosition;
-			_catalogUi.canvas.transform.localPosition = new Vector3(10, 0, 0);
-			_catalogUi.Update();
+			try
+			{
+				SetCatalogVisibility(false);
+				_hudWasVisible = SuperController.singleton.mainHUD.gameObject.activeSelf;
+				if (_hudWasVisible) SuperController.singleton.HideMainHUD();
+				
+				_floatingControlUiPosition = _floatingControlsUi.canvas.transform.localPosition;
+				_floatingControlsUi.canvas.transform.localPosition = new Vector3(10, 0, 0);
+				_floatingControlsUi.Update();
+				_catalogUi.Update();
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+			}
+		}
+
+		private void ShowUi()
+		{
+			try
+			{
+				SetCatalogVisibility(true);
+				if (_hudWasVisible) SuperController.singleton.ShowMainHUD();
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+			}
 		}
 
 		private CatalogEntry TakeScreenshotAndCreateClickableCatalogEntry(Mutation mutation, Action<CatalogEntry> customAction = null)
