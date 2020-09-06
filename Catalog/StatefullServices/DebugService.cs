@@ -24,6 +24,77 @@ namespace juniperD.StatefullServices
 		{
 			_context = context;
 
+			_context.CreateButton("DEBUG: rotate Atom using Matices").button.onClick.AddListener(() =>
+			{
+				try
+				{
+					var pivotController = SuperController.singleton.GetAtomByUid("Cube#3").mainController;
+
+					var selectedController = SuperController.singleton.GetSelectedAtom().mainController;
+
+					var positionToRotatAround = pivotController.transform.position;
+
+					var newPosition = _context._mutationsService.RotateAroundXAxis(1f, positionToRotatAround);
+					selectedController.transform.position = newPosition;
+
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+					throw (e);
+				}
+			});
+
+			_context.CreateButton("DEBUG: Copy anims 'Cube' 2 'Cube#2'").button.onClick.AddListener(() =>
+			{
+				try
+				{
+					var sourceAtom = "Cube";
+					var targetAtom = "Cube#2";
+					var animations = _context._mutationsService.GetSceneAnimations();
+					foreach (var animation in animations.Where(a => a.SlaveAtom == sourceAtom).ToList())
+					{
+						_context._mutationsService.AddAnimationToController(animation, targetAtom, "control");
+					}
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+					throw (e);
+				}
+			});
+
+			_context.CreateButton("DEBUG: Capture animations").button.onClick.AddListener(() =>
+			{
+				try
+				{
+					var links = _context._mutationsService.GetSceneAnimations();
+					// Log output...
+					string output = links
+						.Select(l => 
+							$"{l.Name} \n   for {l.SlaveAtom}:{l.SlaveController} " 
+							+ $"\n   steps " + string.Join(",", 
+									l.AnimationSteps.Select(s => ""
+									+ $"\n   step: " + s.Name
+									+ $"\n      position: {s.StepPosition.x},{s.StepPosition.y},{s.StepPosition.z}"
+									+ $"\n      rotation: {s.StepRotation.x},{s.StepRotation.y},{s.StepRotation.z}"
+									).ToArray()
+								) 
+							+ $"\n   slave atom position: " + $"{l.SlaveAtomPosition.x}, {l.SlaveAtomPosition.y}, {l.SlaveAtomPosition.z}" 
+							+ $"\n   slave atom rotation: {l.SlaveAtomRotation.x}, {l.SlaveAtomRotation.y}, {l.SlaveAtomRotation.z}"
+							+ $"\n   slave controller position: " + $"{l.SlaveControllerPosition.x}, {l.SlaveControllerPosition.y}, {l.SlaveControllerPosition.z}"
+							+ $"\n   slave controller rotation: {l.SlaveControllerRotation.x}, {l.SlaveControllerRotation.y}, {l.SlaveControllerRotation.z}"
+							)
+						.Aggregate((a, b) => a + '\n' + b);
+					_context.DebugLog(output);
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+					throw (e);
+				}
+			});
+
 			_context.CreateButton("DEBUG: Morph Value").button.onClick.AddListener(() =>
 			{
 				try
@@ -387,7 +458,7 @@ namespace juniperD.StatefullServices
 				{
 					var texture = TextureLoader.LoadTexture(_context.GetPluginPath() + "/Resources/Move2.png");
 					var uiHelper = new CatalogUiHelper(_context);
-					var x = uiHelper.CreateImagePanel(_context._windowContainer, texture, 32, 32, 50, 50);
+					var x = uiHelper.CreateImagePanel(_context._mainWindow.ParentWindowContainer, texture, 32, 32, 50, 50);
 				}
 				catch (Exception e)
 				{

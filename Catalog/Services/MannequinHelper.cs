@@ -1,4 +1,5 @@
 ﻿using juniperD.Contracts;
+using juniperD.Enums;
 using juniperD.Models;
 using juniperD.StatefullServices;
 using SimpleJSON;
@@ -224,7 +225,7 @@ namespace juniperD.Services
 
 		private void AddTriggerToController(string targetAtomName, string targetControllerName, DynamicMannequinPicker picker = null)
 		{
-			var controller = GetControllerOrDefault(targetAtomName, targetControllerName);
+			var controller = _context.GetControllerOrDefault(targetAtomName, targetControllerName);
 			if (controller == null)
 			{
 				SuperController.LogMessage("WARNING: No controller selected");
@@ -296,7 +297,7 @@ namespace juniperD.Services
 		private TriggerForController GetRecommendedTriggerScaleForController(string atomName, string targetControllerName)
 		{
 			var atom = _context.GetAtomById(atomName);
-			var controller = GetControllerOrDefault(atom, targetControllerName);
+			var controller = _context.GetControllerOrDefault(atom, targetControllerName);
 			TriggerForController newTriggerInfo = new TriggerForController();
 			newTriggerInfo.Scale = Mappings.ControllerTriggerScale[targetControllerName];
 			return newTriggerInfo;
@@ -320,7 +321,7 @@ namespace juniperD.Services
 
 		private void AddAnimationToController(string targetAtomName, string targetControllerName)
 		{
-			var controller = GetControllerOrDefault(targetAtomName, targetControllerName);
+			var controller = _context.GetControllerOrDefault(targetAtomName, targetControllerName);
 			if (controller == null)
 			{
 				SuperController.LogMessage("WARNING: No controller selected");
@@ -400,23 +401,6 @@ namespace juniperD.Services
 			SuperController.singleton.SelectController(animationAtom.mainController);
 		}
 
-		private FreeControllerV3 GetControllerOrDefault(string atomName, string controllerName, bool withValidation = true)
-		{
-			if (withValidation && atomName == null) SuperController.LogMessage("WARNING: No atom name provided");
-			if (withValidation && atomName == null) SuperController.LogMessage("WARNING: No controller name provided");
-			if (atomName == null || controllerName == null) return null;
-			var atom = SuperController.singleton.GetAtomByUid(atomName);
-			if (withValidation && atom == null) SuperController.LogMessage("WARNING: No atom found by the name of '" + atomName + "'");
-			if (atom == null) return null;
-			return GetControllerOrDefault(atom, controllerName, withValidation);
-		}
-
-		private FreeControllerV3 GetControllerOrDefault(Atom atom, string controllerName, bool withValidation = true)
-		{
-			var controller = atom.GetComponentsInChildren<FreeControllerV3>().FirstOrDefault(c => c.name == controllerName);
-			if (withValidation && controller == null) SuperController.LogMessage("WARNING: No controller found by the name of '" + controllerName + "'");
-			return controller;
-		}
 
 		private void MannequinSelectAtom(string atomName, DynamicMannequinPicker picker)
 		{
@@ -756,6 +740,41 @@ namespace juniperD.Services
 						}
 					}
 
+				}
+			}
+			return links;
+		}
+
+		private List<ControllerLink> GetScenePhysicsLinks()
+		{
+			List<ControllerLink> links = new List<ControllerLink>();
+			var sceneJson = SuperController.singleton.GetSaveJSON();
+			JSONArray atomsArray = sceneJson["atoms"].AsArray;
+			for (int a = 0; a < atomsArray.Count; a++)
+			{
+				JSONClass atomJson = atomsArray[a].AsObject;
+				JSONArray atomStorables = atomJson["storables"]?.AsArray;
+				if (atomStorables == null) continue;
+				for (int s = 0; s < atomStorables.Count; s++)
+				{
+					JSONClass storable = atomStorables[s].AsObject;
+					var scanningAtom = atomJson["id"].Value;
+					var scanningController = storable["id"].Value;
+
+					// Grab physics link...
+					if (!string.IsNullOrEmpty(storable["linkTo"]?.Value))
+					{	
+						string masterLink = storable["linkTo"].Value;
+						var linkToAtom = masterLink.Split(':').First();
+						var linkToController = masterLink.Split(':').Last();
+						var newLink = new ControllerLink(){
+								SlaveAtom = scanningAtom, 
+								SlaveController = scanningController, 
+								MasterAtom = linkToAtom, 
+								MasterController = linkToController
+						};
+						links.Add(newLink);
+					}
 				}
 			}
 			return links;

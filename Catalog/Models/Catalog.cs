@@ -15,6 +15,7 @@ namespace juniperD.Models
 		public bool CaptureHair { get;set; }  = true;
 		public bool CaptureClothes { get; set; } = true;
 		public bool CaptureMorphs { get; set; } = true;
+		public bool CapturePose { get; set; } = true;
 
 		// Non-Serialized...
 	}

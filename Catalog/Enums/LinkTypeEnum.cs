@@ -1,6 +1,6 @@
 ﻿
 
-namespace juniperD.Contracts
+namespace juniperD.Enums
 {
 	public static class LinkTypeEnum
 	{

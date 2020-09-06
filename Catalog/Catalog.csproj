@@ -88,12 +88,16 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Contracts\PointAddOptionEnum.cs" />
-    <Compile Include="Contracts\LinkTypeEnum.cs" />
-    <Compile Include="Contracts\CatalogModeEnum.cs" />
+    <Compile Include="Enums\PointType.cs" />
+    <Compile Include="Enums\PointAddOptionEnum.cs" />
+    <Compile Include="Enums\LinkTypeEnum.cs" />
+    <Compile Include="Enums\CatalogModeEnum.cs" />
     <Compile Include="Contracts\Global.cs" />
     <Compile Include="Contracts\Mappings.cs" />
+    <Compile Include="Models\ActiveController.cs" />
+    <Compile Include="Models\AnimationLinkStep.cs" />
     <Compile Include="Models\BaseMutation.cs" />
+    <Compile Include="Models\AnimationLink.cs" />
     <Compile Include="Models\ControllerLink.cs" />
     <Compile Include="Models\Border.cs" />
     <Compile Include="Models\Catalog.cs" />
@@ -109,9 +113,12 @@
     <Compile Include="Models\ClothingMutation.cs" />
     <Compile Include="Models\DynamicMutation.cs" />
     <Compile Include="Models\HairMutation.cs" />
+    <Compile Include="Models\PoseMutation.cs" />
     <Compile Include="Models\MorphMutation.cs" />
+    <Compile Include="Models\PathAnimation.cs" />
     <Compile Include="Models\StoredAtom.cs" />
     <Compile Include="Models\EntrySubItem.cs" />
+    <Compile Include="Models\Transition.cs" />
     <Compile Include="Models\TriggerForController.cs" />
     <Compile Include="Models\VersionMessage.cs" />
     <Compile Include="CatalogPlugin.cs" />

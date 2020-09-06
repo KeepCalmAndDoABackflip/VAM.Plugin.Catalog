@@ -18,7 +18,8 @@ namespace juniperD.Models
 
 		public CatalogUiHelper ParentUiHelper { get; set; }
 		public GameObject ParentWindowContainer { get; set; }
-		
+		public GameObject SubWindow { get; internal set; }
+
 		// Panels...
 		public GameObject PanelBackground { get; set; }
 		public GameObject SubPanelMode { get; set; }
@@ -94,11 +95,11 @@ namespace juniperD.Models
 		public UIDynamicButton ButtonRemoveAllHair { get; internal set; }
 		public GameObject DebugPanel { get; internal set; }
 		public UIDynamicButton ButtonClean { get; internal set; }
+		public UIDynamicButton ToggleButtonCapturePose { get; internal set; }
 
-		public DynamicMainWindow(CatalogUiHelper catalogUi, GameObject windowContainer)
+		public DynamicMainWindow(CatalogUiHelper uiHelper)
 		{
-			ParentUiHelper = catalogUi;
-			ParentWindowContainer = windowContainer;
+			ParentUiHelper = uiHelper;
 		}
 
 

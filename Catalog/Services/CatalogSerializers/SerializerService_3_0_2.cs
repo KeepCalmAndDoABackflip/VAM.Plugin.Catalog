@@ -297,6 +297,10 @@ namespace juniperD.Services.CatalogSerializers
 			mutation.ActiveMorphs.Select(i => SerializeActiveMorphMutation(i)).ToList().ForEach(activeMorphs.Add);
 			newJson.Add("ActiveMorphs", activeMorphs);
 
+			JSONArray poseMorphs = new JSONArray();
+			mutation.PoseMorphs.Select(i => SerializePoseMorphMutation(i)).ToList().ForEach(poseMorphs.Add);
+			newJson.Add("PoseMorphs", poseMorphs);
+
 			JSONArray storables = new JSONArray();
 			mutation.Storables.ForEach(storables.Add);
 			newJson.Add("Storables", storables);
@@ -320,22 +324,27 @@ namespace juniperD.Services.CatalogSerializers
 				ScenePathToOpen = LoadStringFromJsonStringProperty(inputObject, "ScenePathToOpen", null),
 				AtomName = LoadStringFromJsonStringProperty(inputObject, "AtomName", null),
 				AtomType = LoadStringFromJsonStringProperty(inputObject, "AtomType", null),
-				FaceGenMorphSet = inputObject.Childs.ElementAt(keys.IndexOf("MorphSet"))
-					.Childs
-					.Select(i => DeserializeIntoMorphMutation(i.AsObject))
-					.ToList(),
-				ClothingItems = inputObject.Childs.ElementAt(keys.IndexOf("ClothingItems"))
-					.Childs
-					.Select(i => DeserializeIntoClothingMutation(i.AsObject))
-					.ToList(),
-				HairItems = inputObject.Childs.ElementAt(keys.IndexOf("HairItems"))
-					.Childs
-					.Select(i => DeserializeIntoHairMutation(i.AsObject))
-					.ToList(),
-				ActiveMorphs = inputObject.Childs.ElementAt(keys.IndexOf("ActiveMorphs"))
-					.Childs
-					.Select(i => DeserializeIntoActiveMorphMutation(i.AsObject))
-					.ToList(),
+
+				FaceGenMorphSet = inputObject["MorphSet"]?.AsArray
+					?.Childs
+					?.Select(i => DeserializeIntoMorphMutation(i.AsObject))
+					?.ToList() ?? new List<MorphMutation>(),
+				ClothingItems = inputObject["ClothingItems"]?.AsArray
+					?.Childs
+					?.Select(i => DeserializeIntoClothingMutation(i.AsObject))
+					?.ToList() ?? new List<ClothingMutation>(),
+				HairItems = inputObject["HairItems"]?.AsArray
+					?.Childs
+					?.Select(i => DeserializeIntoHairMutation(i.AsObject))
+					?.ToList() ?? new List<HairMutation>(),
+				ActiveMorphs = inputObject["ActiveMorphs"]?.AsArray
+					?.Childs
+					?.Select(i => DeserializeIntoActiveMorphMutation(i.AsObject))
+					?.ToList() ?? new List<MorphMutation>(),
+				PoseMorphs = inputObject["PoseMorphs"]?.AsArray
+					?.Childs
+					?.Select(i => DeserializeIntoPoseMorphMutation(i.AsObject))
+					?.ToList() ?? new List<PoseMutation>(),
 			};
 			if (keys.Contains("Storables"))
 			{
@@ -445,6 +454,33 @@ namespace juniperD.Services.CatalogSerializers
 			return newJson;
 		}
 
+		public static JSONNode SerializePoseMorphMutation(PoseMutation mutationComponent)
+		{
+			var newJson = new JSONClass();
+			newJson.Add("Name", new JSONData(mutationComponent.Id));
+			newJson.Add("Rotation", SerializeVector3(mutationComponent.Rotation));
+			newJson.Add("Position", SerializeVector3(mutationComponent.Position));
+			return newJson;
+		}
+
+		public static JSONNode SerializeVector3(Vector3 vector3)
+		{
+			var newJson = new JSONClass();
+			newJson["x"] = new JSONData(vector3.x);
+			newJson["y"] = new JSONData(vector3.y);
+			newJson["z"] = new JSONData(vector3.z);
+			return newJson;
+		}
+
+		public static Vector3 DeserializeVector3(JSONClass vector3Json)
+		{
+			var newVector3 = new Vector3();
+			newVector3.x = float.Parse(vector3Json["x"].Value);
+			newVector3.y = float.Parse(vector3Json["y"].Value);
+			newVector3.z = float.Parse(vector3Json["z"].Value);
+			return newVector3;
+		}
+
 		public static MorphMutation DeserializeIntoActiveMorphMutation(JSONClass inputObject)
 		{
 			var keys = inputObject.Keys.ToList();
@@ -453,6 +489,19 @@ namespace juniperD.Services.CatalogSerializers
 				Id = inputObject.Childs.ElementAt(keys.IndexOf("Name")).Value,
 				Value = float.Parse(inputObject.Childs.ElementAt(keys.IndexOf("Value")).Value),
 				PreviousValue = float.Parse(inputObject.Childs.ElementAt(keys.IndexOf("PreviousValue")).Value),
+				Active = bool.Parse(inputObject.Childs.ElementAt(keys.IndexOf("Active")).Value)
+			};
+			return mutationComponent;
+		}
+
+		public static PoseMutation DeserializeIntoPoseMorphMutation(JSONClass inputObject)
+		{
+			var keys = inputObject.Keys.ToList();
+			var mutationComponent = new PoseMutation()
+			{
+				Id = inputObject.Childs.ElementAt(keys.IndexOf("Name")).Value,
+				Rotation = DeserializeVector3(inputObject["Rotation"].AsObject),
+				Position = DeserializeVector3(inputObject["Position"].AsObject),
 				Active = bool.Parse(inputObject.Childs.ElementAt(keys.IndexOf("Active")).Value)
 			};
 			return mutationComponent;

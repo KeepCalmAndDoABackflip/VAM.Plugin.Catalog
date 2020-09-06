@@ -1,4 +1,6 @@
-﻿using UnityEngine;
+﻿using SimpleJSON;
+using System.Collections.Generic;
+using UnityEngine;
 
 namespace juniperD.Models
 {
@@ -10,4 +12,6 @@ namespace juniperD.Models
 		public string MasterController { get; set; }
 
 	}
+
+
 }

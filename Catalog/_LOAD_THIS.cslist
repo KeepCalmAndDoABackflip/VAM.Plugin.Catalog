@@ -1,6 +1,7 @@
-Contracts/CatalogModeEnum.cs
-Contracts/LinkTypeEnum.cs
-Contracts/PointAddOptionEnum.cs
+Enums/CatalogModeEnum.cs
+Enums/LinkTypeEnum.cs
+Enums/PointAddOptionEnum.cs
+Enums/PointTypeEnum.cs
 Contracts/Global.cs
 Contracts/Mappings.cs
 Models/Border.cs
@@ -12,6 +13,8 @@ Models/ClothingMutation.cs
 Models/HairMutation.cs
 Models/DynamicMutation.cs
 Models/MorphMutation.cs
+Models/PoseMutation.cs
+Models/ActiveController.cs
 Models/VersionMessage.cs
 Models/CaptureRequest.cs
 Models/StoredAtom.cs
@@ -22,6 +25,8 @@ Models/DynamicDropdownField.cs
 Models/DynamicListBox.cs
 Models/DynamicJointPoint.cs
 Models/ControllerLink.cs
+Models/AnimationLinkStep.cs
+Models/AnimationLink.cs
 Models/TriggerForController.cs
 Models/DynamicMannequinPicker.cs
 Models/DynamicMainWindow.cs
