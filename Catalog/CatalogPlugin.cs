@@ -1356,9 +1356,7 @@ namespace juniperD.StatefullServices
 			_mainWindow.MiniSubPanelShortcut.transform.localScale = minimize ? Vector3.one : Vector3.zero;
 			_mainWindow.DynamicInfoPanel.transform.localScale = minimize ? Vector3.zero : Vector3.one;
 			_mainWindow.InfoLabel.transform.localScale = minimize ? Vector3.zero : Vector3.one;
-			
-			//var panelHeight = minimize ? _mainWindow.WindowHeight : _mainWindow.ControlPanelMinimizedHeight;
-			//SetObjectSize(_mainWindow.BackPanel, _mainWindow.WindowWidth, panelHeight);
+			_mainWindow.TextToolTip.transform.localPosition = minimize ? new Vector3(100, -100, 0) : new Vector3(150, -_mainWindow.WindowHeight-50, 0);
 		}
 
 		private void CleanCatalog()
@@ -1696,7 +1694,7 @@ namespace juniperD.StatefullServices
 			var texture = TextureLoader.LoadTexture(GetPluginPath() + "/Resources/Close2.png");
 			_mainWindow.ButtonHideCatalogShortcut = _catalogUi.CreateButton(_mainWindow.MiniSubPanelShortcut, "", 35, 35, 0, 10, new Color(0.5f, 0.5f, 1f), Color.red, new Color(1f, 1f, 1f), texture);
 			_mainWindow.ButtonHideCatalogShortcut.button.onClick.AddListener(() => SetCatalogVisibility(false));
-			SetTooltipForDynamicButton(_mainWindow.ButtonHideCatalogShortcut, () => "Hide Catalog");
+			SetTooltipForDynamicButton(_mainWindow.ButtonHideCatalogShortcut, () => "Hide Catalog (unhide in settings)");
 		}
 
 		private void CreateDynamicButton_Spacer(GameObject parentObject, int width, int height)
@@ -2324,7 +2322,7 @@ namespace juniperD.StatefullServices
 					ShowPopupMessage("Invalid Controller", 2);
 					return;
 				}
-				SuperController.singleton.SelectController(controller);
+				SuperController.singleton.SelectController(controller, false, false, false, false);
 				DebugLog($"{controller.name} rotation: " + controller.transform.localRotation.eulerAngles);
 			}
 			catch (Exception e)
@@ -4177,13 +4175,17 @@ namespace juniperD.StatefullServices
 			}
 
 			if (storedAtom.FullAtom != null) {
+				SuperController.LogMessage("RESTORING FROM JSON");
 				newAtom.Restore(storedAtom.FullAtom);
 				RestoreAtomFromJSON(newAtom, storedAtom.FullAtom, newAtom.transform.position, newAtom.transform.rotation);
 			}
-			else
-			{
-				RestoreAtomStorables(storedAtom, newAtom);	
-			}
+			//else
+			//{
+			//	RestoreAtomStorables(storedAtom, newAtom);
+			//	SuperController.LogMessage("RESTORING FROM STORABLES");	
+			//}
+			RestoreAtomStorables(storedAtom, newAtom);
+
 			StartCoroutine(RestoreAppearance(newAtom, storedAtom));
 
 			SuperController.singleton.SelectController(newAtom.mainController);
