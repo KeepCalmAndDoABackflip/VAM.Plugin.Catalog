@@ -2368,7 +2368,7 @@ namespace juniperD.StatefullServices
 
 		private void CreateDynamicPanel_LeftInfo()
 		{
-			_mainWindow.InfoLabel = _catalogUi.CreateTextField(_mainWindow.SubWindow, "", 200, _mainWindow.WindowHeight - 20, -270, 0, new Color(0, 0, 0, 0.1f), Color.white);
+			_mainWindow.InfoLabel = _catalogUi.CreateTextField(_mainWindow.SubWindow, "", 200, _mainWindow.WindowHeight - 20, -270, -_defaultFrameSize, new Color(0, 0, 0, 0.3f), Color.white);
 			_mainWindow.InfoLabel.UItext.fontSize = 15;
 			_mainWindow.InfoLabel.UItext.fontStyle = FontStyle.Italic;
 			_mainWindow.InfoLabel.UItext.alignment = TextAnchor.MiddleRight;

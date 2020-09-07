@@ -1111,16 +1111,17 @@ namespace juniperD.StatefullServices
 
 		public void UndoMutationMorph(MorphMutation mutationMorph)
 		{
-			var morphName = mutationMorph.Id;
 			var morphs = GetMorphsForSelectedPersonOrDefault();
 			if (morphs == null) return;
-			var morph = morphs.FirstOrDefault(m => m.displayName == morphName);
+			var morph = morphs.FirstOrDefault(m => m.uid == mutationMorph.Id);
 			if (morph == null)
 			{
+				SuperController.LogError($"couldn't find morph to undo ");
 				return;
 			}
 			if (morph != null)
 			{
+				SuperController.LogMessage($"setting morph({GetMorphValue(morph)}) to {mutationMorph.PreviousValue}");
 				SetMorphValue(morph, mutationMorph.PreviousValue);
 			}
 		}
@@ -1900,7 +1901,7 @@ namespace juniperD.StatefullServices
 			var distictList = new List<DAZMorph>();
 			foreach (var morph in morphs)
 			{
-				if (distictList.Any(m => m.displayName == morph.displayName)) continue;
+				if (distictList.Any(m => GetMorphId(m) == GetMorphId(morph))) continue;
 				distictList.Add(morph);
 			}
 			return distictList;
@@ -1945,8 +1946,8 @@ namespace juniperD.StatefullServices
 			if (morphs == null) return new List<DAZMorph>();
 			foreach (var catName in selectedMorphCategories)
 			{
-				var morphUids = _morphCategoryMap.Where(cat => cat.Value == catName).Select(c => c.Key);
-				var selectedMorphs = morphs.Where(m => morphUids.Contains(m.displayName));
+				var morphNames = _morphCategoryMap.Where(cat => cat.Value == catName).Select(c => c.Key);
+				var selectedMorphs = morphs.Where(m => morphNames.Contains(m.displayName));
 				morphSet.AddRange(selectedMorphs);
 			}
 			return morphSet;
