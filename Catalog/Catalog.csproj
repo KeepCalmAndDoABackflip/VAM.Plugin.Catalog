@@ -88,10 +88,10 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Enums\PointTypeEnum.cs" />
-    <Compile Include="Enums\PointAddOptionEnum.cs" />
-    <Compile Include="Enums\LinkTypeEnum.cs" />
-    <Compile Include="Enums\CatalogModeEnum.cs" />
+    <Compile Include="Contracts\PointTypeEnum.cs" />
+    <Compile Include="Contracts\PointAddOptionEnum.cs" />
+    <Compile Include="Contracts\LinkTypeEnum.cs" />
+    <Compile Include="Contracts\CatalogModeEnum.cs" />
     <Compile Include="Contracts\Global.cs" />
     <Compile Include="Contracts\Mappings.cs" />
     <Compile Include="Models\ActiveController.cs" />
@@ -145,8 +145,6 @@
   </ItemGroup>
   <ItemGroup>
     <Folder Include="CatalogFile\" />
-    <Folder Include="Forms\" />
-    <Folder Include="Mappings\" />
   </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>

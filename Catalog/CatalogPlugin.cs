@@ -10,10 +10,10 @@ using UnityEngine.Events;
 using UnityEngine.EventSystems;
 using UnityEngine.UI;
 using UnityEngine.XR;
-using juniperD.Enums;
-using juniperD.Contracts;
-using juniperD.Models;
 using juniperD.Services;
+using juniperD.Models;
+using juniperD.Contracts;
+
 
 namespace juniperD.StatefullServices
 {

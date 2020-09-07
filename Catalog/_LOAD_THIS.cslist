@@ -1,9 +1,8 @@
+Contracts/CatalogModeEnum.cs
+Contracts/LinkTypeEnum.cs
+Contracts/PointAddOptionEnum.cs
 Contracts/Global.cs
 Contracts/Mappings.cs
-Enums/CatalogModeEnum.cs
-Enums/LinkTypeEnum.cs
-Enums/PointAddOptionEnum.cs
-Enums/PointTypeEnum.cs
 Models/Border.cs
 Models/Catalog.cs
 Models/CatalogEntry.cs

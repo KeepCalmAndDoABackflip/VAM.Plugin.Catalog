@@ -1,15 +1,9 @@
 ﻿using juniperD.Models;
-using Leap;
-using Leap.Unity;
 using SimpleJSON;
 using System;
 using System.Collections;
 using System.Collections.Generic;
-using System.Diagnostics;
 using System.Linq;
-using System.Runtime.CompilerServices;
-using System.Runtime.Remoting.Messaging;
-using System.Threading;
 using UnityEngine;
 using UnityEngine.Events;
 using UnityEngine.UI;
