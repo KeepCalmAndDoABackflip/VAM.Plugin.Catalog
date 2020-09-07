@@ -826,7 +826,7 @@ namespace juniperD.StatefullServices
 						}
 						newMorphIndex = randomMorphIndex.Next(0, availableMorphCount - 1);
 						morph = morphs.ElementAt(newMorphIndex);
-					} while (morphIndexesToAdjust.Contains(newMorphIndex) || morphUpdateSet.Any(m => m.Id == morph.displayName));
+					} while (morphIndexesToAdjust.Contains(newMorphIndex) || morphUpdateSet.Any(m => m.Id == GetMorphId(morph)));
 					morphIndexesToAdjust.Add(newMorphIndex);
 					if (morph == null) continue;
 
@@ -843,7 +843,7 @@ namespace juniperD.StatefullServices
 					string valueDiff = currentVal + ":" + newValue;
 					var newMorph = new MorphMutation
 					{
-						Id = morph.displayName,
+						Id = GetMorphId(morph),
 						Value = newValue,
 						PreviousValue = currentVal,
 						Active = true
@@ -949,26 +949,26 @@ namespace juniperD.StatefullServices
 			SetMorphValue(morph, morphMutation.Value);
 		}
 
-		private List<DAZMorph> GetMorphsForAllPersonAtoms()
-		{
-			var atoms = SuperController.singleton.GetAtoms().Where(a => a.type == "Person").ToList();
-			List<DAZMorph> allMorphs = new List<DAZMorph>();
-			foreach (var atom in atoms)
-			{
-				JSONStorable geometry = atom.GetStorableByID("geometry");
-				DAZCharacterSelector character = geometry as DAZCharacterSelector;
-				GenerateDAZMorphsControlUI morphControl = character.morphsControlUI;
-				var morphs = morphControl.GetMorphs();
-				foreach (var morph in morphs)
-				{
-					if (!allMorphs.Any(m => m.displayName == morph.displayName))
-					{
-						allMorphs.Add(morph);
-					}
-				}
-			}
-			return allMorphs;
-		}
+		//private List<DAZMorph> GetMorphsForAllPersonAtoms()
+		//{
+		//	var atoms = SuperController.singleton.GetAtoms().Where(a => a.type == "Person").ToList();
+		//	List<DAZMorph> allMorphs = new List<DAZMorph>();
+		//	foreach (var atom in atoms)
+		//	{
+		//		JSONStorable geometry = atom.GetStorableByID("geometry");
+		//		DAZCharacterSelector character = geometry as DAZCharacterSelector;
+		//		GenerateDAZMorphsControlUI morphControl = character.morphsControlUI;
+		//		var morphs = morphControl.GetMorphs();
+		//		foreach (var morph in morphs)
+		//		{
+		//			if (!allMorphs.Any(m => m.displayName == morph.displayName))
+		//			{
+		//				allMorphs.Add(morph);
+		//			}
+		//		}
+		//	}
+		//	return allMorphs;
+		//}
 
 		public List<FreeControllerV3> GetControllerForSelectedPersonOrDefault()
 		{
