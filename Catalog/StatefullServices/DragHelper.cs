@@ -9,7 +9,7 @@ namespace juniperD.StatefullServices
 	public class DragHelper
 	{
 
-		public Vector3 CurrentPosition { get; internal set;}
+		public Vector3 CurrentPosition { get; set;}
 		public bool IsIn3DSpace { get; set; } = true;
 		public float XMultiplier { get; set; } = 1;
 		public float YMultiplier { get; set; } = 1;

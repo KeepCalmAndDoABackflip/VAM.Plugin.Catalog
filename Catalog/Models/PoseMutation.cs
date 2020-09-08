@@ -16,6 +16,7 @@ namespace juniperD.Models
 		public string RotationState { get; internal set; }
 
 		// Non-Serialized...
+		public string Label;
 		public UIDynamicToggle UiToggle {get;set; }
 		//public DAZMorph MorphItem {get;set; }
 		//public EntrySubItem DynamicCheckbox { get; set; }

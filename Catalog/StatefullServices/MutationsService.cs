@@ -237,18 +237,6 @@ namespace juniperD.StatefullServices
 					_useAllMorphs.val = false;
 				});
 
-				//#region Custom Morphs
-				//_context.CreateSpacer();
-				//var morphSelection = new JSONStorableStringChooser("--- Select Morphs 1---", _morphs.Select(m => m.displayName).ToList(), null, "--- Select Morphs 2---");
-				//morphSelection.storeType = JSONStorableParam.StoreType.Full;
-				//_context.RegisterStringChooser(morphSelection);
-				//var selectMorphs = _context.CreateScrollablePopup(morphSelection);
-				//#endregion Custom Morphs
-
-				//_includeHairInMutation = new JSONStorableBool("---Hair", true);
-				//_context.RegisterBool(_includeHairInMutation);
-				//_context.CreateToggle(_includeHairInMutation);
-				//_usePredefinedMorphs.val = true;
 			}
 
 			catch (Exception e)
@@ -571,7 +559,7 @@ namespace juniperD.StatefullServices
 			{
 				Id = GetMorphId(morph),
 				Value = GetMorphValue(morph),
-				Name = morph.displayName,
+				Label = morph.displayName,
 				PreviousValue = morph.startValue
 			};
 		}
@@ -645,14 +633,44 @@ namespace juniperD.StatefullServices
 			morph.SetValue(value);
 		}
 
-		public float GetMorphValue(DAZMorph morph)
+		public bool IsClothingItemAbsoluteMatch(ClothingMutation mutation, DAZClothingItem item)
 		{
-			return morph.morphValue;
+			return mutation.Id == GetClothingId(item);
+		}
+
+		public bool IsClothingItemFallbackMatch(ClothingMutation mutation, DAZClothingItem item)
+		{
+			return mutation.Id == item.displayName;
+		}
+
+		public string GetClothingId(DAZClothingItem item)
+		{
+			return item.uid;
+		}
+
+		public bool IsHairItemAbsoluteMatch(HairMutation mutation, DAZHairGroup item)
+		{
+			return mutation.Id == GetHairId(item);
+		}
+
+		public bool IsHairItemFallbackMatch(HairMutation mutation, DAZHairGroup item)
+		{
+			return mutation.Id == item.displayName;
+		}
+
+		public string GetHairId(DAZHairGroup item)
+		{
+			return item.uid;
 		}
 
 		public string GetMorphId(DAZMorph morph)
 		{
 			return morph.uid;
+		}
+
+		public float GetMorphValue(DAZMorph morph)
+		{
+			return morph.morphValue;
 		}
 
 		public DAZMorph GetMorphByIdOrDefault(List<DAZMorph> morph, string id)
@@ -688,7 +706,8 @@ namespace juniperD.StatefullServices
 			var items = character.hairItems;
 			return items.Where(h => h.active).Select(item => new HairMutation()
 			{
-				Id = item.displayName,
+				Id = GetHairId(item), 
+				Label = item.displayName,
 				DAZHairGroup = item
 			}).ToList();
 		}
@@ -702,7 +721,8 @@ namespace juniperD.StatefullServices
 			var items = character.clothingItems;
 			var itemKeys = items.Where(h => h.active).Select(h => new ClothingMutation()
 			{
-				Id = h.displayName,
+				Id = GetClothingId(h),
+				Label = h.displayName,
 				DAZClothingItem = h
 			}).ToList();
 			return itemKeys;
@@ -949,27 +969,6 @@ namespace juniperD.StatefullServices
 			SetMorphValue(morph, morphMutation.Value);
 		}
 
-		//private List<DAZMorph> GetMorphsForAllPersonAtoms()
-		//{
-		//	var atoms = SuperController.singleton.GetAtoms().Where(a => a.type == "Person").ToList();
-		//	List<DAZMorph> allMorphs = new List<DAZMorph>();
-		//	foreach (var atom in atoms)
-		//	{
-		//		JSONStorable geometry = atom.GetStorableByID("geometry");
-		//		DAZCharacterSelector character = geometry as DAZCharacterSelector;
-		//		GenerateDAZMorphsControlUI morphControl = character.morphsControlUI;
-		//		var morphs = morphControl.GetMorphs();
-		//		foreach (var morph in morphs)
-		//		{
-		//			if (!allMorphs.Any(m => m.displayName == morph.displayName))
-		//			{
-		//				allMorphs.Add(morph);
-		//			}
-		//		}
-		//	}
-		//	return allMorphs;
-		//}
-
 		public List<FreeControllerV3> GetControllerForSelectedPersonOrDefault()
 		{
 			var selectedAtom = GetSelectedPersonAtomOrDefault();
@@ -1004,8 +1003,8 @@ namespace juniperD.StatefullServices
 			if (selectedAtom == null) return;
 			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
-			DAZClothingItem dazClothingItem = character.clothingItems.FirstOrDefault(h => h.displayName == clothingItem.Id);
-
+			DAZClothingItem dazClothingItem = character.clothingItems.FirstOrDefault(h => IsClothingItemAbsoluteMatch(clothingItem, h));
+			if (dazClothingItem == null) dazClothingItem = character.clothingItems.FirstOrDefault(h => IsClothingItemFallbackMatch(clothingItem, h));
 			if (dazClothingItem == null)
 			{
 				_context.ShowPopupMessage("Item cannot be used on this Persons type");
@@ -1032,7 +1031,8 @@ namespace juniperD.StatefullServices
 			if (selectedAtom == null) return;
 			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
-			DAZHairGroup item = character.hairItems.FirstOrDefault(h => h.displayName == hairItem.Id);
+			DAZHairGroup item = character.hairItems.FirstOrDefault(h => IsHairItemAbsoluteMatch(hairItem, h));
+			if (item == null) item = character.hairItems.FirstOrDefault(h => IsHairItemFallbackMatch(hairItem, h));
 			if (item == null)
 			{
 				_context.ShowPopupMessage("Item cannot be used on this Persons type");
@@ -1122,7 +1122,7 @@ namespace juniperD.StatefullServices
 			}
 			if (morph != null)
 			{
-				SuperController.LogMessage($"setting morph({GetMorphValue(morph)}) to {mutationMorph.PreviousValue}");
+				//SuperController.LogMessage($"setting morph({GetMorphValue(morph)}) to {mutationMorph.PreviousValue}");
 				SetMorphValue(morph, mutationMorph.PreviousValue);
 			}
 		}
@@ -1136,29 +1136,21 @@ namespace juniperD.StatefullServices
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
 			foreach (var item in character.hairItems)
 			{
-				if (item.displayName == removeHairItem.Id)
+				if (IsHairItemAbsoluteMatch(removeHairItem, item))
+				{
+					character.SetActiveHairItem(item, false);
+					return;
+				}
+			}
+			foreach (var item in character.hairItems)
+			{
+				if (IsHairItemFallbackMatch(removeHairItem, item))
 				{
 					character.SetActiveHairItem(item, false);
 					return;
 				}
 			}
 		}
-
-		//public void RemoveDynamicItem(DynamicMutation removeHairItem)
-		//{
-		//	Atom selectedAtom = GetSelectedPersonAtom();
-		//	if (selectedAtom == null) return;
-		//	JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
-		//	DAZCharacterSelector character = geometry as DAZCharacterSelector;
-		//	//foreach (var item in character.dynam)
-		//	//{
-		//	//	if (item.displayName == removeHairItem.DAZDynamicItemName)
-		//	//	{
-		//	//		character.SetActiveDynamicItem(item, false);
-		//	//		return;
-		//	//	}
-		//	//}
-		//}
 
 		public List<MorphMutation> CaptureActiveMorphsForCurrentPerson()
 		{
@@ -1825,7 +1817,15 @@ namespace juniperD.StatefullServices
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
 			foreach (var item in character.clothingItems)
 			{
-				if (item.displayName == removeClothingItem.Id)
+				if (IsClothingItemAbsoluteMatch(removeClothingItem, item))
+				{
+					character.SetActiveClothingItem(item, false);
+					return;
+				}
+			}
+			foreach (var item in character.clothingItems)
+			{
+				if (IsClothingItemFallbackMatch(removeClothingItem, item))
 				{
 					character.SetActiveClothingItem(item, false);
 					return;
@@ -1882,7 +1882,7 @@ namespace juniperD.StatefullServices
 				var morphs = GetMorphsForSelectedPersonOrDefault();
 				if (morphs == null) return new List<DAZMorph>();
 				appropriateMorphs = morphs.ToList();
-				appropriateMorphs = DistinctByDisplayName(appropriateMorphs);
+				appropriateMorphs = DistinctById(appropriateMorphs);
 				appropriateMorphs = SelectFavoriteMorphs(appropriateMorphs);
 				appropriateMorphs = ExcludeLeftAndRightMorphs(appropriateMorphs);
 			}
@@ -1897,7 +1897,7 @@ namespace juniperD.StatefullServices
 			return appropriateMorphs;
 		}
 
-		private List<DAZMorph> DistinctByDisplayName(IEnumerable<DAZMorph> morphs)
+		private List<DAZMorph> DistinctById(IEnumerable<DAZMorph> morphs)
 		{
 			var distictList = new List<DAZMorph>();
 			foreach (var morph in morphs)

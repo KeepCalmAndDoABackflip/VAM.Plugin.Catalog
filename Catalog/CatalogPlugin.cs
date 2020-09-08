@@ -13,7 +13,7 @@ using UnityEngine.XR;
 using juniperD.Services;
 using juniperD.Models;
 using juniperD.Contracts;
-
+using MVR.FileManagementSecure;
 
 namespace juniperD.StatefullServices
 {
@@ -155,6 +155,7 @@ namespace juniperD.StatefullServices
 
 		JSONStorableStringChooser _catalogMode;
 		public JSONStorableString _catalogName;
+		public JSONStorableString _catalogFilePath;
 		JSONStorableString _catalogRelativePath;
 		JSONStorableFloat _mainWindowPositionX;
 		JSONStorableFloat _mainWindowPositionY;
@@ -385,7 +386,7 @@ namespace juniperD.StatefullServices
 
 				//SetMinimizedState();
 				MinimizeControlPanel();
-
+				_cycleEntriesOnInterval.val = false;
 				//_mutationsService.SetMorphBaseValuesCheckpoint();
 			}
 			catch (Exception e)
@@ -731,6 +732,11 @@ namespace juniperD.StatefullServices
 			CreateButton("Reset Catalog").button.onClick.AddListener(() =>
 			{
 				ReinitializeCatalog(); // ...Reset catalog (from settings)
+			});
+			
+			CreateButton("Remove missing Dependency").button.onClick.AddListener(() =>
+			{
+				CleanCatalog();
 			});
 
 			CreateButton("Make this a Dependency File").button.onClick.AddListener(() =>
@@ -1208,7 +1214,10 @@ namespace juniperD.StatefullServices
 				_windowUi.canvas.transform.SetParent(SuperController.singleton.mainHUDAttachPoint, false);
 				_windowUi.canvas.transform.rotation = Quaternion.Euler(0, 180, 0);
 				_windowUi.canvas.transform.localRotation = Quaternion.Euler(0, 0, 0);
-				_windowUi.canvas.transform.localPosition = new Vector3(_mainWindowPositionX.val, _mainWindowPositionY.val, 0.5f);
+				//_windowUi.canvas.transform.localRotation = Quaternion.Euler(0, 0, 0.5f);
+				_windowUi.canvas.transform.localPosition = new Vector3(0, 0, 0.5f);
+				_mainWindow.ParentWindowContainer.transform.localPosition = new Vector3(_mainWindowPositionX.val, _mainWindowPositionY.val, 0f);
+				
 
 				_floatingControlsUi.canvas.transform.SetParent(SuperController.singleton.mainHUDAttachPoint, false);
 				_floatingControlsUi.canvas.transform.rotation = Quaternion.Euler(0, 180, 0);
@@ -1381,34 +1390,39 @@ namespace juniperD.StatefullServices
 					var hideEntry = false;
 					if (entry.Mutation == null) continue;
 					var mutation = entry.Mutation;
-					
-					var hairItems = _mutationsService.GetMorphsForSelectedPersonOrDefault() ?? new List<DAZMorph>();;
+
+					// Check hair items...
+					var hairItems = _mutationsService.GetHairItemsForSelectedPersonOrDefault() ?? new List<DAZHairGroup>();
 					foreach (var item in mutation.HairItems)
 					{
-						if (hairItems.Any(i => i.displayName == item.Id)) hideEntry= true;
+						if (!hairItems.Any(i => _mutationsService.IsHairItemAbsoluteMatch(item, i) || _mutationsService.IsHairItemFallbackMatch(item, i))) hideEntry = true;
 					}
 
-					var clothingItems = _mutationsService.GetMorphsForSelectedPersonOrDefault() ?? new List<DAZMorph>();
+					// Check clothing items...
+					var clothingItems = _mutationsService.GetClothingItemsForSelectedPersonOrDefault() ?? new List<DAZClothingItem>();
 					foreach (var item in mutation.ClothingItems)
 					{
-						if (clothingItems.Any(i => i.displayName == item.Id)) hideEntry = true;
+						if (!clothingItems.Any(i => _mutationsService.IsClothingItemAbsoluteMatch(item, i) || _mutationsService.IsClothingItemFallbackMatch(item, i))) hideEntry = true;
 					}
 
-					//var controllers = _mutationsService.GetControllerForSelectedPersonOrDefault() ?? new List<DAZMorph>();
-					//foreach (var item in mutation.PoseMorphs)
-					//{
-					//	if (PoseMorphs.Any(i => i.displayName == item.Id)) hideEntry = true;
-					//}
+					// Check pose points...
+					var controllers = _mutationsService.GetControllerForSelectedPersonOrDefault() ?? new List<FreeControllerV3>();
+					foreach (var item in mutation.PoseMorphs)
+					{
+						if (!controllers.Any(i => i.name == item.Id)) hideEntry = true;
+					}
 
+					// Check active morphs...
 					var morphItems = _mutationsService.GetMorphsForSelectedPersonOrDefault() ?? new List<DAZMorph>();
 					foreach (var item in mutation.ActiveMorphs)
 					{
-						if (morphItems.Any(i => i.displayName == item.Id)) hideEntry = true;
+						if (!morphItems.Any(i => _mutationsService.GetMorphId(i) == item.Id)) hideEntry = true;
 					}
 
+					// Check facegen morphs...
 					foreach (var item in mutation.FaceGenMorphSet)
 					{
-						if (morphItems.Any(i => i.displayName == item.Id)) hideEntry = true;
+						if (!morphItems.Any(i => _mutationsService.GetMorphId(i) == item.Id)) hideEntry = true;
 					}
 
 					if (!hideEntry) newCatalogEntries.Add(entry);
@@ -2566,22 +2580,25 @@ namespace juniperD.StatefullServices
 			_mainWindow.ButtonNameLabel.button.transform.localPosition = new Vector3(-40f, (totalSize / 2) - 42, 0f);
 			_mainWindow.ButtonNameLabel.button.onClick.AddListener(() => ToggleMinimize());
 			SetTooltipForDynamicButton(_mainWindow.ButtonNameLabel, () => (_minimizeUi.val ? "Maximize" : "Minimize") + "/Move");
-			AddDragging(_mainWindow.ButtonNameLabel.gameObject, _mainWindow.ParentWindowContainer);
+			Action<DragHelper> afterDrag = (helper) =>
+			{
+				try
+				{
+					//positionTracker.XMultiplier = -1000f;
+					//positionTracker.YMultiplier = 1000f;
+					_mainWindowPositionX.val = helper.CurrentPosition.x;// - 1000; //helper.CurrentPosition.x * helper.XMultiplier;
+					_mainWindowPositionY.val = helper.CurrentPosition.y; //helper.CurrentPosition.y * helper.YMultiplier;
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
+			};
+			AddDragging(_mainWindow.ButtonNameLabel.gameObject, _mainWindow.ParentWindowContainer, null, afterDrag);
 
 			//var positionTracker = new DragHelper();
 			//_positionTrackers.Add("DragPanel", positionTracker);
-			//Action<DragHelper> afterDrag = (helper) =>
-			//{
-			//	try
-			//	{
-			//		_mainWindowPositionX.val = positionTracker.CurrentPosition.x;
-			//		_mainWindowPositionY.val = positionTracker.CurrentPosition.y;
-			//	}
-			//	catch (Exception e)
-			//	{
-			//		SuperController.LogError(e.ToString());
-			//	}
-			//};
+
 			//Action<DragHelper> onStartDraggingEvent = (helper) =>
 			//{
 			//	try
@@ -2603,15 +2620,26 @@ namespace juniperD.StatefullServices
 		}
 
 		private void CreateDynamicPanel_MainWindow(DynamicMainWindow mainWindow)
-		{
-			Action<DragHelper> onStartDraggingEvent = null; //(helper) => StartDraggingMainWindow(helper);
-			Action<DragHelper> onFinishedDragEvent = null; //(helper) => FinishedDraggingMainWindow(helper);			
+		{		
 
 			mainWindow.PanelBackground = CatalogUiHelper.CreatePanel(mainWindow.SubWindow, _mainWindow.WindowWidth, _mainWindow.WindowHeight, -10, -10, new Color(0.1f, 0.1f, 0.1f, 0.99f), Color.clear);
 			mainWindow.MiniPanelBackground = CatalogUiHelper.CreatePanel(mainWindow.SubWindow, 190, _mainWindow.ControlPanelMinimizedHeight, -10, -10, new Color(0.1f, 0.1f, 0.1f, 0.99f), Color.clear);
 			mainWindow.MiniPanelBackground.transform.localScale = Vector3.zero;
 
-			AddDragging(mainWindow.PanelBackground, mainWindow.ParentWindowContainer, onStartDraggingEvent, onFinishedDragEvent);
+			Action<DragHelper> afterDrag = (helper) =>
+			{
+				try
+				{
+					_mainWindowPositionX.val = helper.CurrentPosition.x;// * helper.XMultiplier;
+					_mainWindowPositionY.val = helper.CurrentPosition.y;// * helper.YMultiplier;
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
+			};
+
+			AddDragging(mainWindow.PanelBackground, mainWindow.ParentWindowContainer, null, afterDrag);
 			
 			mainWindow.SubPanelMode = CatalogUiHelper.CreatePanel(mainWindow.SubWindow, 55, _mainWindow.WindowHeight, _mainWindow.WindowWidth - 10, -10, new Color(0.02f, 0.02f, 0.02f, 0.99f), Color.clear);
 
@@ -2621,29 +2649,29 @@ namespace juniperD.StatefullServices
 
 			var shortcutSubPanel = CatalogUiHelper.CreatePanel(mainWindow.SubWindow, 0, 30, 0, 0, Color.clear, Color.clear);
 			//shortcutSubPanel.transform.SetParent(mainWindow.SubWindow.transform, false);
-			AddDragging(shortcutSubPanel, mainWindow.ParentWindowContainer, onStartDraggingEvent, onFinishedDragEvent);
+			AddDragging(shortcutSubPanel, mainWindow.ParentWindowContainer, null, afterDrag);
 			mainWindow.MiniSubPanelShortcut = CreateButtonRowLeftAnchored(shortcutSubPanel, 0);
 			mainWindow.MiniSubPanelShortcut.transform.localScale = Vector3.zero;
 
 			var fileMenuSubPanel = CatalogUiHelper.CreatePanel(mainWindow.SubPanelVerticalStack.transform.gameObject, 0, 30, 0, 0, Color.clear, Color.clear);
 			fileMenuSubPanel.transform.SetParent(mainWindow.SubPanelVerticalStack.transform, false);
-			AddDragging(fileMenuSubPanel, mainWindow.ParentWindowContainer, onStartDraggingEvent, onFinishedDragEvent);
+			AddDragging(fileMenuSubPanel, mainWindow.ParentWindowContainer, null, afterDrag);
 			mainWindow.SubPanelFileMenu = CreateButtonRowLeftAnchored(fileMenuSubPanel, 0);
 
 			var captureSubPanel = CatalogUiHelper.CreatePanel(mainWindow.SubPanelVerticalStack.transform.gameObject, 0, 60, 0, 0, Color.clear, Color.clear);
 			captureSubPanel.transform.SetParent(mainWindow.SubPanelVerticalStack.transform, false);
-			AddDragging(captureSubPanel, mainWindow.ParentWindowContainer, onStartDraggingEvent, onFinishedDragEvent);
+			AddDragging(captureSubPanel, mainWindow.ParentWindowContainer, null, afterDrag);
 			mainWindow.SubPanelCapture = CreateButtonRowLeftAnchored(captureSubPanel, 0);
 			//mainWindow.SubSubPanelCaptureOptions = CatalogUiHelper.CreatePanel(mainWindow.SubPanelCapture, 60, 60, 0, 0, Color.clear, Color.clear);
 
 			var sceneToolsSubPanel = CatalogUiHelper.CreatePanel(mainWindow.SubPanelVerticalStack.transform.gameObject, 0, 40, 0, 0, Color.clear, Color.clear);
 			sceneToolsSubPanel.transform.SetParent(mainWindow.SubPanelVerticalStack.transform, false);
-			AddDragging(sceneToolsSubPanel, mainWindow.ParentWindowContainer, onStartDraggingEvent, onFinishedDragEvent);
+			AddDragging(sceneToolsSubPanel, mainWindow.ParentWindowContainer, null, afterDrag);
 			mainWindow.SubPanelSceneTools =  CreateButtonRowLeftAnchored(sceneToolsSubPanel, 0);
 
 			var manageSubPanel = CatalogUiHelper.CreatePanel(mainWindow.SubPanelVerticalStack.transform.gameObject, 0, 40, 0, 0, Color.clear, Color.clear);
 			manageSubPanel.transform.SetParent(mainWindow.SubPanelVerticalStack.transform, false);
-			AddDragging(manageSubPanel, mainWindow.ParentWindowContainer, onStartDraggingEvent, onFinishedDragEvent);
+			AddDragging(manageSubPanel, mainWindow.ParentWindowContainer, null, afterDrag);
 			mainWindow.SubPanelManageCatalog = CreateButtonRowLeftAnchored(manageSubPanel, 0);
 
 		}
@@ -2735,6 +2763,7 @@ namespace juniperD.StatefullServices
 				var catalogName = catalogFileName.Substring(0, catalogFileName.Length - extension.Length);
 				pluginLabelJSON.val = catalogName;
 				_catalogName.SetVal(catalogName);
+				_catalogFilePath.SetVal(filePath);
 				_catalogRelativePath.SetVal(filePath);
 
 				UpdateCaptureHairState(catalog.CaptureHair);
@@ -4190,7 +4219,7 @@ namespace juniperD.StatefullServices
 			}
 
 			if (storedAtom.FullAtom != null) {
-				SuperController.LogMessage("RESTORING FROM JSON");
+				//SuperController.LogMessage("RESTORING FROM JSON");
 				newAtom.Restore(storedAtom.FullAtom);
 				RestoreAtomFromJSON(newAtom, storedAtom.FullAtom, newAtom.transform.position, newAtom.transform.rotation);
 			}
@@ -4835,6 +4864,11 @@ namespace juniperD.StatefullServices
 
 		void OnDestroy()
 		{
+
+			//if (FileManagerSecure.FileExists(_catalogFilePath.val))
+			//{
+			//	FileManagerSecure.DeleteFile(_catalogFilePath.val);
+			//}
 			if (_handleObjectForCatalog != null)
 			{
 				_handleObjectForCatalog.Remove();

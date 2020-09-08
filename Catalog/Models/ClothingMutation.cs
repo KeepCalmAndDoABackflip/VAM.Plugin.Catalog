@@ -9,7 +9,9 @@ namespace juniperD.Models
 		//public string Id { get; set; } //...DAZClothingItemName
 		//public bool Active { get; set; } = true;
 
+
 		// Non-Serialized...
+		public string Label;
 		public UIDynamicToggle UiToggle { get; set; }
 		public DAZClothingItem DAZClothingItem { get; set; }
 		//public EntrySubItem DynamicCheckbox { get; set; }
