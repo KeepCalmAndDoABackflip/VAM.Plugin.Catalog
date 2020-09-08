@@ -1045,6 +1045,7 @@ namespace juniperD.StatefullServices
 		{
 			try
 			{
+				if (_context._overlayMutations.val == true) return false;
 				var mutationStack = GetMutationStackForSelectedPersonOrDefault();
 				if (mutationStack == null || mutationStack.Count == 0)
 				{

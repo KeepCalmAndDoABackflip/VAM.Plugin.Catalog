@@ -93,6 +93,7 @@ namespace juniperD.StatefullServices
 		List<string> _atomsIncubatingQueue = new List<string>();
 
 		// Capture-mode control-state...
+		public JSONStorableBool _overlayMutations;
 		protected JSONStorableBool _catalogCaptureHair;
 		protected JSONStorableBool _catalogCaptureClothes;
 		protected JSONStorableBool _catalogCaptureMorphs;
@@ -113,6 +114,8 @@ namespace juniperD.StatefullServices
 		protected UIDynamicPopup _cameraSelector;
 		public JSONStorableBool _cycleEntriesOnInterval;
 		public JSONStorableFloat _cycleEntriesInterval;
+		public JSONStorableBool _playOnce;
+		public int _numberOfEntriesToPlay;
 		public JSONStorableFloat _morphTransitionTimeSeconds;
 		protected JSONStorableString _entrySelectionMethod;
 		// Application state
@@ -539,7 +542,7 @@ namespace juniperD.StatefullServices
 				RemoveUnusedMutations();
 			});
 
-			CreateButton("Select custom image").button.onClick.AddListener(() =>
+			CreateButton("Select custom image for entry").button.onClick.AddListener(() =>
 			{
 				AddCustomImageToCurrentEntry();
 			});
@@ -757,6 +760,16 @@ namespace juniperD.StatefullServices
 				_entrySelectionMethod.val = SELECTION_METHOD_RANDOM;
 			});
 
+			var applyEntryAt = new JSONStorableFloat("Apply Entry At", 0, 0, 10000);
+			RegisterFloat(applyEntryAt);
+			var applyEntryAtSlider = CreateSlider(applyEntryAt);
+			applyEntryAtSlider.valueFormat = "F0";
+			applyEntryAtSlider.slider.wholeNumbers = true;
+			applyEntryAtSlider.slider.onValueChanged.AddListener((newVal) =>
+			{
+				ApplyEntryAt((int)newVal); //...changing column count
+			});
+
 			_morphTransitionTimeSeconds = new JSONStorableFloat("Morph transition time (seconds)", 1f, 0, 10);
 			RegisterFloat(_morphTransitionTimeSeconds);
 			var morphTransitionTime = CreateSlider(_morphTransitionTimeSeconds);
@@ -771,7 +784,8 @@ namespace juniperD.StatefullServices
 				_cycleEntriesOnInterval.val = !_cycleEntriesOnInterval.val;
 				cycleEntriesButton.buttonText.text = _cycleEntriesOnInterval.val ? "Stop" : "Play >";
 				cycleEntriesButton.buttonColor = _cycleEntriesOnInterval.val ? Color.red : new Color(0.8f, 1f, 0.8f);
-				if (_cycleEntriesOnInterval.val) {
+				if (_cycleEntriesOnInterval.val == true) {
+					_numberOfEntriesToPlay = _catalog.Entries.Count;
 					StartCoroutine(ApplyNextEntryAfterInterval());
 				}
 			});
@@ -782,17 +796,11 @@ namespace juniperD.StatefullServices
 			applyEntryAfterSlider.valueFormat = "F1";
 			//applyEntryAfterSlider.slider.wholeNumbers = true;
 
-			CreateSpacer();
+			_playOnce = new JSONStorableBool("Play catalog once", false);
+			RegisterBool(_playOnce);
+			CreateToggle(_playOnce);
 
-			var applyEntryAt = new JSONStorableFloat("Catalog Columns", 0, 0, 10000);
-			RegisterFloat(applyEntryAt);
-			var applyEntryAtSlider = CreateSlider(applyEntryAt);
-			applyEntryAtSlider.valueFormat = "F0";
-			applyEntryAtSlider.slider.wholeNumbers = true;
-			applyEntryAtSlider.slider.onValueChanged.AddListener((newVal) =>
-			{
-				ApplyEntryAt((int)newVal); //...changing column count
-			});
+			CreateSpacer();
 
 			_catalogColumnsCountJSON = new JSONStorableFloat("Catalog Columns", _defaultNumberOfCatalogColumns, 1f, 10f);
 			_catalogColumnsCountJSON.storeType = JSONStorableParam.StoreType.Full;
@@ -805,16 +813,6 @@ namespace juniperD.StatefullServices
 				RebuildCatalogFromEntriesCollection(); //...changing column count
 			});
 
-			_catalogUiSizeJSON = new JSONStorableFloat("UI Size", 0, -100f, 100f);
-			_catalogUiSizeJSON.storeType = JSONStorableParam.StoreType.Full;
-			RegisterFloat(_catalogUiSizeJSON);
-			var sizeSlider = CreateSlider(_catalogUiSizeJSON);
-			sizeSlider.valueFormat = "F0";
-			sizeSlider.slider.wholeNumbers = true;
-			sizeSlider.slider.onValueChanged.AddListener((newVal) =>
-			{
-				ResizeUi(newVal); //...changing column count
-			});
 
 			_catalogRowsCountJSON = new JSONStorableFloat("Catalog Rows", _defaultNumberOfCatalogRows, 1f, 10f);
 			_catalogRowsCountJSON.storeType = JSONStorableParam.StoreType.Full;
@@ -825,6 +823,17 @@ namespace juniperD.StatefullServices
 			colsSlider.slider.onValueChanged.AddListener((newVal) =>
 			{
 				RebuildCatalogFromEntriesCollection(); //...changing row count
+			});
+
+			_catalogUiSizeJSON = new JSONStorableFloat("UI Size", 0, -100f, 100f);
+			_catalogUiSizeJSON.storeType = JSONStorableParam.StoreType.Full;
+			RegisterFloat(_catalogUiSizeJSON);
+			var sizeSlider = CreateSlider(_catalogUiSizeJSON);
+			sizeSlider.valueFormat = "F0";
+			sizeSlider.slider.wholeNumbers = true;
+			sizeSlider.slider.onValueChanged.AddListener((newVal) =>
+			{
+				ResizeUi(newVal); //...changing column count
 			});
 
 			_expandDirection = new JSONStorableStringChooser("ExpandCatalogWithMore", new List<string> { EXPAND_WITH_MORE_ROWS, EXPAND_WITH_MORE_COLUMNS }, EXPAND_WITH_MORE_COLUMNS, "Expand with");
@@ -946,6 +955,9 @@ namespace juniperD.StatefullServices
 					AnchorOnAtom();
 			});
 
+			_overlayMutations = new JSONStorableBool("Overlay Mutations", false);
+			RegisterBool(_overlayMutations);
+			CreateToggle(_overlayMutations);
 		}
 
 		private void SetCatalogVisibility(bool setVisible)
@@ -2393,7 +2405,7 @@ namespace juniperD.StatefullServices
 			SetTooltipForDynamicButton(stopTrackingButton, () => "Remove from catalog entry");
 
 			var currentTextColor = entryItem.CheckState ? new Color(1f, 0.3f, 0.3f, 1) : new Color(0.3f, 0.3f, 0.3f, 1);
-			var checkButton = _catalogUi.CreateButton(buttonRow, entryItem.ItemName, 160, 25, 0, 0, Color.clear, new Color(0.3f, 0.3f, 0.2f), currentTextColor);
+			var checkButton = _catalogUi.CreateButton(buttonRow, entryItem.Label ?? entryItem.ItemName, 160, 25, 0, 0, Color.clear, new Color(0.3f, 0.3f, 0.2f), currentTextColor);
 			buttonRow.transform.SetParent(_mainWindow.InfoVLayout.transform, false);
 			checkButton.buttonText.fontSize = 15;
 			checkButton.buttonText.fontStyle = FontStyle.Italic;
@@ -2405,7 +2417,7 @@ namespace juniperD.StatefullServices
 				onToggle.Invoke(newValue);
 			});
 			entryItem.ItemActiveCheckbox = checkButton;
-			SetTooltipForDynamicButton(checkButton, () => "Switch item on/off in scene");
+			SetTooltipForDynamicButton(checkButton, () => checkButton.label);
 
 			if (tooltip_iconName_action != null)
 			{
@@ -3211,6 +3223,7 @@ namespace juniperD.StatefullServices
 
 				EntrySubItem entrySubItem = new EntrySubItem();
 				entrySubItem.ItemName = activeMorphItem.Id;
+				entrySubItem.Label = activeMorphItem.Id.Split('/').Last().Split('.').First();
 				entrySubItem.CheckState = activeMorphItem.Active;
 				AddEntrySubItemToggle(entrySubItem, toggleAction, stopTracking);
 
@@ -3235,6 +3248,7 @@ namespace juniperD.StatefullServices
 
 				EntrySubItem entrySubItem = new EntrySubItem();
 				entrySubItem.ItemName = activeMorphItem.Id;
+				entrySubItem.Label = activeMorphItem.Id.Split('/').Last().Split('.').First();
 				entrySubItem.CheckState = activeMorphItem.Active;
 				AddEntrySubItemToggle(entrySubItem, toggleAction, stopTracking);
 
@@ -3258,6 +3272,7 @@ namespace juniperD.StatefullServices
 				};
 				EntrySubItem entrySubItem = new EntrySubItem();
 				entrySubItem.ItemName = faceGenMorphItem.Id;
+				entrySubItem.Label = faceGenMorphItem.Id.Split('/').Last().Split('.').First();
 				entrySubItem.CheckState = faceGenMorphItem.Active;
 				AddEntrySubItemToggle(entrySubItem, toggleAction, stopTracking);
 
@@ -4701,9 +4716,20 @@ namespace juniperD.StatefullServices
 			var selectedEntry = _catalog.Entries.FirstOrDefault(e => e.Selected) ?? _catalog.Entries.FirstOrDefault();
 			if (selectedEntry == null) selectedEntry = _catalog.Entries.First();
 			var indexOfCurrentEntry = _catalog.Entries.IndexOf(selectedEntry);
-			CatalogEntry nextEntry = (indexOfCurrentEntry == _catalog.Entries.IndexOf(_catalog.Entries.Last()))
-				? _catalog.Entries.First()
-				: _catalog.Entries.ElementAt(indexOfCurrentEntry + 1);
+			CatalogEntry nextEntry;
+			if (indexOfCurrentEntry == _catalog.Entries.IndexOf(_catalog.Entries.Last()))
+			{
+				nextEntry = _catalog.Entries.First();
+			}
+			else
+			{
+				nextEntry = _catalog.Entries.ElementAt(indexOfCurrentEntry + 1);
+			}
+			if (_playOnce.val == true && _numberOfEntriesToPlay-- == 0)
+			{
+				_cycleEntriesOnInterval.val = false;
+				return;
+			}
 			ApplyCatalogEntry(selectedEntry);
 			SelectCatalogEntry(nextEntry);
 		}

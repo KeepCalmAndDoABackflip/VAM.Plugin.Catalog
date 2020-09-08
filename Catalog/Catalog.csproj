@@ -88,7 +88,6 @@
     </Reference>
   </ItemGroup>
   <ItemGroup>
-    <Compile Include="Contracts\PointTypeEnum.cs" />
     <Compile Include="Contracts\PointAddOptionEnum.cs" />
     <Compile Include="Contracts\LinkTypeEnum.cs" />
     <Compile Include="Contracts\CatalogModeEnum.cs" />

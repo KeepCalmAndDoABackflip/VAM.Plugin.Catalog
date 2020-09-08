@@ -7,6 +7,7 @@ namespace juniperD.Models
 	{
 		// Data...
 		public string ItemName { get;set; }
+		public string Label { get; set; }
 		public bool CheckState { get; set;}
 
 		// Control...
