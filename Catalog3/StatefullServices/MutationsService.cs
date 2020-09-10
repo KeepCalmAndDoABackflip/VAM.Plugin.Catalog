@@ -978,7 +978,7 @@ namespace juniperD.StatefullServices
 				_context.ShowPopupMessage("Please select a Person");
 				return null;
 			}
-			var controllers = selectedAtom.GetComponentsInChildren<FreeControllerV3>().ToList();
+			var controllers = selectedAtom.GetComponentsInChildren<FreeControllerV3>(true).ToList();
 			return controllers;
 		}
 

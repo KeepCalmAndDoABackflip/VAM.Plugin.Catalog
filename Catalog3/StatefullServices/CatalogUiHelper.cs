@@ -432,11 +432,9 @@ namespace juniperD.StatefullServices
 		//	uiField.popup.numPopupValues = options.Length;
 		//	for (var i = 0; i <  options.Length; i++)
 		//	{
-		//		SuperController.LogMessage("setting: " + i + " to " + options[i]);
 		//		uiField.popup.setPopupValue(i, options[i] );
 		//		uiField.popup.setDisplayPopupValue(i, options[i]);
 		//	}
-		//	SuperController.LogMessage("checking: " + string.Join(",", uiField.popup.popupValues));
 		//	//uiField.popup.normalColor = backColor;
 		//	//uiField.labelTextColor = textColor;
 		//	//uiField.popupPanelHeight = 300;
@@ -449,7 +447,6 @@ namespace juniperD.StatefullServices
 		//	uiField.popup.normalColor = backColor;
 		//	uiField.height = 200;
 		//	uiField.popup.onOpenPopupHandlers = () => { 
-		//		SuperController.LogMessage("Opening");
 		//	};
 
 		//	return uiField;

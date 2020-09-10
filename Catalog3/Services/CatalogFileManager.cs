@@ -20,7 +20,6 @@ namespace juniperD.Services
 			Catalog catalog = null;
 			string fileContents = SuperController.singleton.ReadFileIntoString(filePath);
 			var catalogVersion = GetCatalogVersionFromFile(fileContents);
-			SuperController.LogMessage("Catalog version: " + catalogVersion);
 			switch (catalogVersion)
 			{
 				case "3.0.0":

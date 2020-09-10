@@ -319,12 +319,10 @@ namespace juniperD.StatefullServices
 				SuperController.singleton.fileBrowserUI.selectButton.onClick.AddListener(() =>
 				{
 					//var filePath = SuperController.singleton.fileBrowserUI.currentPathField;
-					//SuperController.LogMessage("Filename " + filePath);
 					//var scenePath = GetSceneDirectoryPath();
 					//var filePath = scenePath + "/" + _catalogName.val + "." + _fileExtension;
 					
 					//var fileName = filePath.Split('/').Last().Split('.').First();
-					//SuperController.LogMessage("Filename " + fileName);
 					//var baseName = fileName + "." + GetNewCatalogName();
 					//_catalogLocalFilePath.val = GetNewLocalFilePathName(_catalogName);
 					
@@ -611,7 +609,7 @@ namespace juniperD.StatefullServices
 						return;
 					}
 					var texture = TextureLoader.LoadTexture(filePath);
-					if (_mainWindow.CurrentCatalogEntry == null) SuperController.LogMessage("No catalog entry selected. Please select an entry");
+					if (_mainWindow.CurrentCatalogEntry == null) SuperController.LogMessage("REQUEST: No catalog entry selected. Please select an entry");
 					_mainWindow.CurrentCatalogEntry.ImageInfo.ExternalPath = filePath;
 					//_mainWindow._currentCatalogEntry.Mutation.Img_RGB24_W1000H1000_64bEncoded = filePath;
 					_mainWindow.CurrentCatalogEntry.ImageInfo.Texture = texture;
@@ -1318,7 +1316,7 @@ namespace juniperD.StatefullServices
 			var selectedAtom = SuperController.singleton.GetSelectedAtom();
 			if (selectedAtom != null) return selectedAtom;
 			//...else there are either no Person atoms, or more than one Person atom.
-			SuperController.LogMessage("Please select an atom in the scene");
+			SuperController.LogMessage("REQUEST: Please select an atom in the scene");
 			return null;
 		}
 
@@ -1374,7 +1372,6 @@ namespace juniperD.StatefullServices
 		void SetObjectSize(GameObject gameObject, float newWidth,  float newHeight)
 		{
 			//var rect = gameObject.GetComponent<RectTransform>();
-			//SuperController.LogMessage("sizeDelta: " + rect.sizeDelta.x);
 			//var currentHeight = rect.sizeDelta.y;
 			//var currentWidth = rect.sizeDelta.x;
 			//rect.sizeDelta = new Vector2(newWidth, newHeight);
@@ -1683,7 +1680,6 @@ namespace juniperD.StatefullServices
 			SuperController.singleton.fileBrowserUI.Show((filePath) =>
 			{
 				var directoryPath = filePath.Substring(0, filePath.Replace("\\", "/").LastIndexOf("/"));
-				//SuperController.LogMessage("Setting scene folder to " + directoryPath);
 				CreateSceneCatalogEntries(directoryPath);
 			});
 		}
@@ -1708,7 +1704,7 @@ namespace juniperD.StatefullServices
 					ShowLoading("Saving Catalog...");
 					SaveCatalogToFile(filePath);
 					HideLoading();
-					SuperController.LogMessage("Saved catalog to: " + filePath);
+					SuperController.LogMessage("INFO: Saved catalog to: " + filePath);
 				});
 
 			}
@@ -1802,7 +1798,6 @@ namespace juniperD.StatefullServices
 
 		private void ShowQuickLoadFileList()
 		{
-			//SuperController.LogMessage("Checking Directory: " + _lastCatalogDirectory);
 			var files = SuperController.singleton.GetFilesAtPath(_lastCatalogDirectory, "*." + _fileExtension);
 			Dictionary<string, UnityAction> filesToLoad = new Dictionary<string, UnityAction>();
 			foreach (var file in files)
@@ -2248,7 +2243,9 @@ namespace juniperD.StatefullServices
 		public string TogglePositionOnOff(string controllerName, string atomName, string inputState = null)
 		{
 			var atom = SuperController.singleton.GetAtomByUid(atomName);
-			var controller = atom.GetComponentsInChildren<FreeControllerV3>().SingleOrDefault(c => c.name == controllerName);
+			if (atom == null) SuperController.LogError("could not find atom by name: " + atomName ?? "NULL");
+			FreeControllerV3 controller = GetControllerForAtom(controllerName, atom);
+			if (controller == null) SuperController.LogError("could not find controller by name: " + controllerName ?? "NULL");
 			if (inputState == null)
 			{
 				inputState = (controller.currentPositionState != FreeControllerV3.PositionState.Off)
@@ -2259,10 +2256,28 @@ namespace juniperD.StatefullServices
 			return inputState;
 		}
 
+		public FreeControllerV3 GetControllerForAtom(string controllerName, Atom atom)
+		{
+			var controller = atom.GetComponentsInChildren<FreeControllerV3>(true).SingleOrDefault(c => c.storeId == controllerName || c.name == controllerName);
+			if (controller == null)
+			{
+				controller = atom.freeControllers.SingleOrDefault(c => c.name == controllerName);
+			}
+			return controller;
+		}
+
+		public List<string> GetControllerNamesForAtom(Atom atom)
+		{
+			var controllerNames = atom.name != null ? SuperController.singleton.GetFreeControllerNamesInAtom(atom.name) : new List<string>();
+			if (controllerNames.Count == 0) controllerNames = atom.GetComponentsInChildren<FreeControllerV3>(true).Select(c => c.name).ToList();
+			return controllerNames;
+			// defaultAtom? .GetComponentsInChildren<FreeControllerV3>(true).Select(c => c.name).ToList() ?? new List<string>();
+		}
+
 		public string ToggleRotationOnOff(string controllerName, string atomName, string inputState = null)
 		{
 			var atom = SuperController.singleton.GetAtomByUid(atomName);
-			var controller = atom.GetComponentsInChildren<FreeControllerV3>().SingleOrDefault(c => c.name == controllerName);
+			var controller = GetControllerForAtom(controllerName, atom); 
 			if (inputState == null)
 			{
 				inputState = (controller.currentRotationState != FreeControllerV3.RotationState.Off) 
@@ -2276,7 +2291,7 @@ namespace juniperD.StatefullServices
 		public void SelectNextControllerPositionMode(string controllerName, string atomName)
 		{
 			var atom = SuperController.singleton.GetAtomByUid(atomName);
-			var controller = atom.GetComponentsInChildren<FreeControllerV3>().SingleOrDefault(c => c.name == controllerName);
+			var controller = GetControllerForAtom(controllerName, atom);
 			//var vals = Enum.GetValues(typeof(FreeControllerV3.PositionState));
 			if (controller.currentPositionState == FreeControllerV3.PositionState.On)
 				controller.currentPositionState = FreeControllerV3.PositionState.Comply;
@@ -2297,7 +2312,7 @@ namespace juniperD.StatefullServices
 		public void SelectNextControllerRotationMode(string controllerName, string atomName)
 		{
 			var atom = SuperController.singleton.GetAtomByUid(atomName);
-			var controller = atom.GetComponentsInChildren<FreeControllerV3>().SingleOrDefault(c => c.name == controllerName);
+			var controller = GetControllerForAtom(controllerName, atom);
 			//var vals = Enum.GetValues(typeof(FreeControllerV3.RotationState));
 			if (controller.currentRotationState == FreeControllerV3.RotationState.On)
 				controller.currentRotationState = FreeControllerV3.RotationState.Comply;
@@ -2321,7 +2336,7 @@ namespace juniperD.StatefullServices
 			{
 				if (controllerName == null) return;
 				if (atom == null) return;
-				var controller = atom.GetComponentsInChildren<FreeControllerV3>().ToList().SingleOrDefault(c => c.name == controllerName);
+				var controller = GetControllerForAtom(controllerName, atom);
 				if (controller == null) return;
 				//var joint = atom.GetComponentsInChildren<ConfigurableJoint>().FirstOrDefault(c => c.connectedBody?.name == controllerName);
 				//var rigidBody = atom.GetComponentsInChildren<Rigidbody>().FirstOrDefault(c => c.name == controllerName);
@@ -2384,14 +2399,18 @@ namespace juniperD.StatefullServices
 					ShowPopupMessage("Null Controller", 2);
 					return;
 				}
-				var controller = selectedAtom.GetComponentsInChildren<FreeControllerV3>().FirstOrDefault(c => c.name == controllerName);
-				if (controller == null)
-				{
-					ShowPopupMessage("Invalid Controller", 2);
-					return;
-				}
-				SuperController.singleton.SelectController(controller, false, false, false, false);
-				DebugLog($"{controller.name} rotation: " + controller.transform.localRotation.eulerAngles);
+
+				//var controller = selectedAtom.GetComponentsInChildren<FreeControllerV3>().FirstOrDefault(c => c.name == controllerName);
+				//var controllerList = selectedAtom.GetComponentsInChildren<FreeControllerV3>().ToList();
+				//var sceneControllers = SuperController.singleton.GetComponentsInChildren<FreeControllerV3>().ToList();
+				//if (controller == null)
+				//{
+				//	ShowPopupMessage("Invalid Controller: \"" + (controllerName ?? "NULL") + "\" for atom: \"" + (selectedAtom.name ?? "NULL") + "\"", 2);
+				//	return;
+				//}
+				//SuperController.singleton.SelectController(controller, false, false, false, false);
+
+				SuperController.singleton.SelectController(atomName, controllerName);
 			}
 			catch (Exception e)
 			{
@@ -2789,7 +2808,7 @@ namespace juniperD.StatefullServices
 
 		private Catalog LoadCatalogFromFile(string filePath)
 		{
-			SuperController.LogMessage("Loading catalog from file...");
+			SuperController.LogMessage("INFO: Loading catalog from file...");
 			try
 			{
 				//_mutationsService.SetMorphBaseValuesForCurrentPerson();
@@ -2808,7 +2827,7 @@ namespace juniperD.StatefullServices
 
 				if (string.IsNullOrEmpty(_catalogLocalFilePath.val)) {
 					_catalogLocalFilePath.val = GetNewLocalFilePathName(catalogName);
-					SuperController.LogMessage("Created new file path: " + _catalogLocalFilePath.val);
+					SuperController.LogMessage("INFO: Created new file path: " + _catalogLocalFilePath.val);
 				}
 				//_catalogLocalFilePath.SetVal(filePath);
 				_catalogRelativePath.SetVal(filePath);
@@ -2826,7 +2845,7 @@ namespace juniperD.StatefullServices
 					BuildCatalogEntry(catalog.Entries.ElementAt(i)); //...Loading catalog from File
 				}
 				RefreshCatalogPosition(); // ...After loading catalog from file
-				SuperController.LogMessage("Loaded catalog from " + filePath);
+				SuperController.LogMessage("INFO: Loaded catalog from " + filePath);
 				return catalog;
 			}
 			catch (Exception e)
@@ -4266,14 +4285,12 @@ namespace juniperD.StatefullServices
 			}
 
 			if (storedAtom.FullAtom != null) {
-				//SuperController.LogMessage("RESTORING FROM JSON");
 				newAtom.Restore(storedAtom.FullAtom);
 				RestoreAtomFromJSON(newAtom, storedAtom.FullAtom, newAtom.transform.position, newAtom.transform.rotation);
 			}
 			//else
 			//{
 			//	RestoreAtomStorables(storedAtom, newAtom);
-			//	SuperController.LogMessage("RESTORING FROM STORABLES");	
 			//}
 			RestoreAtomStorables(storedAtom, newAtom);
 
@@ -4369,7 +4386,7 @@ namespace juniperD.StatefullServices
 						string clothingItemId = clothingItems[i].AsObject["id"] + "";
 						DAZClothingItem dazClothingItem = character.clothingItems.FirstOrDefault(h => h.displayName == clothingItemId || h.uid == clothingItemId);
 						if (dazClothingItem != null) character.SetActiveClothingItem(dazClothingItem, true);
-						if (dazClothingItem == null) SuperController.LogMessage("Couldn't find clothing item: " + clothingItemId);
+						if (dazClothingItem == null) SuperController.LogMessage("WARNING: Couldn't find clothing item: " + clothingItemId);
 					}
 
 					var hairItems = storedGeometry["hair"].AsArray;
@@ -4763,7 +4780,7 @@ namespace juniperD.StatefullServices
 			var mainController = atom.mainController;
 			mainController.transform.rotation = Quaternion.identity;
 
-			var hipController = atom.GetComponentsInChildren<FreeControllerV3>().FirstOrDefault(c => c.name == "hipControl");
+			var hipController = GetControllerForAtom("hipControl", atom);// atom.GetComponentsInChildren<FreeControllerV3>().FirstOrDefault(c => c.name == "hipControl");
 
 			if (hipController != null)
 			{
@@ -4857,7 +4874,7 @@ namespace juniperD.StatefullServices
 
 		public FreeControllerV3 GetControllerOrDefault(Atom atom, string controllerName, bool withValidation = true)
 		{
-			var controller = atom.GetComponentsInChildren<FreeControllerV3>().FirstOrDefault(c => c.name == controllerName);
+			var controller = GetControllerForAtom(controllerName, atom);
 			if (withValidation && controller == null) SuperController.LogMessage("WARNING: No controller found by the name of '" + controllerName + "'");
 			return controller;
 		}

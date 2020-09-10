@@ -1194,7 +1194,7 @@ namespace juniperD.StatefullServices
 
 					_context.StartCoroutine(SendOffCylinder());
 
-					var box_FreeControllerV3 = _context.containingAtom.GetComponentsInChildren<FreeControllerV3>();
+					var box_FreeControllerV3 = _context.containingAtom.GetComponentsInChildren<FreeControllerV3>(true);
 
 					var newFreecontroller = GameObject.Instantiate<FreeControllerV3>(box_FreeControllerV3[0], _context.containingAtom.transform);
 					box_FreeControllerV3 = new[] { newFreecontroller };

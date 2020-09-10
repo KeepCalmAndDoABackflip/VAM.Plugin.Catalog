@@ -37,7 +37,7 @@ namespace juniperD.Services
 			Atom defaultAtom = GetAtomPreferSelectedThenPersonThenAnyOrDefault();
 
 			var newMannequinPicker = new DynamicMannequinPicker();
-			
+
 			//_mannequinPickers.Add(newMannequinPicker);
 			// Create floating window...
 			newMannequinPicker.Window = CatalogUiHelper.CreatePanel(_parentWindow.canvas.gameObject, 0, 0, 0, 0, new Color(0.1f, 0.1f, 0.1f, 1f), Color.clear);
@@ -54,7 +54,8 @@ namespace juniperD.Services
 			var closeIcon = TextureLoader.LoadTexture(_context.GetPluginPath() + "/Resources/Close.png");
 			newMannequinPicker.CloseButton = _parentWindow.CreateButton(newMannequinPicker.Window, "", 25, 25, 0, -345, new Color(0.5f, 0.3f, 0.3f, 1), new Color(1f, 0.5f, 0.5f, 1), new Color(1f, 0.3f, 0.3f, 1), closeIcon);
 			_context.SetTooltipForDynamicButton(newMannequinPicker.CloseButton, () => "Close");
-			newMannequinPicker.CloseButton.button.onClick.AddListener(() => {
+			newMannequinPicker.CloseButton.button.onClick.AddListener(() =>
+			{
 				CloseMannequinPicker(newMannequinPicker);
 			});
 
@@ -93,7 +94,7 @@ namespace juniperD.Services
 			_context.SetTooltipForDynamicButton(newMannequinPicker.MiniOverlay, () => newMannequinPicker.SelectedControllerName + ":" + newMannequinPicker.SelectedPointAction);
 			newMannequinPicker.MiniOverlay.button.onClick.AddListener(() =>
 			{
-				SelectMannequinJoint(newMannequinPicker.SelectedJoint, newMannequinPicker);				
+				SelectMannequinJoint(newMannequinPicker.SelectedJoint, newMannequinPicker);
 			});
 
 			newMannequinPicker.AtomMiniLabel = _parentWindow.CreateButton(newMannequinPicker.Window, "Atom: ", _context.CatalogEntryFrameSize.val - 20, 20, 0, -310, new Color(0.1f, 0.1f, 0.1f, 0.5f), Color.clear, new Color(0.4f, 0.7f, 0.3f, 1));
@@ -107,13 +108,10 @@ namespace juniperD.Services
 			newMannequinPicker.ControllerMiniLabel.buttonText.fontStyle = FontStyle.Italic;
 			newMannequinPicker.ControllerMiniLabel.buttonText.alignment = TextAnchor.MiddleLeft;
 			newMannequinPicker.ControllerMiniLabel.transform.localScale = Vector3.zero;
-			//=================================
-
-			// "Point"/controller combo box...
-			//------------------------------------
-			var controllerNames = defaultAtom?.GetComponentsInChildren<FreeControllerV3>().Select(c => c.name).ToList() ?? new List<string>();
+			List<string> controllerNames = _context.GetControllerNamesForAtom(defaultAtom);
 			//var personAtomNames = personAtoms.Select(a => a.name).ToList();
-			UnityAction<string> onPointSelectorSelect = (controllerName) => {
+			UnityAction<string> onPointSelectorSelect = (controllerName) =>
+			{
 				MannequinSelectController(controllerName, newMannequinPicker);
 			};
 			if (newMannequinPicker.PointSelector != null) newMannequinPicker.PointSelector.ClearDropdownList(_context);
@@ -150,10 +148,12 @@ namespace juniperD.Services
 			};
 			UnityAction<string> onAddAction = (selectedLink) =>
 			{
-				if (selectedLink == PointAddOptionEnum.ANIMATION) {
+				if (selectedLink == PointAddOptionEnum.ANIMATION)
+				{
 					AddAnimationToController(newMannequinPicker.SelectedAtomName, newMannequinPicker.SelectedControllerName);
 				}
-				if (selectedLink == PointAddOptionEnum.TRIGGER) {
+				if (selectedLink == PointAddOptionEnum.TRIGGER)
+				{
 					AddTriggerToController(newMannequinPicker.SelectedAtomName, newMannequinPicker.SelectedControllerName, newMannequinPicker);
 				}
 			};
@@ -183,6 +183,8 @@ namespace juniperD.Services
 			return newMannequinPicker;
 		}
 
+
+
 		private void MinimizeMannequinPicker(DynamicMannequinPicker picker)
 		{
 			try
@@ -204,7 +206,8 @@ namespace juniperD.Services
 				picker.AtomMiniLabel.transform.localScale = minimize ? Vector3.one : Vector3.zero;
 				picker.ControllerMiniLabel.transform.localScale = minimize ? Vector3.one : Vector3.zero;
 				picker.MiniOverlay.transform.localScale = minimize ? Vector3.one : Vector3.zero;
-				picker.ButtonSelectionHalo.transform.localScale = minimize ? Vector3.one : Vector3.zero;
+				
+				picker.ButtonSelectionHalo.transform.localScale = minimize ? Vector3.zero : Vector3.one;
 
 				if (picker.AtomSelector != null) picker.AtomSelector.MinimizeDynamicDropdown(_context, minimize);
 				if (picker.PointSelector != null) picker.PointSelector.MinimizeDynamicDropdown(_context, minimize);
@@ -410,7 +413,7 @@ namespace juniperD.Services
 			picker.SelectedAtomName = atomName;
 			picker.AtomMiniLabel.buttonText.text = atomName;
 			var atom = _context.GetAtomById(atomName);
-			var controllerNames = atom?.GetComponentsInChildren<FreeControllerV3>().Select(c => c.name).ToList() ?? new List<string>();
+			var controllerNames = _context.GetControllerNamesForAtom(atom); //atom?.GetComponentsInChildren<FreeControllerV3>().Select(c => c.name).ToList() ?? new List<string>();
 			var selectedController = SuperController.singleton.GetSelectedController();
 			if (selectedController == null || selectedController.containingAtom.name != atomName) selectedController = atom.mainController;
 			picker.SelectedControllerName = selectedController.name;
@@ -564,8 +567,8 @@ namespace juniperD.Services
 
 		private void RefreshMannequinControlPoints(DynamicMannequinPicker picker)
 		{
-			if (picker.Minimized) return;
 
+			if (picker.Minimized) return;
 			var atom = _context.GetAtomById(picker.SelectedAtomName);
 			if (atom == null) return;
 			foreach (var jointPoint in picker.JointPoints)
@@ -574,16 +577,14 @@ namespace juniperD.Services
 				_context.RemoveButton(jointPoint.rotationButton);
 			}
 			picker.JointPoints = new List<DynamicJointPoint>();
-
 			if (atom.type != "Person")
 			{
 				picker.JointPoints.Add(AddMannequinPointer(110, -210, "control", atom, picker));
 				return;
 			}
-
 			picker.JointPoints.Add(AddMannequinPointer(25, -270, "control", atom, picker));
-
 			JSONStorable geometry = atom.GetStorableByID("geometry");
+
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
 
 			picker.JointPoints.Add(AddMannequinPointer(108, -270, "headControl", atom, picker));
@@ -600,7 +601,6 @@ namespace juniperD.Services
 			picker.JointPoints.Add(AddMannequinPointer(108, -110, "abdomenControl", atom, picker));
 			picker.JointPoints.Add(AddMannequinPointer(108, -80, "hipControl", atom, picker));
 			picker.JointPoints.Add(AddMannequinPointer(108, -50, "pelvisControl", atom, picker));
-
 
 			if (character.gender == DAZCharacterSelector.Gender.Male)
 			{
@@ -621,7 +621,6 @@ namespace juniperD.Services
 
 			picker.JointPoints.Add(AddMannequinPointer(33, -50, "rHandControl", atom, picker));
 			picker.JointPoints.Add(AddMannequinPointer(183, -50, "lHandControl", atom, picker));
-
 			picker.JointPoints.Add(AddMannequinPointer(80, -10, "rThighControl", atom, picker));
 			picker.JointPoints.Add(AddMannequinPointer(135, -10, "lThighControl", atom, picker));
 
@@ -633,7 +632,6 @@ namespace juniperD.Services
 
 			picker.JointPoints.Add(AddMannequinPointer(80, 170, "rToeControl", atom, picker));
 			picker.JointPoints.Add(AddMannequinPointer(135, 170, "lToeControl", atom, picker));
-
 		}
 
 		private void SelectMannequinJoint(DynamicJointPoint joint, DynamicMannequinPicker picker)
@@ -642,6 +640,7 @@ namespace juniperD.Services
 			{
 				if (joint == null) return;
 				var selectedAtom = picker.SelectedAtomName;
+				
 				picker.SelectedJoint = joint;
 				picker.ButtonSelectionHalo.transform.localPosition = picker.SelectedJoint.positionButton.transform.localPosition;
 				picker.SelectedControllerName = joint.controllerName;
@@ -678,29 +677,23 @@ namespace juniperD.Services
 			{
 				SelectMannequinJoint(newDynamicJoint, picker);
 			};
-
 			var positionIcon = TextureLoader.LoadTexture(_context.GetPluginPath() + "/Resources/Spot.png");
 			newDynamicJoint.positionButton = _parentWindow.CreateButton(picker.Window, "", 10, 10, x + 5, y + 5, new Color(0.5f, 0.5f, 0.5f, 1f), new Color(1, 1f, 1, 1f), Color.clear, positionIcon);
 			newDynamicJoint.positionButton.tag = controllerName;
-
 			var rotationIcon = TextureLoader.LoadTexture(_context.GetPluginPath() + "/Resources/PointRotation2.png");
 			newDynamicJoint.rotationButton = _parentWindow.CreateButton(picker.Window, "", 20, 20, x, y, new Color(0.5f, 0.5f, 0.5f, 1f), new Color(1, 1f, 1, 1f), Color.clear, rotationIcon);
 			newDynamicJoint.rotationButton.tag = controllerName;
-
 			//newDynamicJoint.positionButton.button.onClick.AddListener(() => userSelectsPointCallback(controllerName));
 			newDynamicJoint.rotationButton.button.onClick.AddListener(() => userSelectsPointCallback(controllerName));
-			var controller = atom.GetComponentsInChildren<FreeControllerV3>().SingleOrDefault(c => c.name == controllerName);
+			var controller = _context.GetControllerForAtom(controllerName, atom); //atom.GetComponentsInChildren<FreeControllerV3>().SingleOrDefault(c => c.name == controllerName);
 
 			_context.SetTooltipForDynamicButton(newDynamicJoint.rotationButton, () =>
 			{
 				return controllerName + "\n(position: " + controller.currentPositionState + ", rotation: " + controller.currentRotationState + ")";
 			});
 
-			
-			_context.AddDragging(newDynamicJoint.rotationButton.gameObject, controller.gameObject);
-
+			//_context.AddDragging(newDynamicJoint.rotationButton.gameObject, controller.gameObject);
 			_context.UpdatePointerState(newDynamicJoint, controllerName, atom);
-
 			return newDynamicJoint;
 		}
 
