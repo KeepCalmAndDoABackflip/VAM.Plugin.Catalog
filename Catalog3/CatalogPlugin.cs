@@ -121,8 +121,6 @@ namespace juniperD.StatefullServices
 		// Application state
 
 		// Display-state...
-		//int _mainWindow._windowWidth = 320;
-		//int _mainWindow._windowHeight = 220;
 		Atom _parentAtom;
 		DebugService _debugService;
 		public MutationsService _mutationsService;
@@ -130,8 +128,6 @@ namespace juniperD.StatefullServices
 		CatalogUiHelper _catalogUi;
 		CatalogUiHelper _floatingControlsUi;
 		CatalogUiHelper _windowUi;
-		///public GameObject _windowContainer;
-		//public GameObject _backPanel;
 
 		// Confirmation dialog...
 		protected GameObject _dynamicConfirmPanel;
@@ -155,13 +151,11 @@ namespace juniperD.StatefullServices
 
 		JSONStorableStringChooser _catalogMode;
 		public JSONStorableString _catalogName;
-		public JSONStorableString _catalogLocalFilePath;
+
+		public JSONStorableString _catalogLocalFileName;
 		JSONStorableString _catalogRelativePath;
 		JSONStorableFloat _mainWindowPositionX;
 		JSONStorableFloat _mainWindowPositionY;
-		
-		JSONStorableFloat _windowUiPositionX;
-		JSONStorableFloat _windowUiPositionY;
 
 		Atom _handleObjectForCatalog;
 
@@ -183,12 +177,11 @@ namespace juniperD.StatefullServices
 			else // ...This catalog has already been initialized, this is loaded from file...
 			{
 				if (containingAtom.type == ATOM_TYPE_SESSION) return; //...don't restore session plugins
-																													// The catalog temp file should already exist, restore the temporary catalog data
-				//var scenePath = GetSceneDirectoryPath();
-				//var filePath = scenePath + "/" + _catalogName.val + "." + _fileExtension;
-				var filePath = _catalogLocalFilePath.val;
-				if (!string.IsNullOrEmpty(filePath)) {
-					_catalog = LoadCatalogFromFile(filePath);
+				
+				// Restore Temp catalog...
+				if (!string.IsNullOrEmpty(_catalogLocalFileName.val)) {
+					var filePath = GetLocalCatalogFilePath(_catalogLocalFileName.val);
+					_catalog = LoadCatalogFromFile(filePath, false);
 					if (containingAtom.type == "Person")
 					{
 						ApplyPreviouslyActiveMutation();
@@ -212,6 +205,11 @@ namespace juniperD.StatefullServices
 			UpdateUiForMode();
 		}
 
+		private string GetLocalCatalogFilePath(string filename)
+		{
+			return $"{GetSceneDirectoryPath()}/{filename}.{_fileExtension}";
+		}
+
 		private void ApplyPreviouslyActiveMutation()
 		{
 			for (var i = 0; i < _catalog.Entries.Count(); i++)
@@ -228,17 +226,9 @@ namespace juniperD.StatefullServices
 		private void FirstTimeInitialization()
 		{
 			// ...set the catalog name, with no callback (to prevent recursing back into this function)
-			//_catalog = new Catalog();
 			_catalogName.valNoCallback = GetNewCatalogName();
-			_catalogLocalFilePath.val = GetNewLocalFilePathName(_catalogName.val);
+			_catalogLocalFileName.val = GetNewLocalFileName(_catalogName.val);
 			_catalogMode.val = CatalogModeEnum.CATALOG_MODE_SCENE;
-			// Create a new file in which to save temporary catalog data for this catalog instance...
-			//_lastCatalogDirectory = "Saves/scene/SavedCatalogs";
-			//var filePath = scenePath + "/" + _catalogName.val + "." + _fileExtension;
-			//SaveCatalogToFile(filePath);
-			// Set starting position next to HUD...
-			//ResetCatalogPositionAtPerson();
-			//AnchorOnAtom();
 			ResetCatalogPositionForHud();
 			AnchorOnHud();
 
@@ -254,9 +244,10 @@ namespace juniperD.StatefullServices
 			CreateSceneCatalogEntries(GetSceneDirectoryPath());
 		}
 
-		private string GetNewLocalFilePathName(string baseName)
+		private string GetNewLocalFileName(string baseName, bool addUniqueKey = true)
 		{
-			return GetSceneDirectoryPath() + "/" + baseName + "_" + GetUniqueName() + "." + _fileExtension;
+			if (addUniqueKey == true) baseName += "_" + GetUniqueName();
+			return baseName;
 		}
 
 		private string GetNewCatalogName()
@@ -271,8 +262,8 @@ namespace juniperD.StatefullServices
 		private void ResetCatalogPositionForPerson()
 		{
 			var anchor = GetPersonBasePositionOrDefault();
-			var baseX = (anchor == null) ? 0f : anchor.localPosition.x;
-			var baseY = (anchor == null) ? 0f : anchor.localPosition.y;
+			//var baseX = (anchor == null) ? 0f : anchor.localPosition.x;
+			//var baseY = (anchor == null) ? 0f : anchor.localPosition.y;
 			//_windowUi.canvas.transform.position = new Vector3(baseX, baseY, 0);
 			_mainWindowPositionX.val = -1000;
 			_mainWindowPositionY.val = -1000;
@@ -316,26 +307,17 @@ namespace juniperD.StatefullServices
 				SuperController sc = SuperController.singleton;
 				_baseFileFormat = SuperController.singleton.fileBrowserUI.fileFormat;
 
-				SuperController.singleton.fileBrowserUI.selectButton.onClick.AddListener(() =>
-				{
-					//var filePath = SuperController.singleton.fileBrowserUI.currentPathField;
-					//var scenePath = GetSceneDirectoryPath();
-					//var filePath = scenePath + "/" + _catalogName.val + "." + _fileExtension;
-					
-					//var fileName = filePath.Split('/').Last().Split('.').First();
-					//var baseName = fileName + "." + GetNewCatalogName();
-					//_catalogLocalFilePath.val = GetNewLocalFilePathName(_catalogName);
-					
-					SaveCatalogToFile(_catalogLocalFilePath.val);
-				});
 
 				pluginLabelJSON.setJSONCallbackFunction = (newVal) =>
 				{
 					_catalogName.SetVal(newVal.val);
-					var newFilepath = GetNewLocalFilePathName(newVal.val);
-					RenameFile(_catalogLocalFilePath.val, newFilepath);
-					_catalogLocalFilePath.SetVal(newFilepath);
 				};
+
+				SuperController.singleton.fileBrowserUI.selectButton.onClick.AddListener(() =>
+				{
+					var targetFilePath = GetLocalCatalogFilePath(_catalogLocalFileName.val);
+					SaveCatalogToFile(targetFilePath);
+				});
 
 				// Catalog options...
 				CreateCatalogConfigUi();
@@ -388,16 +370,12 @@ namespace juniperD.StatefullServices
 				_mainWindow.CatalogRowsVLayout = _catalogUi.CreateVerticalLayout(_mainWindow.CatalogRowContainer.gameObject, _relativeBorderWidth);
 				_mainWindow.CatalogColumnsHLayout = _catalogUi.CreateHorizontalLayout(_mainWindow.CatalogColumnContainer.gameObject, _relativeBorderWidth);
 
-				//_catalogRowsVLayout.transform.position = new Vector3(0.0f, -10.1f, 0.0f);
-				//_catalogColumnsHLayout.transform.position = new Vector3(0.0f, -10.1f, 0.0f);
-
 				_mannequinHelper = new MannequinHelper(this, _windowUi);
 
 				CreateDynamicUi(_mainWindow);
 
 				// Setup atom selector listener...
 				//SuperController.SelectAtomCallback. = (atom) => { 
-
 				//}
 
 				if (!SuperController.singleton.isLoading)
@@ -409,7 +387,6 @@ namespace juniperD.StatefullServices
 				//SetMinimizedState();
 				MinimizeControlPanel();
 				_cycleEntriesOnInterval.val = false;
-				//_mutationsService.SetMorphBaseValuesCheckpoint();
 			}
 			catch (Exception e)
 			{
@@ -419,7 +396,7 @@ namespace juniperD.StatefullServices
 
 		public void Start()
 		{
-			//_mutationsService.SetMorphBaseValuesForCurrentPerson();
+
 		}
 
 		private void CreateDynamicUi(DynamicMainWindow window)
@@ -427,23 +404,15 @@ namespace juniperD.StatefullServices
 			try
 			{
 				CreateDynamicPanel_MainWindow(window);
-				//CreateDynamicButton_GenerateCatalog();
-				//CreateDynamicButton_CaptureControl();
 				CreateDynamicButton_Trigger();
 
 				// DYNAMIC UI...
-				//Top Right Corner
-				//CreateDynamicButton_Minimize();
-				//CreateDynamicButton_Move();
-				// Left bar
-
 				CreateDynamicButton_ResetCatalog(window);
 				CreateDynamicButton_ZoomIn(window);
 				CreateDynamicButton_ZoomOut(window);
 				CreateDynamicButton_ScrollUp(window);
 				CreateDynamicButton_ScrollDown(window);
 				CreateDynamicButton_Sort(window);
-				//CreateDynamicButton_Clean(window);
 
 				// Scene helper buttons...
 				CreateDynamicButton_SelectSceneAtom(window);
@@ -475,15 +444,11 @@ namespace juniperD.StatefullServices
 				CreateDynamicButton_RemoveAllClothing();
 				CreateDynamicButton_RemoveAllHair();
 				CreateDynamicButton_OpenScenesFolder();
-				//CreateDynamicButton_Reset();
 				// Message UI...
-				//CreateDynamicButton_Label();
-
 				CreateDynamicPanel_RightInfo();
 				CreateDynamicPanel_LeftInfo();
 				CreateDynamicButton_LeftSideLabel();
 				CreateDynamicButton_Tooltip();
-				//CreateDynamicPanel_MannequinPicker();
 				CreateDynamicButton_SelectList();
 				CreateDynamicButton_DynamicHelp();
 				CreateDynamicButton_PopupMessage();
@@ -497,8 +462,6 @@ namespace juniperD.StatefullServices
 				SuperController.LogError(e.ToString());
 			}
 		}
-
-
 
 		private void CreateCaptureConfigUi()
 		{
@@ -730,12 +693,12 @@ namespace juniperD.StatefullServices
 			_catalogName.isRestorable = true;
 			_catalogName.restoreTime = JSONStorableParam.RestoreTime.Normal;
 
-			_catalogLocalFilePath = new JSONStorableString("CatalogPath", "");
-			RegisterString(_catalogLocalFilePath);
-			_catalogLocalFilePath.storeType = JSONStorableParam.StoreType.Full;
-			_catalogLocalFilePath.isStorable = true;
-			_catalogLocalFilePath.isRestorable = true;
-			_catalogLocalFilePath.restoreTime = JSONStorableParam.RestoreTime.Normal;
+			_catalogLocalFileName = new JSONStorableString("CatalogPath", "");
+			RegisterString(_catalogLocalFileName);
+			_catalogLocalFileName.storeType = JSONStorableParam.StoreType.Full;
+			_catalogLocalFileName.isStorable = true;
+			_catalogLocalFileName.isRestorable = true;
+			_catalogLocalFileName.restoreTime = JSONStorableParam.RestoreTime.Normal;
 
 			_catalogRelativePath = new JSONStorableString("CatalogRelativePath", "");
 			RegisterString(_catalogRelativePath);
@@ -1665,7 +1628,9 @@ namespace juniperD.StatefullServices
 				if (string.IsNullOrEmpty(filePath)) return;
 				ShowLoading("Loading Catalog...");
 				ReinitializeCatalog(); //...BrowseForAndLoadCatalog
-				LoadCatalogFromFile(filePath);
+				var catalog = LoadCatalogFromFile(filePath);
+				DeselectAllEntries(catalog);
+				pluginLabelJSON.val = _catalogName.val;
 				HideLoading();
 			});
 		}
@@ -1809,7 +1774,9 @@ namespace juniperD.StatefullServices
 					{
 						ReinitializeCatalog(); //...Select quick load item
 						var filePath = _lastCatalogDirectory + "/" + fileName + "." + _fileExtension;
-						LoadCatalogFromFile(filePath);
+						var catalog = LoadCatalogFromFile(filePath);
+						DeselectAllEntries(catalog);
+						pluginLabelJSON.val = _catalogName.val;
 					}
 					catch (Exception e)
 					{
@@ -1819,6 +1786,15 @@ namespace juniperD.StatefullServices
 				filesToLoad.Add(fileName, selectAction);
 			}
 			ShowSelectList(filesToLoad);
+		}
+
+		private void DeselectAllEntries(Catalog catalog)
+		{
+			if (catalog == null) return;
+			foreach (var entry in catalog.Entries)
+			{
+				entry.Mutation.IsActive = false;
+			}
 		}
 
 		private void CreateDynamicButton_Mode()
@@ -2806,7 +2782,7 @@ namespace juniperD.StatefullServices
 			}
 		}
 
-		private Catalog LoadCatalogFromFile(string filePath)
+		private Catalog LoadCatalogFromFile(string filePath, bool _autoUpdateName = true)
 		{
 			SuperController.LogMessage("INFO: Loading catalog from file...");
 			try
@@ -2820,14 +2796,15 @@ namespace juniperD.StatefullServices
 				var catalogFileName = pathElements.Last();
 				//_lastCatalogDirectory = string.Join("/", pathElements.Take(pathElements.Length - 1).ToArray());
 				//var catalogNameParts = catalogFileName.Substring(0, catalogFileName.Length - ("." + _fileExtension).Length); //catalogFileName.Split('.');
-				var extension = "." + _fileExtension;
-				var catalogName = catalogFileName.Substring(0, catalogFileName.Length - extension.Length);
-				pluginLabelJSON.val = catalogName;
-				_catalogName.SetVal(catalogName);
-
-				if (string.IsNullOrEmpty(_catalogLocalFilePath.val)) {
-					_catalogLocalFilePath.val = GetNewLocalFilePathName(catalogName);
-					SuperController.LogMessage("INFO: Created new file path: " + _catalogLocalFilePath.val);
+				
+				if (_autoUpdateName) { 
+					var extension = "." + _fileExtension;
+					var catalogName = catalogFileName.Substring(0, catalogFileName.Length - extension.Length);
+					_catalogName.SetVal(catalogName);
+					if (string.IsNullOrEmpty(_catalogLocalFileName.val)) {
+						_catalogLocalFileName.val = GetNewLocalFileName(catalogName);
+						SuperController.LogMessage("INFO: Created new file path: " + _catalogLocalFileName.val);
+					}
 				}
 				//_catalogLocalFilePath.SetVal(filePath);
 				_catalogRelativePath.SetVal(filePath);
@@ -2851,7 +2828,8 @@ namespace juniperD.StatefullServices
 			catch (Exception e)
 			{
 				SuperController.LogError(e.ToString());
-				throw (e);
+				//throw (e);
+				return new Catalog();
 			}
 		}
 
