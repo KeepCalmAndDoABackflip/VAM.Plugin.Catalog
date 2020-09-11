@@ -44,7 +44,7 @@ namespace juniperD.Services
 			newMannequinPicker.Window = CatalogUiHelper.CreatePanel(_parentWindow.canvas.gameObject, 0, 0, 0, 0, new Color(0.1f, 0.1f, 0.1f, 1f), Color.clear);
 			newMannequinPicker.BackPanel = CatalogUiHelper.CreatePanel(newMannequinPicker.Window, 520, 600, -10, -360, new Color(0.1f, 0.1f, 0.1f, 1f), Color.clear);
 
-			var selectionHaloIcon = Helpers.LoadImageFromFile(_context.GetPluginPath() + "/Resources/PointRotation2.png");
+			var selectionHaloIcon = ImageLoader.GetFutureImageFromFile(  _context.GetPluginPath() + "/Resources/PointRotation2.png");
 			newMannequinPicker.ButtonSelectionHalo = _parentWindow.CreateButton(newMannequinPicker.Window, "", 30, 30, 0, 0, new Color(0.5f, 1, 1, 1f), new Color(0.5f, 1, 1, 1f), Color.clear, selectionHaloIcon);
 
 			// Add drag ability to window...
@@ -52,7 +52,7 @@ namespace juniperD.Services
 
 			newMannequinPicker.MannequinOverlay = CatalogUiHelper.CreatePanel(newMannequinPicker.Window, 256, 512, -10, -310, new Color(0.5f, 0.5f, 0.5f), Color.clear);
 			// Close button...
-			var closeIcon = Helpers.LoadImageFromFile(_context.GetPluginPath() + "/Resources/Close.png");
+			var closeIcon = ImageLoader.GetFutureImageFromFile(  _context.GetPluginPath() + "/Resources/Close.png");
 			newMannequinPicker.CloseButton = _parentWindow.CreateButton(newMannequinPicker.Window, "", 25, 25, 0, -345, new Color(0.5f, 0.3f, 0.3f, 1), new Color(1f, 0.5f, 0.5f, 1), new Color(1f, 0.3f, 0.3f, 1), closeIcon);
 			_context.SetTooltipForDynamicButton(newMannequinPicker.CloseButton, () => "Close");
 			newMannequinPicker.CloseButton.button.onClick.AddListener(() =>
@@ -61,7 +61,7 @@ namespace juniperD.Services
 			});
 
 			// Minimize button...
-			var minimizeIcon = Helpers.LoadImageFromFile(_context.GetPluginPath() + "/Resources/Minimize4.png");
+			var minimizeIcon = ImageLoader.GetFutureImageFromFile(  _context.GetPluginPath() + "/Resources/Minimize4.png");
 			newMannequinPicker.MinimizeButton = _parentWindow.CreateButton(newMannequinPicker.Window, "", 25, 25, 40, -345, new Color(0.5f, 0.3f, 0.3f, 1), new Color(1f, 0.5f, 0.5f, 1), new Color(1f, 0.3f, 0.3f, 1), minimizeIcon);
 			_context.SetTooltipForDynamicButton(newMannequinPicker.MinimizeButton, () => "Minimize");
 			newMannequinPicker.MinimizeButton.button.onClick.AddListener(() =>
@@ -69,7 +69,7 @@ namespace juniperD.Services
 				MinimizeMannequinPicker(newMannequinPicker);
 			});
 			// Refresh button...
-			var refreshIcon = Helpers.LoadImageFromFile(_context.GetPluginPath() + "/Resources/Refresh.png");
+			var refreshIcon = ImageLoader.GetFutureImageFromFile(  _context.GetPluginPath() + "/Resources/Refresh.png");
 			newMannequinPicker.RefreshButton = _parentWindow.CreateButton(newMannequinPicker.Window, "", 30, 30, 80, -348, new Color(0.5f, 0.3f, 0.3f, 1), new Color(1f, 0.5f, 0.5f, 1), new Color(1f, 0.3f, 0.3f, 1), refreshIcon);
 			_context.SetTooltipForDynamicButton(newMannequinPicker.RefreshButton, () => "Refresh");
 			newMannequinPicker.RefreshButton.button.onClick.AddListener(() =>
@@ -466,7 +466,7 @@ namespace juniperD.Services
 			float miniTop = 220;
 			if (atom.type == "Person")
 			{
-				texture = Helpers.LoadImageFromFile(_context.GetPluginPath() + "/Resources/Person1.png");
+				texture = ImageLoader.GetFutureImageFromFile(  _context.GetPluginPath() + "/Resources/Person1.png");
 				width = 256;
 				height = 510;
 				left = 118;
@@ -478,23 +478,23 @@ namespace juniperD.Services
 			}
 			else if (atom.type == "AnimationPattern" || atom.type == "AnimationStep")
 			{
-				texture = Helpers.LoadImageFromFile(_context.GetPluginPath() + "/Resources/ActionMannequin.png");
+				texture = ImageLoader.GetFutureImageFromFile(  _context.GetPluginPath() + "/Resources/ActionMannequin.png");
 			}
 			else if (atom.type == "CollisionTrigger")
 			{
-				texture = Helpers.LoadImageFromFile(_context.GetPluginPath() + "/Resources/TriggerMannequin.png");
+				texture = ImageLoader.GetFutureImageFromFile(  _context.GetPluginPath() + "/Resources/TriggerMannequin.png");
 			}
 			else if (atom.type == "WindowCamera" || atom.type == "[CameraRig]" || atom.type == "[CameraRig]")
 			{
-				texture = Helpers.LoadImageFromFile(_context.GetPluginPath() + "/Resources/CameraMannequin.png");
+				texture = ImageLoader.GetFutureImageFromFile(  _context.GetPluginPath() + "/Resources/CameraMannequin.png");
 			}
 			else if (atom.type == "InvisibleLight")
 			{
-				texture = Helpers.LoadImageFromFile(_context.GetPluginPath() + "/Resources/LightMannequin3.png");
+				texture = ImageLoader.GetFutureImageFromFile(  _context.GetPluginPath() + "/Resources/LightMannequin3.png");
 			}
 			else
 			{
-				texture = Helpers.LoadImageFromFile(_context.GetPluginPath() + "/Resources/CubeMannequin.png");
+				texture = ImageLoader.GetFutureImageFromFile(  _context.GetPluginPath() + "/Resources/CubeMannequin.png");
 			}
 			var imageComponent = picker.MannequinOverlay.GetComponent<Image>();
 			var sprite = Sprite.Create(texture, new Rect(0.0f, 0.0f, texture.width, texture.height), new Vector2(0.5f, 0.5f), 100.0f);
@@ -678,10 +678,10 @@ namespace juniperD.Services
 			{
 				SelectMannequinJoint(newDynamicJoint, picker);
 			};
-			var positionIcon = Helpers.LoadImageFromFile(_context.GetPluginPath() + "/Resources/Spot.png");
+			var positionIcon = ImageLoader.GetFutureImageFromFile(  _context.GetPluginPath() + "/Resources/Spot.png");
 			newDynamicJoint.positionButton = _parentWindow.CreateButton(picker.Window, "", 10, 10, x + 5, y + 5, new Color(0.5f, 0.5f, 0.5f, 1f), new Color(1, 1f, 1, 1f), Color.clear, positionIcon);
 			newDynamicJoint.positionButton.tag = controllerName;
-			var rotationIcon = Helpers.LoadImageFromFile(_context.GetPluginPath() + "/Resources/PointRotation2.png");
+			var rotationIcon = ImageLoader.GetFutureImageFromFile(  _context.GetPluginPath() + "/Resources/PointRotation2.png");
 			newDynamicJoint.rotationButton = _parentWindow.CreateButton(picker.Window, "", 20, 20, x, y, new Color(0.5f, 0.5f, 0.5f, 1f), new Color(1, 1f, 1, 1f), Color.clear, rotationIcon);
 			newDynamicJoint.rotationButton.tag = controllerName;
 			//newDynamicJoint.positionButton.button.onClick.AddListener(() => userSelectsPointCallback(controllerName));

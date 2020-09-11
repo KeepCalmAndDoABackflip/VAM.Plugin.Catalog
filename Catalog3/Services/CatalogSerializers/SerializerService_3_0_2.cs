@@ -8,6 +8,7 @@ using System.Text;
 using UnityEngine;
 using mset;
 using juniperD.Utils;
+using UnityEngine.Events;
 
 namespace juniperD.Services.CatalogSerializers
 {
@@ -85,7 +86,13 @@ namespace juniperD.Services.CatalogSerializers
 				var entry = newCatalog.Entries.ElementAt(i);
 				if (!string.IsNullOrEmpty(entry.ImageInfo.ExternalPath))
 				{
-					entry.ImageInfo.Texture = Helpers.LoadImageFromFile(entry.ImageInfo.ExternalPath);
+					entry.ImageInfo.Texture = ImageLoader.GetFutureImageFromFile(entry.ImageInfo.ExternalPath, 1000, 1000);
+					//entry.ImageInfo.Texture = new Texture2D(1000, 1000); 
+					//UnityAction<Texture2D> onImageLoadCallback = (texture) =>
+					//{
+					//	entry.ImageInfo.Texture.SetPixels(0, 0, 1000, 1000, texture.GetPixels());
+					//};
+					//ImageLoader.LoadImage(entry.ImageInfo.ExternalPath, onImageLoadCallback);
 				}
 				else
 				{
@@ -144,7 +151,7 @@ namespace juniperD.Services.CatalogSerializers
 
 		private static Texture2D LoadImageForAppropriateCompressionFormat(CatalogEntry entry, byte[] bytes_)
 		{
-			return TextureFromRawData(bytes_, (int)entry.ImageInfo.Width, (int)entry.ImageInfo.Height, entry.ImageInfo.Format);
+			return ImageLoader.TextureFromRawData(bytes_, (int)entry.ImageInfo.Width, (int)entry.ImageInfo.Height, entry.ImageInfo.Format);
 		}
 
 		private static Catalog DeserializeIntoCatalog(JSONClass inputObject)
@@ -632,22 +639,6 @@ namespace juniperD.Services.CatalogSerializers
 				catalogData += imageStartTag + imageData;
 			}
 			return catalogData;
-		}
-
-		private static Texture2D TextureFromRawData(byte[] rawData, int width = 1000, int height = 1000, TextureFormat textureFormat = TextureFormat.RGB24)
-		{
-			try
-			{
-				Texture2D texture = new Texture2D(width, height, textureFormat, false);
-				texture.LoadRawTextureData(rawData);
-				texture.Apply();
-				return texture;
-			}
-			catch (Exception e)
-			{
-				SuperController.LogError(e.ToString());
-				throw e;
-			}
 		}
 
 		private static Dictionary<int, string> PreDeserializeExtractImageData(ref string fileData)

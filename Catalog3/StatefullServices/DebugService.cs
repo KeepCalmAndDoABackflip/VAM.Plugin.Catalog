@@ -9,6 +9,7 @@ using System.Collections;
 using System.Collections.Generic;
 using System.Linq;
 using UnityEngine;
+using UnityEngine.Events;
 using static SuperController;
 
 namespace juniperD.StatefullServices
@@ -452,14 +453,18 @@ namespace juniperD.StatefullServices
 				}
 			});
 
-			Texture2D _textureX = null;
+			
 			_context.CreateButton("DEBUG Create icon panel").button.onClick.AddListener(() =>
 			{
 				try
 				{
-					var texture = Helpers.LoadImageFromFile(_context.GetPluginPath() + "/Resources/Move2.png");
-					var uiHelper = new CatalogUiHelper(_context);
-					var x = uiHelper.CreateImagePanel(_context._mainWindow.ParentWindowContainer, texture, 32, 32, 50, 50);
+					var imagepath = _context.GetPluginPath() + "/Resources/Move2.png";
+					UnityAction<Texture2D> imageLoadedCallback = (texture) => {
+						SuperController.LogMessage("Image loaded");
+						var uiHelper = new CatalogUiHelper(_context);
+						uiHelper.CreateImagePanel(_context._mainWindow.ParentWindowContainer, texture, 32, 32, 50, 50);
+					};
+					ImageLoader.LoadImage(imagepath, imageLoadedCallback);
 				}
 				catch (Exception e)
 				{
@@ -467,6 +472,22 @@ namespace juniperD.StatefullServices
 				}
 			});
 
+			_context.CreateButton("DEBUG Create icon panel 2").button.onClick.AddListener(() =>
+			{
+				try
+				{
+					var imagepath = _context.GetPluginPath() + "/Resources/Move2.png";
+					//var texture = Helpers.LoadImage(imagepath);
+					var uiHelper = new CatalogUiHelper(_context);
+					//uiHelper.CreateImagePanel(_context._mainWindow.ParentWindowContainer, texture, 32, 32, 50, 50);
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+				}
+			});
+
+			Texture2D _textureX = null;
 			_context.CreateButton("DEBUG Shift texture left").button.onClick.AddListener(() =>
 			{
 				try
