@@ -1,5 +1,6 @@
 ﻿using juniperD.Models;
 using juniperD.Services;
+using juniperD.Utils;
 using MVR.FileManagementSecure;
 using PrefabEvolution;
 using SimpleJSON;
@@ -456,7 +457,7 @@ namespace juniperD.StatefullServices
 			{
 				try
 				{
-					var texture = TextureLoader.LoadTexture(_context.GetPluginPath() + "/Resources/Move2.png");
+					var texture = Helpers.LoadImageFromFile(_context.GetPluginPath() + "/Resources/Move2.png");
 					var uiHelper = new CatalogUiHelper(_context);
 					var x = uiHelper.CreateImagePanel(_context._mainWindow.ParentWindowContainer, texture, 32, 32, 50, 50);
 				}

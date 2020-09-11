@@ -7,6 +7,7 @@ using System.Linq;
 using System.Text;
 using UnityEngine;
 using mset;
+using juniperD.Utils;
 
 namespace juniperD.Services.CatalogSerializers
 {
@@ -84,7 +85,7 @@ namespace juniperD.Services.CatalogSerializers
 				var entry = newCatalog.Entries.ElementAt(i);
 				if (!string.IsNullOrEmpty(entry.ImageInfo.ExternalPath))
 				{
-					entry.ImageInfo.Texture = LoadImageFromFile(entry.ImageInfo.ExternalPath);
+					entry.ImageInfo.Texture = Helpers.LoadImageFromFile(entry.ImageInfo.ExternalPath);
 				}
 				else
 				{
@@ -119,11 +120,6 @@ namespace juniperD.Services.CatalogSerializers
 		private static JSONData SerializeString(string message)
 		{
 			return new JSONData(message);
-		}
-
-		private static Texture2D LoadImageFromFile(string path)
-		{
-			 return TextureLoader.LoadTexture(path);
 		}
 
 		private static void LoadDataTexture(string imageData, CatalogEntry entry)

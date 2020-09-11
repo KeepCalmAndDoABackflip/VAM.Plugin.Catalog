@@ -222,13 +222,6 @@ namespace juniperD.StatefullServices
 
 		public UIDynamicButton CreateClickablePanel(GameObject parent, Color normalColor, Color highlightColor, int width, int height, int offsetX = 0, int offsetY = 0, Texture2D texture = null)
 		{
-
-			//if (imagePath != null)
-			//{
-			//	var imageTexture = TextureLoader.LoadTexture(imagePath);
-			//	CreateImagePanel(parent, imageTexture, width, height, 0, 0);
-			//}
-
 			UIDynamicButton localPanel = CreateButton(parent, "", width, height, offsetX, offsetY, normalColor, highlightColor, Color.white, texture);
 			RectTransform r = localPanel.GetComponent<RectTransform>();
 			r.sizeDelta = new Vector2(width, height);

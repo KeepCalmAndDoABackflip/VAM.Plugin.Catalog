@@ -3,6 +3,7 @@ Contracts/LinkTypeEnum.cs
 Contracts/PointAddOptionEnum.cs
 Contracts/Global.cs
 Contracts/Mappings.cs
+Utils/Helpers.cs
 Models/Border.cs
 Models/Catalog.cs
 Models/CatalogEntry.cs
