@@ -45,6 +45,8 @@ namespace juniperD.StatefullServices
 		#endregion
 		// Config...
 		protected bool _debugMode = false;
+		protected bool _updateLoopEnabled = true;
+
 		protected float _defaultNumberOfCatalogColumns = 10;
 		protected float _defaultNumberOfCatalogRows = 1;
 		protected float _defaultNumberOfCatalogEntries = 4;
@@ -333,6 +335,9 @@ namespace juniperD.StatefullServices
 				// Mutations config UI...
 				CreateMutationsConfigUi();
 
+				CreateSpacer();
+
+				CreateDebugConfigUi();
 				//if (containingAtom.mainController == null)
 				//{
 				//	SuperController.LogError("Please add this plugin to a PERSON atom.");
@@ -683,6 +688,26 @@ namespace juniperD.StatefullServices
 			_mutationsService.MustCapturePoseMorphs = _catalogCapturePose.val;
 			//_mutationsService.MustCaptureDynamicItems = _catalogCaptureDynamicItems.val;
 			//_mutationsService.SetMorphBaseValuesCheckpoint();
+		}
+
+		private void CreateDebugConfigUi()
+		{
+
+			CreateButton("Enable debug mode").button.onClick.AddListener(() =>
+			{
+				if (_debugMode == true) return; //...Debug mode already enabled
+				_debugMode = true;
+				_debugService = new DebugService();
+				_debugService.Init(this);
+				ShowDebugPanel();
+				CreateDynamicButton_ShowDebugButton(_mainWindow);
+			});
+
+			CreateButton("Re-enable update loop").button.onClick.AddListener(() =>
+			{
+				_updateLoopEnabled = true;
+			});
+
 		}
 
 		private void CreateCatalogConfigUi()
@@ -2988,9 +3013,11 @@ namespace juniperD.StatefullServices
 			//		$"\n  y:{selectedController.transform.rotation.y}" +
 			//		$"\n  z:{selectedController.transform.rotation.z}";
 			//}
+			if (!_updateLoopEnabled) return;
 
 			try
 			{
+				
 				if (_atomType == ATOM_TYPE_PERSON) _mutationsService.Update();
 
 				ManageScreenshotCaptureSequence();
@@ -3014,6 +3041,8 @@ namespace juniperD.StatefullServices
 			catch (Exception e)
 			{
 				SuperController.LogError(e.ToString());
+				SuperController.LogError("Catalog Update-loop disabled to prevent continuous stream of errors. Can be re-enabled in settings.");
+				_updateLoopEnabled = false;
 			}
 		}
 
