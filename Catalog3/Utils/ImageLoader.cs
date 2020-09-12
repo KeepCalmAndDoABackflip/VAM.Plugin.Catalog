@@ -9,15 +9,7 @@ namespace juniperD.Utils
 	public class ImageLoader
 	{
 		private Dictionary<string,Texture2D> _pathAndTextures = new Dictionary<string, Texture2D>();
-		public static Texture2D LoadImageFromResources(Dictionary<string,Texture2D> resources, string filePath)
-		{
-			if (!resources.ContainsKey(filePath))
-			{
-				SuperController.LogError("WARNING: Resource not loaded: " + filePath);
-				return new Texture2D(32, 32);
-			}
-			return resources[filePath];
-		}
+
 
 		public Texture2D GetFutureImageFromFileOrCached(string filePath, int width = 32, int height = 32)
 		{
@@ -47,15 +39,6 @@ namespace juniperD.Utils
 			return futureTexture;
 		}
 
-		public static void AssignImageFromFile(Texture2D textureToAssignTo, string filePath)
-		{
-			UnityAction<Texture2D> imageLoadedCallback = (texture) => {
-				textureToAssignTo.SetPixels(texture.GetPixels());
-				textureToAssignTo.Apply();
-			};
-			LoadImage(filePath, imageLoadedCallback);
-		}
-
 		public static void LoadImage(string filePath, UnityAction<Texture2D> onImageLoaded)
 		{
 			ImageLoaderThreaded.QueuedImage queuedImage = new ImageLoaderThreaded.QueuedImage();
@@ -79,14 +62,6 @@ namespace juniperD.Utils
 			ImageLoaderThreaded.singleton.QueueImage(queuedImage);
 		}
 
-		public static Texture2D LoadImageFromFileDevOnly(string filePath, int width = 32, int height = 32)
-		{
-			Texture2D texture;
-			texture = TextureLoader.LoadTexture(filePath);
-			if (texture == null) texture = new Texture2D(width, height);
-			return texture;
-		}
-
 		public static Texture2D TextureFromRawData(byte[] rawData, int width, int height, TextureFormat textureFormat)
 		{
 			try
@@ -102,6 +77,33 @@ namespace juniperD.Utils
 				throw e;
 			}
 		}
+
+		//public static Texture2D LoadImageFromFileDevOnly(string filePath, int width = 32, int height = 32)
+		//{
+		//	Texture2D texture;
+		//	texture = TextureLoader.LoadTexture(filePath);
+		//	if (texture == null) texture = new Texture2D(width, height);
+		//	return texture;
+		//}
+
+		//public static void AssignImageFromFile(Texture2D textureToAssignTo, string filePath)
+		//{
+		//	UnityAction<Texture2D> imageLoadedCallback = (texture) => {
+		//		textureToAssignTo.SetPixels(texture.GetPixels());
+		//		textureToAssignTo.Apply();
+		//	};
+		//	LoadImage(filePath, imageLoadedCallback);
+		//}
+
+		//public static Texture2D LoadImageFromResources(Dictionary<string,Texture2D> resources, string filePath)
+		//{
+		//	if (!resources.ContainsKey(filePath))
+		//	{
+		//		SuperController.LogError("WARNING: Resource not loaded: " + filePath);
+		//		return new Texture2D(32, 32);
+		//	}
+		//	return resources[filePath];
+		//}
 
 		//public static Texture2D LoadRgbaImageFromFile(string filePath, int width = 32, int height = 32)
 		//{
