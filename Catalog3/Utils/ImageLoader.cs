@@ -21,13 +21,15 @@ namespace juniperD.Utils
 
 		public Texture2D GetFutureImageFromFileOrCached(string filePath, int width = 32, int height = 32)
 		{
-			if (_pathAndTextures.ContainsKey(filePath)) return _pathAndTextures[filePath];
+			if (_pathAndTextures.ContainsKey(filePath)) {
+				return _pathAndTextures[filePath];
+			}
 			Texture2D futureTexture = new Texture2D(width, height);
+			_pathAndTextures.Add(filePath, futureTexture);
 			UnityAction<Texture2D> imageLoadedCallback = (texture) => {
 				futureTexture.Resize(texture.width, texture.height);
 				futureTexture.SetPixels(texture.GetPixels());
 				futureTexture.Apply();
-				_pathAndTextures.Add(filePath, texture);
 			};
 			LoadImage(filePath, imageLoadedCallback);
 			return futureTexture;
