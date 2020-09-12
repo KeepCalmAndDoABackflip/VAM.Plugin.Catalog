@@ -8,6 +8,7 @@ namespace juniperD.Utils
 {
 	public class ImageLoader
 	{
+		private Dictionary<string,Texture2D> _pathAndTextures = new Dictionary<string, Texture2D>();
 		public static Texture2D LoadImageFromResources(Dictionary<string,Texture2D> resources, string filePath)
 		{
 			if (!resources.ContainsKey(filePath))
@@ -16,6 +17,20 @@ namespace juniperD.Utils
 				return new Texture2D(32, 32);
 			}
 			return resources[filePath];
+		}
+
+		public Texture2D GetFutureImageFromFileOrCached(string filePath, int width = 32, int height = 32)
+		{
+			if (_pathAndTextures.ContainsKey(filePath)) return _pathAndTextures[filePath];
+			Texture2D futureTexture = new Texture2D(width, height);
+			UnityAction<Texture2D> imageLoadedCallback = (texture) => {
+				futureTexture.Resize(texture.width, texture.height);
+				futureTexture.SetPixels(texture.GetPixels());
+				futureTexture.Apply();
+				_pathAndTextures.Add(filePath, texture);
+			};
+			LoadImage(filePath, imageLoadedCallback);
+			return futureTexture;
 		}
 
 		public static Texture2D GetFutureImageFromFile(string filePath, int width = 32, int height = 32)

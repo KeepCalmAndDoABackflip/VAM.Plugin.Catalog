@@ -44,8 +44,7 @@ namespace juniperD.StatefullServices
 		public string pluginDescription = @"Create a catalog of the current scene";
 		#endregion
 		// Config...
-		protected bool _debugMode = true;
-		protected bool _updateLoopEnabled = true;
+		protected bool _debugMode = false;
 
 		protected float _defaultNumberOfCatalogColumns = 10;
 		protected float _defaultNumberOfCatalogRows = 1;
@@ -72,6 +71,7 @@ namespace juniperD.StatefullServices
 
 		// General state
 		string _lastCatalogDirectory = "Saves/scene/SavedCatalogs";
+		protected bool _updateLoopEnabled = true;
 
 		// Screen-Capture control-state...
 		protected Camera _captureCamera;
@@ -91,7 +91,7 @@ namespace juniperD.StatefullServices
 		public List<CaptureRequest> _currentCaptureRequestList = new List<CaptureRequest>();
 		protected Action<DragHelper> _onCatalogDragFinishedEvent;
 		Dictionary<string, DragHelper> _positionTrackers = new Dictionary<string, DragHelper>();
-
+		
 		// Create objects control state...
 		List<string> _atomsIncubatingQueue = new List<string>();
 
@@ -134,14 +134,12 @@ namespace juniperD.StatefullServices
 		protected Color _dynamicButtonUnCheckColor; //= Color.green;
 		private int _nextAtomIndex;
 
-		// Resources
-		public Dictionary<string, Texture2D> _resourceFilePathsAndTextures = new Dictionary<string, Texture2D>();
-
 		// Display-state...
 		Atom _parentAtom;
 		DebugService _debugService;
 		public MutationsService _mutationsService;
-		public MannequinHelper _mannequinHelper;
+		public ImageLoader _imageLoaderService;
+		public MannequinHelper _mannequinService;
 		CatalogUiHelper _catalogUi;
 		CatalogUiHelper _floatingControlsUi;
 		CatalogUiHelper _windowUi;
@@ -275,7 +273,7 @@ namespace juniperD.StatefullServices
 		{
 			try
 			{
-				//StartLoadingAllResources();
+				_imageLoaderService = new ImageLoader();
 
 				switch (containingAtom.type)
 				{
@@ -403,7 +401,7 @@ namespace juniperD.StatefullServices
 		{
 			try
 			{
-				_mannequinHelper = new MannequinHelper(this, _windowUi);
+				_mannequinService = new MannequinHelper(this, _windowUi);
 
 				CreateDynamicPanel_MainWindow(window);
 				CreateDynamicButton_Trigger();
@@ -2194,14 +2192,14 @@ namespace juniperD.StatefullServices
 			mainWindow.ButtonCreateMannequinPicker.buttonText.fontSize = 20;
 			mainWindow.ButtonCreateMannequinPicker.button.onClick.AddListener(() =>
 			{
-				var newMannequinPicker = _mannequinHelper.CreateMannequinPicker();
+				var newMannequinPicker = _mannequinService.CreateMannequinPicker();
 				_mannequinPickers.Add(newMannequinPicker);
 			});
 			SetTooltipForDynamicButton(mainWindow.ButtonCreateMannequinPicker, () =>
 			{
 				var currentAtom = SuperController.singleton.GetSelectedAtom();
 				var currentAtomName = currentAtom?.name;
-				return $"Show Control point picker";
+				return $"Show Mannequin";
 			});
 		}
 
@@ -3642,7 +3640,7 @@ namespace juniperD.StatefullServices
 			// Reject button
 			var baseButtonColor = new Color(0.7f, 0.7f, 0.7f, 0.5f);
 			var rejectButtonHighlightedColor = new Color(0.5f, 0.0f, 0.0f, 1f);
-			var rejectButtonTexture =  ImageLoader.GetFutureImageFromFile( GetPluginPath() + "/Resources/Delete.png");
+			var rejectButtonTexture = _imageLoaderService.GetFutureImageFromFileOrCached( GetPluginPath() + "/Resources/Delete.png");
 			UIDynamicButton discardButton = _catalogUi.CreateButton(buttonGroup, "", btnWidth, btnHeight, 0, 0, baseButtonColor, rejectButtonHighlightedColor, Color.white, rejectButtonTexture);
 			catalogEntry.UiDiscardButton = discardButton;
 			discardButton.button.onClick.AddListener(() =>
@@ -3670,7 +3668,7 @@ namespace juniperD.StatefullServices
 			// Shift Left button
 			var baseButtonColor = new Color(0.7f, 0.7f, 0.7f, 0.5f);
 			var rejectButtonHighlightedColor = new Color(0.5f, 0.0f, 0.0f, 1f);
-			var leftTexture =  ImageLoader.GetFutureImageFromFile( GetPluginPath() + "/Resources/Previous.png");
+			var leftTexture = _imageLoaderService.GetFutureImageFromFileOrCached( GetPluginPath() + "/Resources/Previous.png");
 			UIDynamicButton shiftLeft = _catalogUi.CreateButton(buttonGroup, "", btnWidth, btnHeight, 0, 0, baseButtonColor, rejectButtonHighlightedColor, Color.white, leftTexture);
 			catalogEntry.UiShiftLeftButton = shiftLeft;
 			shiftLeft.button.onClick.AddListener(() =>
@@ -3683,7 +3681,7 @@ namespace juniperD.StatefullServices
 			});
 			SetTooltipForDynamicButton(shiftLeft, () => "Shift Entry");
 			// Shift Right button
-			var rightTexture =  ImageLoader.GetFutureImageFromFile( GetPluginPath() + "/Resources/Next.png");
+			var rightTexture = _imageLoaderService.GetFutureImageFromFileOrCached( GetPluginPath() + "/Resources/Next.png");
 			UIDynamicButton shiftRight = _catalogUi.CreateButton(buttonGroup, "", btnWidth, btnHeight, 0, 0, baseButtonColor, rejectButtonHighlightedColor, Color.white, rightTexture);
 			catalogEntry.UiShiftRightButton = shiftRight;
 			shiftRight.button.onClick.AddListener(() =>
@@ -3702,7 +3700,7 @@ namespace juniperD.StatefullServices
 			// Favorite button
 			var baseButtonColor = new Color(0.7f, 0.7f, 0.7f, 0.5f);
 			var acceptButtonHighlightedColor = new Color(0.0f, 0.5f, 0.0f, 1f);
-			var acceptButtonTexture =  ImageLoader.GetFutureImageFromFile( GetPluginPath() + "/Resources/Favorite.png");
+			var acceptButtonTexture = _imageLoaderService.GetFutureImageFromFileOrCached( GetPluginPath() + "/Resources/Favorite.png");
 			UIDynamicButton keepButton = _catalogUi.CreateButton(buttonGroup, "", btnWidth, btnHeight, 0, 0, baseButtonColor, acceptButtonHighlightedColor, Color.white, acceptButtonTexture);
 			catalogEntry.UiKeepButton = keepButton;
 			catalogEntry.UiKeepButton.buttonText.fontSize = 15;
@@ -3739,7 +3737,7 @@ namespace juniperD.StatefullServices
 			// Apply button
 			var baseButtonColor = new Color(0.7f, 0.7f, 0.7f, 0.7f);
 			var applyButtonHighlightedColor = new Color(1f, 0.647f, 0f, 1f);
-			var applyButtonTexture =  ImageLoader.GetFutureImageFromFile( GetPluginPath() + "/Resources/Apply.png");
+			var applyButtonTexture = _imageLoaderService.GetFutureImageFromFileOrCached( GetPluginPath() + "/Resources/Apply.png");
 			UIDynamicButton applyButton = _catalogUi.CreateButton(buttonGroup, "", btnWidth, btnHeight, 0, 0, baseButtonColor, applyButtonHighlightedColor, Color.white, applyButtonTexture);
 			catalogEntry.UiApplyButton = applyButton;
 			SetTooltipForDynamicButton(catalogEntry.UiApplyButton, () => "Apply");
