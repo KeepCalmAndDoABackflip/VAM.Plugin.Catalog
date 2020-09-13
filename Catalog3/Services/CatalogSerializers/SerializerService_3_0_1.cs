@@ -370,25 +370,6 @@ namespace juniperD.Services.CatalogSerializers
 			return mutationComponent;
 		}
 
-		private static JSONNode SerializeDynamicMutation(DynamicMutation mutation)
-		{
-			var newJson = new JSONClass();
-			newJson.Add("DAZDynamicItemName", new JSONData(mutation.DAZDynamicItemName));
-			newJson.Add("Active", new JSONData(mutation.Active.ToString()));
-			return newJson;
-		}
-
-		private static DynamicMutation DeserializeIntoDynamicMutation(JSONClass inputObject)
-		{
-			var keys = inputObject.Keys.ToList();
-			var mutationComponent = new DynamicMutation()
-			{
-				DAZDynamicItemName = inputObject.Childs.ElementAt(keys.IndexOf("DAZDynamicItemName")).Value,
-				Active = bool.Parse(inputObject.Childs.ElementAt(keys.IndexOf("Active")).Value)
-			};
-			return mutationComponent;
-		}
-
 		private static JSONNode SerializeActiveMorphMutation(MorphMutation mutationComponent)
 		{
 			var newJson = new JSONClass();

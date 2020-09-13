@@ -102,6 +102,7 @@
     <Compile Include="Models\Catalog.cs" />
     <Compile Include="Models\CatalogEntry.cs" />
     <Compile Include="Models\CaptureRequest.cs" />
+    <Compile Include="Models\DynamicEntryAnimationPanel.cs" />
     <Compile Include="Models\DynamicListBox.cs" />
     <Compile Include="Models\DynamicDropdownField.cs" />
     <Compile Include="Models\DynamicJointPoint.cs" />

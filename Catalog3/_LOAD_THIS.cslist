@@ -11,7 +11,6 @@ Models/Mutation.cs
 Models/BaseMutation.cs
 Models/ClothingMutation.cs
 Models/HairMutation.cs
-Models/DynamicMutation.cs
 Models/MorphMutation.cs
 Models/PoseMutation.cs
 Models/PoseTransition.cs
