@@ -435,6 +435,7 @@ namespace juniperD.StatefullServices
 				CreateDynamicButton_HideCatalogShortcut();
 
 				// Capture buttons...
+				CreateDynamicButton_Play();
 				CreateDynamicButton_Capture();
 				CreateDynamicButton_CaptureAdditionalAtom();
 				CreateDynamicButton_Capture_Clothes();
@@ -446,7 +447,9 @@ namespace juniperD.StatefullServices
 				CreateDynamicButton_OpenScenesFolder();
 
 				// Message UI...
-				CreateDynamicPanel_RightInfo();
+
+				CreateDynamicPanel_RightInfoPanel();
+				CreateDynamicButton_MinimizeSubItemPanel();
 				CreateDynamicPanel_LeftInfo();
 				CreateDynamicButton_LeftSideLabel();
 				CreateDynamicButton_Tooltip();
@@ -802,13 +805,9 @@ namespace juniperD.StatefullServices
 			cycleEntriesButton.buttonColor = _cycleEntriesOnInterval.val ? Color.red : new Color(0.8f,1f,0.8f);
 			cycleEntriesButton.button.onClick.AddListener(() =>
 			{
-				_cycleEntriesOnInterval.val = !_cycleEntriesOnInterval.val;
-				cycleEntriesButton.buttonText.text = _cycleEntriesOnInterval.val ? "Stop" : "Play >";
-				cycleEntriesButton.buttonColor = _cycleEntriesOnInterval.val ? Color.red : new Color(0.8f, 1f, 0.8f);
-				if (_cycleEntriesOnInterval.val == true) {
-					_numberOfEntriesToPlay = _catalog.Entries.Count;
-					StartCoroutine(ApplyNextEntryAfterInterval());
-				}
+				var playState = ToggleCatalogPlay();
+				cycleEntriesButton.buttonText.text = playState ? "Stop" : "Play >";
+				cycleEntriesButton.buttonColor = playState ? Color.red : new Color(0.8f, 1f, 0.8f);
 			});
 
 			_cycleEntriesInterval = new JSONStorableFloat("...Interval (seconds)", 3, 0, 50);
@@ -981,6 +980,17 @@ namespace juniperD.StatefullServices
 			CreateToggle(_overlayMutations);
 		}
 
+		private bool ToggleCatalogPlay()
+		{
+			_cycleEntriesOnInterval.val = !_cycleEntriesOnInterval.val;
+			if (_cycleEntriesOnInterval.val == true)
+			{
+				_numberOfEntriesToPlay = _catalog.Entries.Count;
+				StartCoroutine(ApplyNextEntryAfterInterval());
+			}
+			return _cycleEntriesOnInterval.val;
+		}
+
 		private void SetCatalogVisibility(bool setVisible)
 		{
 			_floatingControlsUi.Visible = setVisible;
@@ -1050,6 +1060,7 @@ namespace juniperD.StatefullServices
 			HideButtonInGroup(_mainWindow.ButtonRemoveAllHair, _mainWindow.SubWindow);
 			HideButtonInGroup(_mainWindow.ButtonCapture, _mainWindow.SubWindow);
 			HideButtonInGroup(_mainWindow.ButtonAddAtomToCapture, _mainWindow.SubWindow);
+			HideButtonInGroup(_mainWindow.ButtonPlayStop, _mainWindow.SubWindow);
 			HideButtonInGroup(_mainWindow.ButtonSelectScenesFolder, _mainWindow.SubWindow);
 
 			_mainWindow.ButtonCapture.button.onClick.RemoveAllListeners();
@@ -1156,6 +1167,7 @@ namespace juniperD.StatefullServices
 				}
 				_mainWindow.ButtonCapture.button.image.sprite = _mainWindow.IconForCaptureNone;
 				_mainWindow.ButtonCapture.button.onClick.AddListener(() => { });
+				ShowButtonInGroup(_mainWindow.ButtonPlayStop, _mainWindow.SubPanelCapture);
 			}
 
 			_mainWindow.ModeButtons[_catalogMode.val].buttonColor = Color.red;
@@ -1397,9 +1409,10 @@ namespace juniperD.StatefullServices
 			_mainWindow.PanelBackground.transform.localScale = minimize ? Vector3.zero : Vector3.one;
 			_mainWindow.MiniPanelBackground.transform.localScale = minimize ? Vector3.one : Vector3.zero;
 			_mainWindow.MiniSubPanelShortcut.transform.localScale = minimize ? Vector3.one : Vector3.zero;
-			_mainWindow.DynamicInfoPanel.transform.localScale = minimize ? Vector3.zero : Vector3.one;
 			_mainWindow.InfoLabel.transform.localScale = minimize ? Vector3.zero : Vector3.one;
 			_mainWindow.TextToolTip.transform.localPosition = minimize ? new Vector3(100, -100, 0) : new Vector3(150, -_mainWindow.WindowHeight-50, 0);
+			_mainWindow.ButtonMinimizeSubItemPanel.transform.localScale = minimize ? Vector3.zero : Vector3.one;
+			_mainWindow.DynamicInfoPanel.transform.localScale = (minimize || _mainWindow.SubItemPanelMinimized) ? Vector3.zero : Vector3.one;
 		}
 
 		private void CleanCatalog()
@@ -1730,6 +1743,31 @@ namespace juniperD.StatefullServices
 			SetTooltipForDynamicButton(_mainWindow.ButtonOpenCatalog, () => "Load Catalog");
 		}
 
+		private void CreateDynamicButton_MinimizeSubItemPanel()
+		{
+			var texture = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/Expand.png");
+			_mainWindow.ButtonMinimizeSubItemPanel = _catalogUi.CreateButton(_mainWindow.SubWindow, "", 35, 35, _mainWindow.WindowWidth + 40, -10, new Color(0.5f, 0.5f, 0.5f), new Color(0.7f, 0.5f, 0.5f), new Color(1f, 1f, 1f), texture);
+			_mainWindow.ButtonMinimizeSubItemPanel.button.onClick.AddListener(() => {
+				_mainWindow.SubItemPanelMinimized = !_mainWindow.SubItemPanelMinimized;
+				if (_mainWindow.SubItemPanelMinimized) {
+					RemoveItemToggles();
+					_mainWindow.DynamicInfoPanel.transform.localScale = Vector3.zero;
+					var pos = _mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition;
+					_mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition = new Vector3((float)(_mainWindow.WindowWidth + 50), pos.y, pos.z);// _mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition - new Vector3(200, 0,0);
+					_mainWindow.ButtonMinimizeSubItemPanel.transform.localRotation = Quaternion.Euler(new Vector3(0, 0,0));
+				}
+				else
+				{
+					_mainWindow.DynamicInfoPanel.transform.localScale = Vector3.one;
+					var pos = _mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition;
+					_mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition = new Vector3((float)(_mainWindow.WindowWidth + 60 + 200), pos.y, pos.z); //_mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition + new Vector3(200, 0, 0);
+					_mainWindow.ButtonMinimizeSubItemPanel.transform.localRotation = Quaternion.Euler(new Vector3(0, 0, 180));
+					if (_mainWindow.CurrentCatalogEntry != null) SelectCatalogEntry(_mainWindow.CurrentCatalogEntry);
+				}
+			});
+			SetTooltipForDynamicButton(_mainWindow.ButtonOpenCatalog, () => "Load Catalog");
+		}
+
 		private void CreateDynamicButton_LoadShortcut()
 		{
 			var texture =  _imageLoaderService.GetFutureImageFromFileOrCached( GetPluginPath() + "/Resources/Open.png");
@@ -1878,10 +1916,38 @@ namespace juniperD.StatefullServices
 			_mainWindow.IconForCaptureNone = Sprite.Create(captureNoneTexture, new Rect(0.0f, 0.0f, captureNoneTexture.width, captureNoneTexture.height), new Vector2(0.5f, 0.5f), 100.0f);
 
 			_mainWindow.ButtonCapture = _catalogUi.CreateButton(_mainWindow.SubPanelCapture, "", 60, 60, 0, 10, new Color(1, 0.25f, 0.25f), new Color(1, 0.5f, 0.5f), new Color(1, 1, 1));
-			_mainWindow.ButtonCapture.buttonText.fontSize = 21;
 			SetTooltipForDynamicButton(_mainWindow.ButtonCapture, () => "Capture");
 		}
 
+		private void CreateDynamicButton_Play()
+		{
+			var pluginPath = GetPluginPath();
+
+			var playIcon = _imageLoaderService.GetFutureImageFromFileOrCached(pluginPath + "/Resources/Play.png");
+			var playSprite= Sprite.Create(playIcon, new Rect(0.0f, 0.0f, playIcon.width, playIcon.height), new Vector2(0.5f, 0.5f), 100.0f);
+
+			var stopIcon = _imageLoaderService.GetFutureImageFromFileOrCached(pluginPath + "/Resources/Stop.png");
+			var stopSprite = Sprite.Create(stopIcon, new Rect(0.0f, 0.0f, stopIcon.width, stopIcon.height), new Vector2(0.5f, 0.5f), 100.0f);
+
+			_mainWindow.ButtonPlayStop = _catalogUi.CreateButton(_mainWindow.SubPanelCapture, "", 60, 60, 0, 10, new Color(0.25f, 0.7f, 0.25f), new Color(0.5f, 1f, 0.5f), new Color(1, 1, 1), playIcon);
+			SetTooltipForDynamicButton(_mainWindow.ButtonPlayStop, () => "Play");
+			_mainWindow.ButtonPlayStop.button.onClick.AddListener(() =>
+			{
+				var playState = ToggleCatalogPlay();
+				if (playState == true)
+				{
+					_mainWindow.ButtonPlayStop.buttonColor = Color.red;
+					_mainWindow.ButtonPlayStop.button.image.sprite = stopSprite;
+					SetTooltipForDynamicButton(_mainWindow.ButtonPlayStop, () => "Stop playing catalog");
+				}
+				else
+				{
+					_mainWindow.ButtonPlayStop.buttonColor = Color.green;
+					_mainWindow.ButtonPlayStop.button.image.sprite = playSprite;
+					SetTooltipForDynamicButton(_mainWindow.ButtonPlayStop, () => "Play catalog");
+				}
+			});
+		}
 
 		private void CreateDynamicButton_CaptureAdditionalAtom()
 		{
@@ -2445,11 +2511,12 @@ namespace juniperD.StatefullServices
 			_dynamicHelpPanel.transform.localScale = Vector3.zero;
 		}
 
-		private void CreateDynamicPanel_RightInfo()
+		private void CreateDynamicPanel_RightInfoPanel()
 		{
 			_mainWindow.DynamicInfoPanel = CatalogUiHelper.CreatePanel(_mainWindow.SubWindow, 0, 0, _mainWindow.WindowWidth + 70, 0, Color.red, Color.clear);
 			var innerPanel = CatalogUiHelper.CreatePanel(_mainWindow.DynamicInfoPanel, 200, _mainWindow.WindowHeight, -25, -10, new Color(0.1f, 0.1f, 0.1f, 0.9f), Color.clear);
 			_mainWindow.InfoVLayout = _catalogUi.CreateVerticalLayout(innerPanel, 1, true, false, false, false);
+			_mainWindow.DynamicInfoPanel.transform.localScale = Vector3.zero;
 		}
 
 		private void CreateDynamicPanel_LeftInfo()
@@ -2463,6 +2530,7 @@ namespace juniperD.StatefullServices
 
 		public void AddEntrySubItemToggle(EntrySubItem entryItem, UnityAction<bool> onToggle, UnityAction<string> stopTrackingAction, List<EntrySubItemAction> tooltip_iconName_action = null)
 		{
+			if (_mainWindow.SubItemPanelMinimized) return;
 
 			GameObject buttonRow = CreateButtonRow(_mainWindow.DynamicInfoPanel, 25);
 			entryItem.ButtonRow = buttonRow;
@@ -3267,12 +3335,19 @@ namespace juniperD.StatefullServices
 
 		void SelectCatalogEntry(CatalogEntry catalogEntry)
 		{
-			_catalog.Entries.ForEach(DeselectCatalogEntry);
+			// Remove pink border for previously selected entries...
+			var selectedEntries = _catalog.Entries
+				.Where(e => e.Selected)
+				.ToList();
+			selectedEntries.ForEach(DeselectCatalogEntry);
+			selectedEntries.ForEach(UpdateCatalogEntryBorderColorBasedOnState);
+
 			catalogEntry.Selected = true;
-			_catalog.Entries.ForEach(UpdateCatalogEntryBorderColorBasedOnState);
+			UpdateCatalogEntryBorderColorBasedOnState(catalogEntry);
+			
 			_mainWindow.CurrentCatalogEntry = catalogEntry;
 			RemoveItemToggles();
-			AddItemToggles(catalogEntry);
+			if (!_mainWindow.SubItemPanelMinimized) AddItemToggles(catalogEntry);
 		}
 
 		private void RemoveItemToggles()
@@ -4907,7 +4982,6 @@ namespace juniperD.StatefullServices
 		{
 			while (_cycleEntriesOnInterval.val)
 			{				
-				yield return new WaitForSeconds(_cycleEntriesInterval.val);
 				switch (_entrySelectionMethod.val)
 				{
 					case SELECTION_METHOD_RANDOM:
@@ -4917,6 +4991,7 @@ namespace juniperD.StatefullServices
 						ApplyEntryMoveNext();
 						break;
 				}
+				yield return new WaitForSeconds(_cycleEntriesInterval.val);
 			}
 		}
 

@@ -5,11 +5,11 @@
 
 **Latest Download Link:**
 
-[https://mega.nz/file/ry5hnJJR#xiHkQMqswBwBpRoZ6uyi972xyuBIisGUWPvbuKgkLjc](https://mega.nz/file/ry5hnJJR#xiHkQMqswBwBpRoZ6uyi972xyuBIisGUWPvbuKgkLjc)
+[https://mega.nz/folder/m2p0FYrL#ZeYuo66T39qbEO5l1q_rZQ](https://mega.nz/folder/m2p0FYrL#ZeYuo66T39qbEO5l1q_rZQ)
 
 # Revisions:
 
-* V3.0: 
+* V3.0: [https://mega.nz/folder/m2p0FYrL#ZeYuo66T39qbEO5l1q_rZQ](https://mega.nz/folder/m2p0FYrL#ZeYuo66T39qbEO5l1q_rZQ)
 * V2.1: [https://mega.nz/file/ry5hnJJR#xiHkQMqswBwBpRoZ6uyi972xyuBIisGUWPvbuKgkLjc](https://mega.nz/file/ry5hnJJR#xiHkQMqswBwBpRoZ6uyi972xyuBIisGUWPvbuKgkLjc)
 * V2.0: [https://mega.nz/file/PioBGTCQ#HVxKQDixcHh8yGjDP5ck232n\_5SvUmETL\_L34dKaOMU](https://mega.nz/file/PioBGTCQ#HVxKQDixcHh8yGjDP5ck232n_5SvUmETL_L34dKaOMU)
 
@@ -49,10 +49,25 @@
    * Pose
 * ***Face-Gen Mode***: Generates a number of random faces based on the selected morph options, variance, and count in the plugin settings.
 * ***Scenes-Directory Mode***: Shows all scene images in the current folder, and allows you to switch to the scenes.
-* ***Object Mode***: When you add Catalog Plugin to an object, captures the state of the Object. Gets auto-loaded with the scene.
-* ***Session Mode***: When adding Catalog Plugin to the session, captures the state of the Selected Object. Will persist when changing scenes. Does not get auto loaded with the scene. 
+* ***Object Mode***: Available when you add Catalog Plugin to an object, the object becomes the default atom if no atom is selected. Captures the state of the Object. Gets auto-loaded with the scene.
+* ***Session Mode***: Captures the state of the Selected Object. Will persist when changing scenes.
+
+## Session/Atom mode
+* ***Atom Mode***: When you add Catalog Plugin to an atom, the atom becomes the default if no other atom is selected. Catalog gets auto-loaded with the scene.
+* ***Session Mode***: When you add Catalog Plugin to the session. Will persist when changing scenes. You must select atoms in the scene to apply atom-specific mutations.
 
 ## Setting Description
+**General Settings**
+* Show Catalog: Shows the catalog UI if it was hidden.(from pressing the "X" button)
+
+**Play Settings**
+
+* Apply entry and move next: Applies the currently selected catalog entry, and then moves to the next entry.
+* Apply random entry: Applies a random entry from the catalog.
+* Morph Transition time: For Morphs and Poses, the amount of time in seconds to change to the selected entry.
+* Play: Continue applying entries until Stop is pressed. Entry selection is based on the buttons above (next or random)  
+* Interval: Amount of time between each frame when playing the catalog.
+* Play Catalog once: Play the amount of entries in the catalog from the current position.
 
 **Catalog Settings**
 
@@ -65,6 +80,7 @@
 * Always Face Me: Makes the in-game UI 2-D so that it always appears flat despite the scene angle.
 * Anchor on HUD: Attaches the UI to the HUD.
 * Anchor on Atom: Attaches the UI to the selected object in the scene.
+* Overlay Mutations: Keeps the previous mutation.
 
 **Capture settings** (for Capture Mode)
 
@@ -72,7 +88,7 @@
 * Capture Hair: Include the current hair style when capturing
 * Capture Clothes: Include the current clothing items when capturing the scene
 * Capture Facegen morphs: Include any generated mutations (from Mutations mode)
-* Capture Pose: Captur the current pose
+* Capture Pose: Capture the current pose
 * Remove Unused Items: The items for each catalog entry appear in the right column of the settings. You can deselect them but they won't go away. This button will remove unselected items from the entry permanently. Nice for cleaning out items captured by accident.
 * Select custom image: Allows you to select your own image from file for the catalog entry.
 
@@ -104,3 +120,6 @@ Special thanks to "**chokaphi**" for the "**Active Morphs plugin"** which provid
 # Patreon Page
 
 [Patreon Page](https://patreon.com/user?0=u&1=%3D&2=3&3=0&4=0&5=1&6=7&7=1&8=2&9=8&utm_medium=social&utm_source=twitter&utm_campaign=creatorshare)
+
+# Repository on Git
+[https://github.com/KeepCalmAndDoABackflip/VAM.Plugin.Catalog](https://github.com/KeepCalmAndDoABackflip/VAM.Plugin.Catalog)

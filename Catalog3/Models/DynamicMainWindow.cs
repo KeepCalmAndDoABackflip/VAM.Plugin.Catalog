@@ -13,6 +13,7 @@ namespace juniperD.Models
 		public int WindowHeight { get; set; } = 220;
 
 		public bool ControlPanelMinimized { get; set; } = false;
+		public bool SubItemPanelMinimized { get; set; } = true;
 		public float ControlPanelMinimizedWidth { get; set; } = 150;
 		public float ControlPanelMinimizedHeight { get; set; } = 50;
 
@@ -89,7 +90,6 @@ namespace juniperD.Models
 
 		public GameObject DynamicInfoPanel { get; set; }
 		public UIDynamicTextField InfoLabel { get; set; }
-		public List<UIDynamicToggle> InfoCheckLabels { get; set; }
 		public VerticalLayoutGroup InfoVLayout { get; set; }
 		public UIDynamicButton ButtonRemoveAllClothing { get; internal set; }
 		public UIDynamicButton ButtonRemoveAllHair { get; internal set; }
@@ -102,6 +102,8 @@ namespace juniperD.Models
 		public UIDynamicButton ButtonClean { get; internal set; }
 		public UIDynamicButton ToggleButtonCapturePose { get; internal set; }
 		public UIDynamicButton ButtonHideCatalogShortcut { get; internal set; }
+		public UIDynamicButton ButtonPlayStop { get; internal set; }
+		public UIDynamicButton ButtonMinimizeSubItemPanel { get; internal set; }
 
 		public DynamicMainWindow(CatalogUiHelper uiHelper)
 		{
