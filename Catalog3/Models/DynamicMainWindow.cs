@@ -94,6 +94,11 @@ namespace juniperD.Models
 		public UIDynamicButton ButtonRemoveAllClothing { get; internal set; }
 		public UIDynamicButton ButtonRemoveAllHair { get; internal set; }
 		public GameObject DebugPanel { get; internal set; }
+		public UIDynamicButton DebugDynamicButton1 { get; internal set; }
+		public UIDynamicButton DebugDynamicButton2 { get; internal set; }
+		public UIDynamicButton DebugDynamicButton3 { get; internal set; }
+		public UIDynamicButton DebugDynamicButton4 { get; internal set; }
+
 		public UIDynamicButton ButtonClean { get; internal set; }
 		public UIDynamicButton ToggleButtonCapturePose { get; internal set; }
 		public UIDynamicButton ButtonHideCatalogShortcut { get; internal set; }

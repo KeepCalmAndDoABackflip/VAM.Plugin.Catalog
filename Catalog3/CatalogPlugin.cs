@@ -2581,13 +2581,50 @@ namespace juniperD.StatefullServices
 
 		private void CreateDynamicButton_DebugPanel()
 		{
-			var mainPanel = CatalogUiHelper.CreatePanel(_catalogUi.canvas.gameObject, 0, 0, -300, -550, Color.clear, Color.clear);
+			var mainPanel = CatalogUiHelper.CreatePanel(_mainWindow.ParentWindowContainer, 0, 0, -300, -550, Color.clear, Color.clear);
 			_mainWindow.DebugPanel = mainPanel;
 
 			var backPanel = CatalogUiHelper.CreatePanel(mainPanel, 1000, 300, 0, 0, new Color(0.2f, 0.2f, 0.2f), Color.clear);
 
 			var closeButton = _catalogUi.CreateButton(mainPanel, "X", 40, 40, 0, 0, new Color(0.0f, 0.2f, 0.2f, 0.95f), new Color(0.0f, 0.2f, 0.2f, 1f), new Color(0.7f, 0.2f, 0.2f, 1));
 			var clearButton = _catalogUi.CreateButton(mainPanel, "Clear", 100, 40, 40, 0, new Color(0.0f, 0.2f, 0.2f, 0.95f), new Color(0.0f, 0.2f, 0.2f, 1f), new Color(0.7f, 0.7f, 0.7f, 1));
+
+			// You can later assign actions to these buttons, by assigning an action to the ".button.onClick.AddListener(...)" event
+			var dynamicButton1 = _catalogUi.CreateButton(mainPanel, "", 40, 40, 150, 0, new Color(0.7f, 0.5f, 0.5f, 0.95f), new Color(1.0f, 0.5f, 0.5f, 1f), new Color(0.7f, 0.7f, 0.7f, 1));
+			var dynamicButton2 = _catalogUi.CreateButton(mainPanel, "", 40, 40, 200, 0, new Color(0.5f, 0.7f, 0.5f, 0.95f), new Color(0.5f, 1.0f, 0.5f, 1f), new Color(0.7f, 0.7f, 0.7f, 1));
+			var dynamicButton3 = _catalogUi.CreateButton(mainPanel, "", 40, 40, 250, 0, new Color(0.5f, 0.5f, 0.7f, 0.95f), new Color(0.5f, 0.5f, 1.0f, 1f), new Color(0.7f, 0.7f, 0.7f, 1));
+			var dynamicButton4 = _catalogUi.CreateButton(mainPanel, "", 40, 40, 300, 0, new Color(0.7f, 0.5f, 0.7f, 0.95f), new Color(1.0f, 0.5f, 1.0f, 1f), new Color(0.7f, 0.7f, 0.7f, 1));
+
+			// ########### TEMP DYNAMIC ACTIONS #############
+			dynamicButton1.button.onClick.AddListener(() => {
+				//...put your custom actions here...
+				//try
+				//{
+				//	var selectedController = SuperController.singleton.GetSelectedController();
+				//	SuperController.LogMessage($"selectedController: {selectedController.containingAtom.name}:{selectedController.name}");
+				//	selectedController.transform.RotateAround(selectedController.transform.position, new Vector3(1, 0, 0), 10);
+				//}
+				//catch (Exception e) { SuperController.LogError(e.ToString()); }
+			});
+			dynamicButton2.button.onClick.AddListener(() => {
+				//...put your custom actions here...
+				//var selectedController = SuperController.singleton.GetSelectedController();
+				//SuperController.LogMessage($"selectedController: {selectedController.containingAtom.name}:{selectedController.name}");
+				//selectedController.transform.RotateAround(selectedController.transform.position, new Vector3(1, 0, 0), -10);
+				////var selectedController = SuperController.singleton.GetSelectedController();
+				////selectedController.transform.RotateAround(selectedController.transform.position, new Vector3(0, 1, 0), 10);
+			});
+			dynamicButton3.button.onClick.AddListener(() => {
+				//...put your custom actions here...
+				//var selectedController = SuperController.singleton.GetSelectedController();
+				//selectedController.transform.RotateAround(selectedController.transform.position, new Vector3(0, 0, 1), 10);
+			});
+			dynamicButton4.button.onClick.AddListener(() => {
+				//...put your custom actions here...
+			});
+			// ##############################################
+
+
 			closeButton.button.onClick.AddListener(() => { ToggleDebugPanel(); } );
 			clearButton.button.onClick.AddListener(() => { _mainWindow.TextDebugPanelText.UItext.text = ""; });
 
@@ -3001,15 +3038,32 @@ namespace juniperD.StatefullServices
 		{
 			if (!_updateLoopEnabled) return;
 
-			//var selectedController = SuperController.singleton.GetSelectedController();
-			//if (selectedController != null)
-			//{
-			//	_mainWindow.TextDebugPanelText.UItext.text = 
-			//		$"{selectedController.name} " +
-			//		$"\n  x:{selectedController.transform.rotation.x}" +
-			//		$"\n  y:{selectedController.transform.rotation.y}" +
-			//		$"\n  z:{selectedController.transform.rotation.z}";
-			//}
+			//####### TEMP #################################################################
+			if (_debugMode == true) { 
+				var selectedController = SuperController.singleton.GetSelectedController();
+				if (selectedController != null)
+				{
+					_mainWindow.TextDebugPanelText.UItext.text =
+						$"{selectedController.name} " +
+						$"\nrotation" +
+						$"\n  x:{selectedController.transform.rotation.x}" +
+						$"\n  y:{selectedController.transform.rotation.y}" +
+						$"\n  z:{selectedController.transform.rotation.z}" +
+						$"\nrotation.eulerAngles" +
+						$"\n  x:{selectedController.transform.rotation.eulerAngles.x}" +
+						$"\n  y:{selectedController.transform.rotation.eulerAngles.y}" +
+						$"\n  z:{selectedController.transform.rotation.eulerAngles.z}" +
+						$"\nlocalRotation" +
+						$"\n  x:{selectedController.transform.localRotation.x}" +
+						$"\n  y:{selectedController.transform.localRotation.y}" +
+						$"\n  z:{selectedController.transform.localRotation.z}" +
+						$"\nlocalRotation.eulerAngles" +
+						$"\n  x:{selectedController.transform.localRotation.eulerAngles.x}" +
+						$"\n  y:{selectedController.transform.localRotation.eulerAngles.y}" +
+						$"\n  z:{selectedController.transform.localRotation.eulerAngles.z}";
+				}
+			}
+			//##############################################################################
 
 			try
 			{

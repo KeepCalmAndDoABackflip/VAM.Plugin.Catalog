@@ -1021,7 +1021,7 @@ namespace juniperD.StatefullServices
 			var personAtoms = SuperController.singleton.GetAtoms().Where(a => a.type == "Person").ToList();
 			if (personAtoms.Count == 1) return personAtoms.Single();
 			//...else there are either no Person atoms, or more than one Person atom.
-			SuperController.LogMessage("Please select a Person in the scene");
+			SuperController.LogMessage("REQUEST: Please select a Person in the scene");
 			return null;
 		}
 
@@ -1035,7 +1035,7 @@ namespace juniperD.StatefullServices
 			if (item == null) item = character.hairItems.FirstOrDefault(h => IsHairItemFallbackMatch(hairItem, h));
 			if (item == null)
 			{
-				_context.ShowPopupMessage("Item cannot be used on this Persons type");
+				_context.ShowPopupMessage("WARNING: Item cannot be used on this Persons type");
 				return;
 			}
 			character.SetActiveHairItem(item, true);
@@ -1181,8 +1181,7 @@ namespace juniperD.StatefullServices
 				newPosePoint.Active = true;
 				newPosePoint.PositionState = controller.currentPositionState.ToString();
 				newPosePoint.RotationState = controller.currentRotationState.ToString();
-				//if (controller.currentPositionState != FreeControllerV3.PositionState.On && controller.currentRotationState != FreeControllerV3.RotationState.On) continue;
-				newPosePoint.Rotation = controller.transform.localRotation.eulerAngles;
+				newPosePoint.Rotation = GetControllerRotation(controller);
 				newPosePoint.Position = controller.transform.localPosition;
 				if (controller.containingAtom.type == "Person" && controller.name == "control") newPosePoint.Active = false;
 				posePoints.Add(newPosePoint);
@@ -1237,10 +1236,13 @@ namespace juniperD.StatefullServices
 				return;
 			}
 
+			// Set the rotation and position states for the controller...
 			controller.SetPositionStateFromString(mutationItem.PositionState);
 			controller.SetRotationStateFromString(mutationItem.RotationState);
 			if (controller.currentPositionState == FreeControllerV3.PositionState.Off && controller.currentRotationState == FreeControllerV3.RotationState.Off) return;
+			// Start transitioning to next pose...
 			_context.StartCoroutine(TransitionApplyPose(controller, mutationItem.Position, mutationItem.Rotation, startDelay, duration, 1, whenFinishedCallback));
+			
 			//controller.transform.localPosition = mutationItem.Position;
 			//controller.transform.localRotation = Quaternion.Euler(mutationItem.Rotation);
 			
@@ -1262,6 +1264,19 @@ namespace juniperD.StatefullServices
 			//_activeMorphStackForPerson[trackingKey].Add(mutationItem);
 		}
 
+		private static void SetControllerRotation(FreeControllerV3 controller, Vector3 rotation)
+		{
+			//controller.transform.localRotation = Quaternion.Euler(rotation.x, rotation.y, rotation.z);
+			//if (controller.currentPositionState != FreeControllerV3.PositionState.On && controller.currentRotationState != FreeControllerV3.RotationState.On) continue;
+			controller.transform.localRotation = new Quaternion(rotation.x, rotation.y, rotation.z, controller.transform.localRotation.w);
+		}
+
+		private static Vector3 GetControllerRotation(FreeControllerV3 controller)
+		{
+			//if (controller.currentPositionState != FreeControllerV3.PositionState.On && controller.currentRotationState != FreeControllerV3.RotationState.On) continue;
+			return new Vector3(controller.transform.localRotation.x, controller.transform.localRotation.y, controller.transform.localRotation.z);
+		}
+
 		public IEnumerator TransitionApplyPose(FreeControllerV3 controller, Vector3 targetPosition, Vector3 targetRotation, float startDelay = 0, float transitionTimeInSeconds = 0, float smoothMultiplier = 1, UnityAction whenFinishedCallback = null)
 		{
 			yield return new WaitForSeconds(startDelay);
@@ -1272,26 +1287,19 @@ namespace juniperD.StatefullServices
 			if (transitionTimeInSeconds == 0)
 			{
 				controller.transform.localPosition = targetPosition;
-				controller.transform.localRotation = Quaternion.Euler(targetRotation);
+				SetControllerRotation(controller, targetRotation);
 			}
 			else
 			{
 				if (smoothMultiplier < 1) smoothMultiplier = 1;
 				float framesPerSecond = 25 * smoothMultiplier;
+				
 				Vector3 newPosition = controller.transform.localPosition;
-				Vector3 newRotation = controller.transform.localRotation.eulerAngles;
+				Vector3 newRotation = GetControllerRotation(controller);
+
 				Vector3 totalPositionToAdd = targetPosition - newPosition;
-				float largestDistanceToTravel = GetLargestMagnitudeFromVector(totalPositionToAdd);
-				//Vector3 totalRotationToAdd = targetRotation - currentRotation;
-				Vector3 shortestRotationVector = GetShortestRotationVector(newRotation, targetRotation);
-				Vector3 totalRotationToAdd = shortestRotationVector;
+				Vector3 totalRotationToAdd = targetRotation - newRotation;
 
-
-				if (newRotation != targetRotation) { 
-					//SuperController.LogMessage($"currentRotation: {newRotation}, targetRotation: {targetRotation}");
-					//SuperController.LogMessage($"totalRotationToAdd: {totalRotationToAdd}");
-					//SuperController.LogMessage($"largestDistanceToTravel: {largestDistanceToTravel}");
-				}
 				var numberOfIterations = transitionTimeInSeconds * framesPerSecond;
 				var positionSingleIterationDistance = totalPositionToAdd / numberOfIterations;
 				var rotationSingleIterationDistance = totalRotationToAdd / numberOfIterations;
@@ -1318,25 +1326,8 @@ namespace juniperD.StatefullServices
 						newPosition += positionNudgeDistance;
 						newRotation += rotationNudgeDistance;
 
-						//var xPosition = newTransition.XPositionEnabled ? newPosition.x : controller.transform.localPosition.x;
-						//var yPosition = newTransition.YPositionEnabled ? newPosition.y : controller.transform.localPosition.y;
-						//var zPosition = newTransition.ZPositionEnabled ? newPosition.z : controller.transform.localPosition.z;
-						//var xRotation = newTransition.XRotationEnabled ? newRotation.x : controller.transform.localRotation.x;
-						//var yRotation = newTransition.YRotationEnabled ? newRotation.y : controller.transform.localRotation.y;
-						//var zRotation = newTransition.ZRotationEnabled ? newRotation.z : controller.transform.localRotation.z;
-
-						var xPosition = newPosition.x;
-						var yPosition = newPosition.y;
-						var zPosition = newPosition.z;
-						var xRotation = newRotation.x;
-						var yRotation = newRotation.y;
-						var zRotation = newRotation.z;
-
-						var finalPosition = new Vector3(xPosition, yPosition, zPosition);
-						var finalRotation = new Vector3(xRotation, yRotation, zRotation);
-
-						controller.transform.localPosition = finalPosition;
-						controller.transform.Rotate(rotationNudgeDistance);//.localRotation = Quaternion.Euler(finalRotation);
+						controller.transform.localPosition = new Vector3(newPosition.x, newPosition.y, newPosition.z);
+						controller.transform.localRotation = new Quaternion(newRotation.x, newRotation.y, newRotation.z, controller.transform.localRotation.w);
 					}
 					catch (Exception e)
 					{
@@ -1345,7 +1336,7 @@ namespace juniperD.StatefullServices
 					yield return new WaitForSeconds(1 / numberOfIterations);
 				}
 				controller.transform.localPosition = targetPosition;
-				controller.transform.localRotation = Quaternion.Euler(targetRotation);
+				SetControllerRotation(controller, targetRotation);
 				RemoveActiveTransition(newTransition);
 				if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
 			}
@@ -1375,76 +1366,109 @@ namespace juniperD.StatefullServices
 			_transitioningAtomControllers.Add(newTransition);
 		}
 
-		private float GetLargestMagnitudeFromVector(Vector3 totalPositionToAdd)
+		private static float GetEaseFactor(int interationNumber, float totalIterations, int curveMultiplier = 2)
 		{
-			var xyMax = Math.Abs(totalPositionToAdd.x) > Math.Abs(totalPositionToAdd.y) ? totalPositionToAdd.x : totalPositionToAdd.y;
-			return Math.Abs(totalPositionToAdd.z) > Math.Abs(xyMax) ? totalPositionToAdd.z : xyMax;
-		}
-
-		private static float GetEaseFactor(int interationNumber, float totalIterations)
-		{
-			var mean = totalIterations/2;
+			var mean = totalIterations / 2;
 			var deviation = Math.Abs(mean - interationNumber); //...how far away we are from the center of the bell curve
 			var tail = mean - deviation; //...how far away we are from the edges
 			var tailRatio = tail / mean; //...ratio of how close we are to the center of the bell curve
-			var heightFactor = tailRatio * 2;
+			var heightFactor = tailRatio * curveMultiplier;
 			return heightFactor;
 		}
 
-		private Vector3 GetShortestRotationVector(Vector3 currentRotation, Vector3 targetRotation)
-		{
-			//SuperController.LogMessage("X:");
-			var xDist = GetShortestDistanceOnAxisRotation(currentRotation.x, targetRotation.x);
-			//SuperController.LogMessage("Y:");
-			var yDist = GetShortestDistanceOnAxisRotation(currentRotation.y, targetRotation.y);
-			//SuperController.LogMessage("Z:");
-			var zDist = GetShortestDistanceOnAxisRotation(currentRotation.z, targetRotation.z);
-			return new Vector3(xDist, yDist, zDist);
-		}
+		//private float GetLargestMagnitudeFromVector(Vector3 totalPositionToAdd)
+		//{
+		//	var xyMax = Math.Abs(totalPositionToAdd.x) > Math.Abs(totalPositionToAdd.y) ? totalPositionToAdd.x : totalPositionToAdd.y;
+		//	return Math.Abs(totalPositionToAdd.z) > Math.Abs(xyMax) ? totalPositionToAdd.z : xyMax;
+		//}
 
-		private static float GetShortestDistanceOnAxisRotation(float currentAngle, float targetAngle)
-		{
-			var angleDistance = targetAngle - currentAngle;
-			var complimentDistance = (360 - angleDistance % 360) * (angleDistance < 0 ? -1 : 1);
-			//var moveCouterClockwise  = (targetAngle > currentAngle && angleDistance > complimentDistance) || (targetAngle < currentAngle && angleDistance < complimentDistance);
-			var moveClockwise = (targetAngle < currentAngle && angleDistance < complimentDistance) || (targetAngle > currentAngle && angleDistance > complimentDistance);
-			var final = Math.Min(Math.Abs(angleDistance), Math.Abs(complimentDistance)) * (moveClockwise ? -1 : 1);//== Math.Abs(angleDistance) ? angleDistance : complimentDistance;
+		//private Vector3 GetShortestRotationVector(Vector3 currentRotation, Vector3 targetRotation, bool printLog = false)
+		//{
+		//	var xDist = GetShortestDistanceRotation(currentRotation.x, targetRotation.x, printLog);
+		//	var yDist = GetShortestDistanceRotation(currentRotation.y, targetRotation.y, printLog);
+		//	var zDist = GetShortestDistanceRotation(currentRotation.z, targetRotation.z, printLog);
+		//	return new Vector3(xDist, yDist, zDist);
+		//}
 
-			//if (angleDistance > 0) {
-			//	SuperController.LogMessage("   ANGLE: " + angleDistance);
-			//	SuperController.LogMessage("   COMPL: " + complimentDistance);
-			//	SuperController.LogMessage("   DIREC: " + (moveClockwise ? "clockwise" : "counterClockwise"));
-			//	SuperController.LogMessage("   FINAL: " + final);
-			//}
+		//private static float GetShortestAngleRotation(float sourceAngle, float targetAngle, bool printDetails = false)
+		//{
+		//	var highAngle = Math.Max(targetAngle, sourceAngle);
+		//	var lowAngle = Math.Min(targetAngle, sourceAngle);
+		//	var directAngle = highAngle - lowAngle;
+		//	var complimentAngle = 360f - directAngle;
 
-			//var counterClockwiseTargetDistance =  Math.Max(currentAngle, targetAngle) - Math.Min(currentAngle, targetAngle);
-			//var clockwiseTargetDistanc = 360 - Math.Max(currentAngle, targetAngle) + Math.Min(currentAngle, targetAngle);
-			
-			//if (final > 0) SuperController.LogMessage($"   angle1: {angle1}, compliment {compliment}, final: {final}");
-			return final;
-		}
+		//	var goDirect = directAngle <= complimentAngle;
+		//	var goCompliment = directAngle > complimentAngle;
 
-		Vector3 GetBellCurveVector(float iteration, float totalIterations, Vector3 distanceVector)
-		{
+		//	var direction = 1;
+		//	if (sourceAngle == lowAngle && goCompliment) direction = -1;
+		//	if (sourceAngle == highAngle && goDirect) direction = -1;
 
-			var maxDistance = new Vector3(distanceVector.x * 1.5f, distanceVector.y * 1.5f, distanceVector.z * 1.5f);
-			var factor = GetBellCurveYPercent(iteration, totalIterations);
-			Vector3 actualDistance = new Vector3(maxDistance.x * factor, maxDistance.y * factor, maxDistance.z * factor);
-			//SuperController.LogMessage("factor: " + factor);
-			//SuperController.LogMessage($"distanceVector: {distanceVector.x},{distanceVector.y},{distanceVector.z}");
-			//SuperController.LogMessage($"maxDistance: {maxDistance.x},{maxDistance.y},{maxDistance.z}");
-			//SuperController.LogMessage($"actualDistance: {actualDistance.x},{actualDistance.y},{actualDistance.z}");
-			return actualDistance;
-		}
+		//	var final = (goDirect ? directAngle : complimentAngle) * direction;
 
-		private static float GetBellCurveYPercent(float iteration, float totalIterations)
-		{
-			var xSqr = iteration * iteration;
-			var totItSqr = totalIterations * totalIterations;
-			var y = (-xSqr + totItSqr);
-			var yPercent = y / totItSqr * 100;
-			return yPercent;
-		}
+		//	if (printDetails)
+		//	{
+		//		//SuperController.LogMessage("    highAngle: " + highAngle);
+		//		//SuperController.LogMessage("    lowAngle: " + lowAngle);
+		//		//SuperController.LogMessage("    directDistance: " + directAngle);
+		//		//SuperController.LogMessage("    complimentDistance: " + complimentAngle);
+		//		//SuperController.LogMessage("    goCompliment: " + goCompliment);
+		//		//SuperController.LogMessage("    direction: " + direction);
+		//		//SuperController.LogMessage("    final: " + final);
+		//	}
+		//	return final;
+		//}
+
+		//private static float GetShortestDistanceRotation(float sourceValue, float targetValue, bool printDetails = false)
+		//{
+		//	var highAngle = Math.Max(targetValue, sourceValue);
+		//	var lowAngle = Math.Min(targetValue, sourceValue);
+		//	var directDistance = highAngle - lowAngle;
+		//	var complimentDistance = 1 - directDistance;
+
+		//	var goDirect = directDistance <= complimentDistance;
+		//	var goCompliment = directDistance > complimentDistance;
+
+		//	var direction = 1;
+		//	if (sourceValue == lowAngle && goCompliment) direction = -1;
+		//	if (sourceValue == highAngle && goDirect) direction = -1;
+
+		//	var final = (goDirect ? directDistance : complimentDistance) * direction;
+		//	return final;
+		//	//if (printDetails)
+		//	//{
+		//	//	SuperController.LogMessage("    highAngle: " + highAngle);
+		//	//	SuperController.LogMessage("    lowAngle: " + lowAngle);
+		//	//	SuperController.LogMessage("    directDistance: " + directDistance);
+		//	//	SuperController.LogMessage("    complimentDistance: " + complimentDistance);
+		//	//	SuperController.LogMessage("    goCompliment: " + goCompliment);
+		//	//	SuperController.LogMessage("    direction: " + direction);
+		//	//	SuperController.LogMessage("    final: " + final);
+		//	//}
+
+		//}
+
+		//Vector3 GetBellCurveVector(float iteration, float totalIterations, Vector3 distanceVector)
+		//{
+
+		//	var maxDistance = new Vector3(distanceVector.x * 1.5f, distanceVector.y * 1.5f, distanceVector.z * 1.5f);
+		//	var factor = GetBellCurveYPercent(iteration, totalIterations);
+		//	Vector3 actualDistance = new Vector3(maxDistance.x * factor, maxDistance.y * factor, maxDistance.z * factor);
+		//	//SuperController.LogMessage("factor: " + factor);
+		//	//SuperController.LogMessage($"distanceVector: {distanceVector.x},{distanceVector.y},{distanceVector.z}");
+		//	//SuperController.LogMessage($"maxDistance: {maxDistance.x},{maxDistance.y},{maxDistance.z}");
+		//	//SuperController.LogMessage($"actualDistance: {actualDistance.x},{actualDistance.y},{actualDistance.z}");
+		//	return actualDistance;
+		//}
+
+		//private static float GetBellCurveYPercent(float iteration, float totalIterations)
+		//{
+		//	var xSqr = iteration * iteration;
+		//	var totItSqr = totalIterations * totalIterations;
+		//	var y = (-xSqr + totItSqr);
+		//	var yPercent = y / totItSqr * 100;
+		//	return yPercent;
+		//}
 
 		//float GetBellCurveYGivenX(float x, float maxDist, float averageDist, float standardDeviation)
 		//{
@@ -1482,32 +1506,32 @@ namespace juniperD.StatefullServices
 		//}
 
 
-		private static bool IsPointAtTarget(Vector3 currentValue, Vector3 targetValue, Vector3 totalDistanceToMove)
-		{
-			var xAtTarget = IsAxisAtTarget(currentValue.x, targetValue.x, totalDistanceToMove.x);
-			var yAtTarget = IsAxisAtTarget(currentValue.y, targetValue.y, totalDistanceToMove.y);
-			var zAtTarget = IsAxisAtTarget(currentValue.z, targetValue.z, totalDistanceToMove.z);
+		//private static bool IsPointAtTarget(Vector3 currentValue, Vector3 targetValue, Vector3 totalDistanceToMove)
+		//{
+		//	var xAtTarget = IsAxisAtTarget(currentValue.x, targetValue.x, totalDistanceToMove.x);
+		//	var yAtTarget = IsAxisAtTarget(currentValue.y, targetValue.y, totalDistanceToMove.y);
+		//	var zAtTarget = IsAxisAtTarget(currentValue.z, targetValue.z, totalDistanceToMove.z);
 
-			return IsAxisAtTarget(currentValue.x, targetValue.x, totalDistanceToMove.x)
-				&& IsAxisAtTarget(currentValue.y, targetValue.y, totalDistanceToMove.y)
-				&& IsAxisAtTarget(currentValue.z, targetValue.z, totalDistanceToMove.z);
-		}
+		//	return IsAxisAtTarget(currentValue.x, targetValue.x, totalDistanceToMove.x)
+		//		&& IsAxisAtTarget(currentValue.y, targetValue.y, totalDistanceToMove.y)
+		//		&& IsAxisAtTarget(currentValue.z, targetValue.z, totalDistanceToMove.z);
+		//}
 
-		private static Vector3 PushPointTowardTarget(Vector3 currentValue, Vector3 targetValue, Vector3 iterationDistanceToMove, FreeControllerV3 controller, bool positionAsTrueRotationAsFalse)
-		{
-			currentValue += iterationDistanceToMove;
-			if (positionAsTrueRotationAsFalse)
-			{
-				//controller.transform.Translate(iterationDistanceToMove * Time.deltaTime);
-				controller.transform.localPosition = currentValue;
-			}
-			else
-			{
-				controller.transform.localRotation = Quaternion.Euler(currentValue);
-			}
+		//private static Vector3 PushPointTowardTarget(Vector3 currentValue, Vector3 targetValue, Vector3 iterationDistanceToMove, FreeControllerV3 controller, bool positionAsTrueRotationAsFalse)
+		//{
+		//	currentValue += iterationDistanceToMove;
+		//	if (positionAsTrueRotationAsFalse)
+		//	{
+		//		//controller.transform.Translate(iterationDistanceToMove * Time.deltaTime);
+		//		controller.transform.localPosition = currentValue;
+		//	}
+		//	else
+		//	{
+		//		controller.transform.localRotation = Quaternion.Euler(currentValue);
+		//	}
 
-			return currentValue;
-		}
+		//	return currentValue;
+		//}
 
 		private static bool IsAxisAtTarget(float currentValue, float targetValue, float totalDistanceToMove)
 		{
