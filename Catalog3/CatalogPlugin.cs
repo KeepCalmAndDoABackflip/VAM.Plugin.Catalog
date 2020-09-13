@@ -1745,15 +1745,15 @@ namespace juniperD.StatefullServices
 
 		private void CreateDynamicButton_MinimizeSubItemPanel()
 		{
-			var texture = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/Expand.png");
-			_mainWindow.ButtonMinimizeSubItemPanel = _catalogUi.CreateButton(_mainWindow.SubWindow, "", 35, 35, _mainWindow.WindowWidth + 40, -10, new Color(0.5f, 0.5f, 0.5f), new Color(0.7f, 0.5f, 0.5f), new Color(1f, 1f, 1f), texture);
+			var texture = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/SubItemMenu.png");
+			_mainWindow.ButtonMinimizeSubItemPanel = _catalogUi.CreateButton(_mainWindow.SubWindow, "", 25, 25, _mainWindow.WindowWidth + 55, -5, new Color(0.25f, 0.25f, 0.25f), new Color(0.25f, 0.25f, 0.25f), new Color(1f, 1f, 1f), texture);
 			_mainWindow.ButtonMinimizeSubItemPanel.button.onClick.AddListener(() => {
 				_mainWindow.SubItemPanelMinimized = !_mainWindow.SubItemPanelMinimized;
 				if (_mainWindow.SubItemPanelMinimized) {
 					RemoveItemToggles();
 					_mainWindow.DynamicInfoPanel.transform.localScale = Vector3.zero;
 					var pos = _mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition;
-					_mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition = new Vector3((float)(_mainWindow.WindowWidth + 50), pos.y, pos.z);// _mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition - new Vector3(200, 0,0);
+					_mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition = new Vector3((float)(_mainWindow.WindowWidth + 55), pos.y, pos.z);// _mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition - new Vector3(200, 0,0);
 					_mainWindow.ButtonMinimizeSubItemPanel.transform.localRotation = Quaternion.Euler(new Vector3(0, 0,0));
 				}
 				else
