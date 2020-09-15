@@ -25,9 +25,7 @@ namespace juniperD.StatefullServices
 		public bool MustCaptureFaceGenMorphs { get; set; } = true;
 		public bool MustCaptureHair { get; set; } = false;
 		public bool MustCaptureClothes { get; set; } = false;
-		//public bool MustCaptureDynamicItems { get; set; } = false;
 		public bool MustCaptureActiveMorphs { get; set; } = false;
-		//public bool MustCapturePose { get; set; } = false;
 		public bool MustCaptureAnimations { get; set; } = false;
 		public bool MustCapturePoseMorphs { get; internal set; }
 
@@ -71,6 +69,17 @@ namespace juniperD.StatefullServices
 		protected Stack<DAZClothingItem> _clothingStack = new Stack<DAZClothingItem>();
 
 		protected CatalogPlugin _context;
+
+		protected List<string> _nonBodyControllerList = new List<string>()
+		{
+			"control",
+			"hairTool1", "hairTool1UI",
+			"hairTool2", "hairTool2UI",
+			"hairTool3", "hairTool3UI",
+			"hairTool4", "hairTool4UI",
+			"hairScalpMaskTool", "hairScalpMaskToolUI", 
+			"eyeTargetControl"
+		};
 
 		public void Init(CatalogPlugin context)
 		{
@@ -969,7 +978,7 @@ namespace juniperD.StatefullServices
 			SetMorphValue(morph, morphMutation.Value);
 		}
 
-		public List<FreeControllerV3> GetControllerForSelectedPersonOrDefault()
+		public List<FreeControllerV3> GetControllersForSelectedPersonOrDefault()
 		{
 			var selectedAtom = GetSelectedPersonAtomOrDefault();
 			if (_context.containingAtom.type == "Person") selectedAtom = _context.containingAtom;
@@ -978,7 +987,10 @@ namespace juniperD.StatefullServices
 				_context.ShowPopupMessage("Please select a Person");
 				return null;
 			}
+			
 			var controllers = selectedAtom.GetComponentsInChildren<FreeControllerV3>(true).ToList();
+			//var filteredControllers = controllers.Where(c => !_nonBodyControllerList.Contains(c.name)).ToList();
+
 			return controllers;
 		}
 
@@ -1171,11 +1183,11 @@ namespace juniperD.StatefullServices
 		{
 
 			var trackingKey = GetTrackinKeyForCurrentPerson();
-			var controllers = GetControllerForSelectedPersonOrDefault();
+			var controllers = GetControllersForSelectedPersonOrDefault();
 			var posePoints = new List<PoseMutation>();
+
 			foreach (var controller in controllers)
 			{
-
 				var newPosePoint = new PoseMutation();
 				newPosePoint.Id = controller.name;
 				newPosePoint.Active = true;
@@ -1183,7 +1195,7 @@ namespace juniperD.StatefullServices
 				newPosePoint.RotationState = controller.currentRotationState.ToString();
 				newPosePoint.Rotation = GetControllerRotation(controller);
 				newPosePoint.Position = controller.transform.localPosition;
-				if (controller.containingAtom.type == "Person" && controller.name == "control") newPosePoint.Active = false;
+				if (controller.containingAtom.type == "Person" && _nonBodyControllerList.Contains(controller.name)) newPosePoint.Active = false;
 				posePoints.Add(newPosePoint);
 			}
 
@@ -1226,7 +1238,7 @@ namespace juniperD.StatefullServices
 		{
 			var trackingKey = GetTrackinKeyForCurrentPerson();
 			//if (!MorphBaseValuesHaveBeenSetForCurrentPerson(trackingKey)) _morphBaseValuesForTrackedPerson.Add(trackingKey, new List<MorphMutation>());
-			var controllers = GetControllerForSelectedPersonOrDefault();
+			var controllers = GetControllersForSelectedPersonOrDefault();
 			//foreach (var item in mutationItem.Points)
 			//{
 			var controller = controllers.FirstOrDefault(c => c.name == mutationItem.Id);
@@ -1241,7 +1253,8 @@ namespace juniperD.StatefullServices
 			controller.SetRotationStateFromString(mutationItem.RotationState);
 			if (controller.currentPositionState == FreeControllerV3.PositionState.Off && controller.currentRotationState == FreeControllerV3.RotationState.Off) return;
 			// Start transitioning to next pose...
-			_context.StartCoroutine(TransitionApplyPose(controller, mutationItem.Position, mutationItem.Rotation, startDelay, duration, 1, whenFinishedCallback));
+			var animatedElement = mutationItem.AnimatedItem?.MasterElement;
+			_context.StartCoroutine(TransitionApplyPose(controller, mutationItem.Position, mutationItem.Rotation, animatedElement, startDelay, duration, 1, whenFinishedCallback));
 			
 			//controller.transform.localPosition = mutationItem.Position;
 			//controller.transform.localRotation = Quaternion.Euler(mutationItem.Rotation);
@@ -1277,8 +1290,16 @@ namespace juniperD.StatefullServices
 			return new Vector3(controller.transform.localRotation.x, controller.transform.localRotation.y, controller.transform.localRotation.z);
 		}
 
-		public IEnumerator TransitionApplyPose(FreeControllerV3 controller, Vector3 targetPosition, Vector3 targetRotation, float startDelay = 0, float transitionTimeInSeconds = 0, float smoothMultiplier = 1, UnityAction whenFinishedCallback = null)
+		public IEnumerator TransitionApplyPose(FreeControllerV3 controller, Vector3 targetPosition, Vector3 targetRotation, AnimatedElement masterAnimatedElement = null, float startDelay = 0, float transitionTimeInSeconds = 0, float smoothMultiplier = 1, UnityAction whenFinishedCallback = null)
 		{
+			if (masterAnimatedElement != null && transitionTimeInSeconds > 0) {
+				var prevTansitionTime = transitionTimeInSeconds;
+				var startTime = transitionTimeInSeconds * masterAnimatedElement.StartAtRatio;
+				var endTime = transitionTimeInSeconds * masterAnimatedElement.EndAtRatio;
+				transitionTimeInSeconds = endTime - startTime;
+				startDelay = startTime;
+			}
+
 			yield return new WaitForSeconds(startDelay);
 
 			var transitionKey = _context.GetUniqueName();
@@ -1533,12 +1554,12 @@ namespace juniperD.StatefullServices
 		//	return currentValue;
 		//}
 
-		private static bool IsAxisAtTarget(float currentValue, float targetValue, float totalDistanceToMove)
-		{
-			if (totalDistanceToMove == 0) return true;
-			var result = (totalDistanceToMove < 0 && currentValue <= targetValue) || (totalDistanceToMove > 0 && currentValue >= targetValue);
-			return result;
-		}
+		//private static bool IsAxisAtTarget(float currentValue, float targetValue, float totalDistanceToMove)
+		//{
+		//	if (totalDistanceToMove == 0) return true;
+		//	var result = (totalDistanceToMove < 0 && currentValue <= targetValue) || (totalDistanceToMove > 0 && currentValue >= targetValue);
+		//	return result;
+		//}
 
 		public IEnumerator TransitionApplyMorph(DAZMorph morph, float targetValue, float startDelay = 0, float transitionTimeInSeconds = 0, UnityAction whenFinishedCallback = null, bool IsMasterMutation = true)
 		{

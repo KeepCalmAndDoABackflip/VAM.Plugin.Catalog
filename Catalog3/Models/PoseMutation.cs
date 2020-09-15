@@ -18,8 +18,7 @@ namespace juniperD.Models
 		// Non-Serialized...
 		public string Label;
 		public UIDynamicToggle UiToggle {get;set; }
-		//public DAZMorph MorphItem {get;set; }
-		//public EntrySubItem DynamicCheckbox { get; set; }
+		internal AnimatedItem AnimatedItem { get; set; }
 	}
 
 }

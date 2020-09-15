@@ -30,6 +30,7 @@ Models/AnimationLink.cs
 Models/TriggerForController.cs
 Models/DynamicMannequinPicker.cs
 Models/DynamicMainWindow.cs
+Models/EntryAnimation.cs
 Resources/Icons.cs
 Services/DataCompressor.cs
 Services/CatalogFileManager.cs

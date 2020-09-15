@@ -102,7 +102,7 @@
     <Compile Include="Models\Catalog.cs" />
     <Compile Include="Models\CatalogEntry.cs" />
     <Compile Include="Models\CaptureRequest.cs" />
-    <Compile Include="Models\DynamicEntryAnimationPanel.cs" />
+    <Compile Include="Models\EntryAnimation.cs" />
     <Compile Include="Models\DynamicListBox.cs" />
     <Compile Include="Models\DynamicDropdownField.cs" />
     <Compile Include="Models\DynamicJointPoint.cs" />
@@ -111,7 +111,6 @@
     <Compile Include="Models\EntrySubItemAction.cs" />
     <Compile Include="Models\ImageInfo.cs" />
     <Compile Include="Models\ClothingMutation.cs" />
-    <Compile Include="Models\DynamicMutation.cs" />
     <Compile Include="Models\HairMutation.cs" />
     <Compile Include="Models\PoseMutation.cs" />
     <Compile Include="Models\MorphMutation.cs" />

@@ -1441,7 +1441,7 @@ namespace juniperD.StatefullServices
 					}
 
 					// Check pose points...
-					var controllers = _mutationsService.GetControllerForSelectedPersonOrDefault() ?? new List<FreeControllerV3>();
+					var controllers = _mutationsService.GetControllersForSelectedPersonOrDefault() ?? new List<FreeControllerV3>();
 					foreach (var item in mutation.PoseMorphs)
 					{
 						if (!controllers.Any(i => i.name == item.Id)) hideEntry = true;
@@ -2235,7 +2235,7 @@ namespace juniperD.StatefullServices
 			SetTooltipForDynamicButton(mainWindow.ButtonResetPivot, () => "Center Control Pivot (Person must be selected)");
 		}
 
-		public void AddDragging(GameObject handleObject, GameObject dragObject, Action<DragHelper> beforeDragAction = null, Action<DragHelper> afterDragAction = null)
+		public void AddDragging(GameObject handleObject, GameObject dragObject, Action<DragHelper> beforeDragAction = null, Action<DragHelper> afterDragAction = null, Func<float, float, bool> whileDragAction = null, bool dragX = true, bool dragY = true)
 		{
 			var positionTracker = new DragHelper();
 			_positionTrackers.Add("draggableObject_" + GetUniqueName(), positionTracker);
@@ -2247,8 +2247,9 @@ namespace juniperD.StatefullServices
 				positionTracker.IsIn3DSpace = !IsAnchoredOnHUD();
 				positionTracker.XMultiplier = -1000f;
 				positionTracker.YMultiplier = 1000f;
+				if (beforeDragAction != null) beforeDragAction.Invoke(dragHelper);
 			};
-			positionTracker.AddMouseDraggingToObject(handleObject, dragObject, true, true, beforeDragAction ?? onStartDraggingEvent, afterDragAction);
+			positionTracker.AddMouseDraggingToObject(handleObject, dragObject, dragX, dragY, onStartDraggingEvent, afterDragAction, whileDragAction);
 		}
 
 		private void CreateDynamicButton_CreateMannequinPicker(DynamicMainWindow mainWindow)
@@ -2546,20 +2547,21 @@ namespace juniperD.StatefullServices
 			entryItem.StopTrackingItemButton = stopTrackingButton;
 			SetTooltipForDynamicButton(stopTrackingButton, () => "Remove from catalog entry");
 
+			// Main item button
 			var currentTextColor = entryItem.CheckState ? new Color(1f, 0.3f, 0.3f, 1) : new Color(0.3f, 0.3f, 0.3f, 1);
-			var checkButton = _catalogUi.CreateButton(buttonRow, entryItem.Label ?? entryItem.ItemName, 160, 25, 0, 0, Color.clear, new Color(0.3f, 0.3f, 0.2f), currentTextColor);
+			var itemButton = _catalogUi.CreateButton(buttonRow, entryItem.Label ?? entryItem.ItemName, 160, 25, 0, 0, Color.clear, new Color(0.3f, 0.3f, 0.2f), currentTextColor);
 			buttonRow.transform.SetParent(_mainWindow.InfoVLayout.transform, false);
-			checkButton.buttonText.fontSize = 15;
-			checkButton.buttonText.fontStyle = FontStyle.Italic;
-			checkButton.buttonText.alignment = TextAnchor.MiddleLeft;
-			checkButton.button.onClick.AddListener(() =>
+			itemButton.buttonText.fontSize = 15;
+			itemButton.buttonText.fontStyle = FontStyle.Italic;
+			itemButton.buttonText.alignment = TextAnchor.MiddleLeft;
+			itemButton.button.onClick.AddListener(() =>
 			{
-				var newValue = checkButton.textColor == new Color(0.3f, 0.3f, 0.3f, 1) ? true : false;
-				checkButton.textColor = newValue ? new Color(1f, 0.3f, 0.3f, 1) : new Color(0.3f, 0.3f, 0.3f, 1);
+				var newValue = itemButton.textColor == new Color(0.3f, 0.3f, 0.3f, 1) ? true : false;
+				itemButton.textColor = newValue ? new Color(1f, 0.3f, 0.3f, 1) : new Color(0.3f, 0.3f, 0.3f, 1);
 				onToggle.Invoke(newValue);
 			});
-			entryItem.ItemActiveCheckbox = checkButton;
-			SetTooltipForDynamicButton(checkButton, () => checkButton.label);
+			entryItem.ItemActiveCheckbox = itemButton;
+			SetTooltipForDynamicButton(itemButton, () => itemButton.label);
 
 			if (tooltip_iconName_action != null)
 			{
@@ -2669,7 +2671,6 @@ namespace juniperD.StatefullServices
 				//try
 				//{
 				//	var selectedController = SuperController.singleton.GetSelectedController();
-				//	SuperController.LogMessage($"selectedController: {selectedController.containingAtom.name}:{selectedController.name}");
 				//	selectedController.transform.RotateAround(selectedController.transform.position, new Vector3(1, 0, 0), 10);
 				//}
 				//catch (Exception e) { SuperController.LogError(e.ToString()); }
@@ -2677,7 +2678,6 @@ namespace juniperD.StatefullServices
 			dynamicButton2.button.onClick.AddListener(() => {
 				//...put your custom actions here...
 				//var selectedController = SuperController.singleton.GetSelectedController();
-				//SuperController.LogMessage($"selectedController: {selectedController.containingAtom.name}:{selectedController.name}");
 				//selectedController.transform.RotateAround(selectedController.transform.position, new Vector3(1, 0, 0), -10);
 				////var selectedController = SuperController.singleton.GetSelectedController();
 				////selectedController.transform.RotateAround(selectedController.transform.position, new Vector3(0, 1, 0), 10);
@@ -2841,52 +2841,52 @@ namespace juniperD.StatefullServices
 
 		}
 
-		private void FinishedDraggingMainWindow(DragHelper dragHelper)
-		{
-			try
-			{
-				_mainWindowPositionX.val = dragHelper.CurrentPosition.x;
-				_mainWindowPositionY.val = dragHelper.CurrentPosition.y;
-			}
-			catch (Exception e)
-			{
-				SuperController.LogError(e.ToString());
-			}
-		}
+		//private void FinishedDraggingMainWindow(DragHelper dragHelper)
+		//{
+		//	try
+		//	{
+		//		_mainWindowPositionX.val = dragHelper.CurrentPosition.x;
+		//		_mainWindowPositionY.val = dragHelper.CurrentPosition.y;
+		//	}
+		//	catch (Exception e)
+		//	{
+		//		SuperController.LogError(e.ToString());
+		//	}
+		//}
 
-		private void StartDraggingMainWindow(DragHelper positionTracker)
-		{
-			try
-			{
-				positionTracker.XStep = 0.02f;
-				positionTracker.YStep = 0.02f;
-				positionTracker.AllowDragX = IsAnchoredOnHUD(); // ...only allow dragging if anchored on HUD
-				positionTracker.AllowDragY = IsAnchoredOnHUD();// ...only allow dragging if anchored on HUD
-				positionTracker.IsIn3DSpace = !IsAnchoredOnHUD();
-				positionTracker.XMultiplier = positionTracker.IsIn3DSpace ? 1f : -1f;
-				positionTracker.YMultiplier = 1f;
-			}
-			catch (Exception e)
-			{
-				SuperController.LogError(e.ToString());
-			}
-		}
+		//private void StartDraggingMainWindow(DragHelper positionTracker)
+		//{
+		//	try
+		//	{
+		//		positionTracker.XStep = 0.02f;
+		//		positionTracker.YStep = 0.02f;
+		//		positionTracker.AllowDragX = IsAnchoredOnHUD(); // ...only allow dragging if anchored on HUD
+		//		positionTracker.AllowDragY = IsAnchoredOnHUD();// ...only allow dragging if anchored on HUD
+		//		positionTracker.IsIn3DSpace = !IsAnchoredOnHUD();
+		//		positionTracker.XMultiplier = positionTracker.IsIn3DSpace ? 1f : -1f;
+		//		positionTracker.YMultiplier = 1f;
+		//	}
+		//	catch (Exception e)
+		//	{
+		//		SuperController.LogError(e.ToString());
+		//	}
+		//}
 
-		private void SelectNextAtom()
-		{
-			try
-			{
-				_nextAtomIndex++;
-				var atoms = SuperController.singleton.GetAtoms();
-				if (_nextAtomIndex >= atoms.Count) _nextAtomIndex = 0;
-				if (atoms.Count == 0) return;
-				SuperController.singleton.SelectController(atoms[_nextAtomIndex].mainController);
-			}
-			catch (Exception e)
-			{
-				SuperController.LogError(e.ToString());
-			}
-		}
+		//private void SelectNextAtom()
+		//{
+		//	try
+		//	{
+		//		_nextAtomIndex++;
+		//		var atoms = SuperController.singleton.GetAtoms();
+		//		if (_nextAtomIndex >= atoms.Count) _nextAtomIndex = 0;
+		//		if (atoms.Count == 0) return;
+		//		SuperController.singleton.SelectController(atoms[_nextAtomIndex].mainController);
+		//	}
+		//	catch (Exception e)
+		//	{
+		//		SuperController.LogError(e.ToString());
+		//	}
+		//}
 
 		private void SaveCatalogToFile(string filePath)
 		{
@@ -3107,30 +3107,30 @@ namespace juniperD.StatefullServices
 			if (!_updateLoopEnabled) return;
 
 			//####### TEMP #################################################################
-			if (_debugMode == true) { 
-				var selectedController = SuperController.singleton.GetSelectedController();
-				if (selectedController != null)
-				{
-					_mainWindow.TextDebugPanelText.UItext.text =
-						$"{selectedController.name} " +
-						$"\nrotation" +
-						$"\n  x:{selectedController.transform.rotation.x}" +
-						$"\n  y:{selectedController.transform.rotation.y}" +
-						$"\n  z:{selectedController.transform.rotation.z}" +
-						$"\nrotation.eulerAngles" +
-						$"\n  x:{selectedController.transform.rotation.eulerAngles.x}" +
-						$"\n  y:{selectedController.transform.rotation.eulerAngles.y}" +
-						$"\n  z:{selectedController.transform.rotation.eulerAngles.z}" +
-						$"\nlocalRotation" +
-						$"\n  x:{selectedController.transform.localRotation.x}" +
-						$"\n  y:{selectedController.transform.localRotation.y}" +
-						$"\n  z:{selectedController.transform.localRotation.z}" +
-						$"\nlocalRotation.eulerAngles" +
-						$"\n  x:{selectedController.transform.localRotation.eulerAngles.x}" +
-						$"\n  y:{selectedController.transform.localRotation.eulerAngles.y}" +
-						$"\n  z:{selectedController.transform.localRotation.eulerAngles.z}";
-				}
-			}
+			//if (_debugMode == true) { 
+			//	var selectedController = SuperController.singleton.GetSelectedController();
+			//	if (selectedController != null)
+			//	{
+			//		_mainWindow.TextDebugPanelText.UItext.text =
+			//			$"{selectedController.name} " +
+			//			$"\nrotation" +
+			//			$"\n  x:{selectedController.transform.rotation.x}" +
+			//			$"\n  y:{selectedController.transform.rotation.y}" +
+			//			$"\n  z:{selectedController.transform.rotation.z}" +
+			//			$"\nrotation.eulerAngles" +
+			//			$"\n  x:{selectedController.transform.rotation.eulerAngles.x}" +
+			//			$"\n  y:{selectedController.transform.rotation.eulerAngles.y}" +
+			//			$"\n  z:{selectedController.transform.rotation.eulerAngles.z}" +
+			//			$"\nlocalRotation" +
+			//			$"\n  x:{selectedController.transform.localRotation.x}" +
+			//			$"\n  y:{selectedController.transform.localRotation.y}" +
+			//			$"\n  z:{selectedController.transform.localRotation.z}" +
+			//			$"\nlocalRotation.eulerAngles" +
+			//			$"\n  x:{selectedController.transform.localRotation.eulerAngles.x}" +
+			//			$"\n  y:{selectedController.transform.localRotation.eulerAngles.y}" +
+			//			$"\n  z:{selectedController.transform.localRotation.eulerAngles.z}";
+			//	}
+			//}
 			//##############################################################################
 
 			try
@@ -3686,12 +3686,12 @@ namespace juniperD.StatefullServices
 			}
 		}
 
-		private string EncodedImageFromTexture(Texture2D renderResult)
-		{
-			byte[] data = renderResult.GetRawTextureData();
-			var encodedImage = Convert.ToBase64String(data);
-			return encodedImage;
-		}
+		//private string EncodedImageFromTexture(Texture2D renderResult)
+		//{
+		//	byte[] data = renderResult.GetRawTextureData();
+		//	var encodedImage = Convert.ToBase64String(data);
+		//	return encodedImage;
+		//}
 
 		//private Texture2D TextureFrombRawData(byte[] rawData, int width = 1000, int height = 1000, TextureFormat textureFormat = TextureFormat.RGB24)
 		//{
@@ -3736,6 +3736,10 @@ namespace juniperD.StatefullServices
 				AddEntryDiscardButton(catalogEntry, smallerBtnSize, smallerBtnSize, botttomButtonGroup);
 				AddEntryApplyButton(catalogEntry, customAction, btnHeight, btnWidth, botttomButtonGroup);
 				AddEntryShiftButtons(catalogEntry, smallerBtnSize, smallerBtnSize, botttomButtonGroup);
+
+				// Animation panel...
+				AddAnimationPanel(catalogEntry, catalogEntryPanel);
+
 				//ResizeBackpanel();
 				return catalogEntry;
 			}
@@ -3744,6 +3748,165 @@ namespace juniperD.StatefullServices
 				SuperController.LogError(e.ToString());
 				throw e;
 			}
+		}
+
+		private void AddAnimationPanel(CatalogEntry catalogEntry, GameObject catalogEntryPanel)
+		{
+			var newTexture = new Texture2D((int)CatalogEntryFrameSize.val, (int)CatalogEntryFrameSize.val);
+			var relevantPoseMorphs = catalogEntry.Mutation.PoseMorphs
+				.Where(p => p.Active)
+				.Where(p => p.PositionState != FreeControllerV3.PositionState.Off.ToString() || p.RotationState != FreeControllerV3.RotationState.Off.ToString())
+				.ToList();
+
+			foreach (var poseMorph in relevantPoseMorphs)
+			{
+				poseMorph.AnimatedItem = GetAnimatedItemsFromPoseMorph(poseMorph);
+			}
+			List<AnimatedItem> animatedItems = relevantPoseMorphs.Select(p => p.AnimatedItem).ToList();
+			
+			GameObject animationPanel = CatalogUiHelper.CreatePanel(catalogEntryPanel, 0, (int)CatalogEntryFrameSize.val, 0, 0, Color.clear, Color.white);
+			var innerPanel = CatalogUiHelper.CreatePanel(animationPanel, (int)CatalogEntryFrameSize.val, animatedItems.Count() * 25, 0, 0, new Color(0.1f, 0.1f, 0.1f, 0.9f), Color.clear);
+			VerticalLayoutGroup animationVLayout = _catalogUi.CreateVerticalLayout(innerPanel, 0, true, false, false, false);
+			foreach (var animatedItem in animatedItems)
+			{
+				UIDynamicButton itemBar = CreateAnimationBar(animatedItem, animationPanel, animationVLayout);
+			}
+			animationPanel.transform.localPosition = new Vector3(animationPanel.transform.localPosition.x, (animatedItems.Count * 25), animationPanel.transform.localPosition.z);
+		}
+
+		private UIDynamicButton CreateAnimationBar(AnimatedItem animatedItem, GameObject parentPanel, VerticalLayoutGroup vLayout)
+		{
+			var innerPanel = CatalogUiHelper.CreatePanel(parentPanel, 0, 25, 0, 0, new Color(0.1f, 0.1f, 0.1f, 0.9f), Color.clear);
+
+			innerPanel.transform.SetParent(vLayout.transform, false);
+
+			var handleButtonWidth = 25;
+			var handleButtonHeight = 25;
+			var leftLimit = 0 + (handleButtonWidth / 2);
+			var rightLimit = (int)CatalogEntryFrameSize.val - handleButtonWidth / 2;
+
+			var itemRow = _catalogUi.CreateButton(innerPanel, animatedItem.Name, (int)CatalogEntryFrameSize.val, 25, 0, 0, new Color(0.1f, 0.1f, 0.1f), new Color(0.1f, 0.1f, 0.1f), Color.white);
+			itemRow.buttonText.fontSize = 15;
+			itemRow.buttonText.fontStyle = FontStyle.Italic;
+			animatedItem.UiItemRow = itemRow;
+
+			var itemBar = _catalogUi.CreateButton(innerPanel, "", (int)CatalogEntryFrameSize.val - (handleButtonWidth * 2), 25, 25, 0, new Color(0.3f, 0.3f, 0.3f, 0.5f), new Color(0.3f, 0.3f, 0.3f, 0.5f), Color.white);
+			animatedItem.UiItemBar = itemBar;
+
+			Action<DragHelper> onBeforeDrag = (dragHelper) =>
+			{
+				dragHelper.LimitX = new Vector2(leftLimit, rightLimit);
+				dragHelper.XStep = 1;
+			};
+			Func<float, float, bool> onLeftDrag = (newX, newY) =>
+			{
+				// Update left bar...
+				if (animatedItem.UiLeftHandle.transform.localPosition.x > animatedItem.UiRightHandle.transform.localPosition.x)
+				{
+					animatedItem.UiRightHandle.transform.localPosition = new Vector3(animatedItem.UiLeftHandle.transform.localPosition.x, animatedItem.UiRightHandle.transform.localPosition.y, animatedItem.UiRightHandle.transform.localPosition.z);
+				}
+				// Update center bar...
+				UpdateAnimElementAndUiCenterBarWidth(animatedItem);
+				return true;
+			};
+
+			Func<float, float, bool> onRightDrag = (newX, newY) =>
+			{
+				// Update right bar...
+				if (animatedItem.UiRightHandle.transform.localPosition.x < animatedItem.UiLeftHandle.transform.localPosition.x)
+				{
+					animatedItem.UiLeftHandle.transform.localPosition = new Vector3(animatedItem.UiRightHandle.transform.localPosition.x, animatedItem.UiLeftHandle.transform.localPosition.y, animatedItem.UiLeftHandle.transform.localPosition.z);
+				}
+				// Update center bar...
+				UpdateAnimElementAndUiCenterBarWidth(animatedItem);
+				return true;
+			};
+
+			var leftHandle = _catalogUi.CreateButton(innerPanel, "", handleButtonWidth, handleButtonHeight, 0, 0, new Color(0.5f, 0.7f, 0.5f, 0.5f), new Color(0.5f, 0.7f, 0.3f, 0.5f), Color.white);
+			animatedItem.UiLeftHandle = leftHandle;
+			AddDragging(leftHandle.gameObject, leftHandle.gameObject, onBeforeDrag, null, onLeftDrag, true, false);
+
+			var rightHandle = _catalogUi.CreateButton(innerPanel, "", handleButtonWidth, handleButtonHeight, (int)CatalogEntryFrameSize.val - handleButtonWidth, 0, new Color(0.7f, 0.5f, 0.5f), new Color(0.7f, 0.5f, 0.5f), Color.white);
+			animatedItem.UiRightHandle = rightHandle;
+			AddDragging(rightHandle.gameObject, rightHandle.gameObject, onBeforeDrag, null, onRightDrag, true, false);
+
+			UpdateAnimElementAndUiCenterBarWidth(animatedItem);
+			return itemRow;
+		}
+
+		private void UpdateAnimElementAndUiCenterBarWidth(AnimatedItem animatedItem)
+		{
+			var rect = animatedItem.UiItemBar.button.GetComponent<RectTransform>();
+			var newWidth = Mathf.Abs(Mathf.Abs(animatedItem.UiRightHandle.button.transform.localPosition.x) - Mathf.Abs(animatedItem.UiLeftHandle.button.transform.localPosition.x));
+			rect.sizeDelta = new Vector2(newWidth, rect.rect.height);
+
+			var barPos = animatedItem.UiItemBar.button.transform.localPosition;
+			var rowXPos = animatedItem.UiItemRow.button.transform.localPosition.x;
+			var leftButtonXPos = animatedItem.UiLeftHandle.button.transform.localPosition.x;
+			var rightButtonXPos = animatedItem.UiRightHandle.button.transform.localPosition.x;
+
+			var newLeftPos = leftButtonXPos + newWidth / 2;
+			animatedItem.UiItemBar.button.transform.localPosition = new Vector3(newLeftPos, barPos.y, barPos.z);
+			var rowRect = animatedItem.UiItemRow.button.GetComponent<RectTransform>();
+			
+			var rowMoveableZone = rowRect.rect.width - 25; //...to compensate for the width of half the button
+			var startPosRatio = (leftButtonXPos - 12) / rowMoveableZone;
+			var endPosRatio = (rightButtonXPos - 12) / rowMoveableZone;
+			
+			// Overflow adjustments...
+			if (startPosRatio > 1) startPosRatio = 1;
+			if (startPosRatio < 0) startPosRatio = 0;
+			if (endPosRatio > 1) endPosRatio = 1;
+			if (endPosRatio < 0) endPosRatio = 0;
+
+			//_mainWindow.TextDebugPanelText.UItext.text =
+			//	$"startPosRatio: {startPosRatio}" +
+			//	$"\nendPosRatio: {endPosRatio}" +
+			//	$"\nrowPos: {rowXPos}" +
+			//	$"\nleftButtonPos: {leftButtonXPos - 12}" +
+			//	$"\nrightButtonPos: {rightButtonXPos}" +
+			//	$"\nrowRect.rect.width: {rowRect.rect.width}" +
+			//	$"\nrowMoveableZone: {rowMoveableZone}" +
+			//	$"";
+
+			animatedItem.MasterElement.StartAtRatio = startPosRatio;
+			animatedItem.MasterElement.EndAtRatio = endPosRatio;
+		}
+
+		private AnimatedItem GetAnimatedItemsFromPoseMorph(PoseMutation poseController)
+		{
+			List<AnimatedElement> positionElements = GetAnimatedElementsFromVector("pos", poseController.Position);
+			List<AnimatedElement> rotationElements = GetAnimatedElementsFromVector("rot", poseController.Rotation);
+			var newAnimationItem = new AnimatedItem()
+			{
+				Name = poseController.Id,
+				MasterElement = GetAnimatedElementsFromValues($"master", 1f),
+				AnimatedElements = positionElements.Concat(rotationElements).ToList()
+			};
+			return newAnimationItem;
+		}
+
+		private List<AnimatedElement> GetAnimatedElementsFromVector(string vectorName, Vector3 targetPosition)
+		{
+			var newElementList = new List<AnimatedElement>();
+			var xComp = GetAnimatedElementsFromValues($"{vectorName}.x", targetPosition.x);
+			var yComp = GetAnimatedElementsFromValues($"{vectorName}.y", targetPosition.y);
+			var zComp = GetAnimatedElementsFromValues($"{vectorName}.z", targetPosition.z);
+			newElementList.Add(xComp);
+			newElementList.Add(yComp);
+			newElementList.Add(zComp);
+			return newElementList;
+		}
+
+		private AnimatedElement GetAnimatedElementsFromValues(string name, float targetValue)
+		{
+			return new AnimatedElement()
+			{
+				Name = name,
+				TargetValue = targetValue, 
+				StartAtRatio = 0, EndAtRatio = 0, 
+				DirectionFlipped = false
+			};
 		}
 
 		//private GameObject CreateEntryLeftButtonGroup(CatalogEntry catalogEntry, GameObject catalogEntryPanel, int btnHeight)
@@ -3892,40 +4055,32 @@ namespace juniperD.StatefullServices
 			catalogEntry.UiSelectButton.button.onClick.AddListener(() => SelectCatalogEntry(catalogEntry));
 			SetTooltipForDynamicButton(catalogEntry.UiSelectButton, () => "Select");
 
-			//Setup Drag-Scrolling for Apply button (allow click and drag)...
-			catalogEntry.PositionTracker = new DragHelper();
-			Action<DragHelper> onStartDraggingEvent = (helper) =>
-			{
-				if (_expandDirection.val == EXPAND_WITH_MORE_ROWS) //...Vertical layout
-				{
-					catalogEntry.PositionTracker.AllowDragX = false;
-					catalogEntry.PositionTracker.AllowDragY = true;
-					catalogEntry.PositionTracker.ObjectToDrag = _mainWindow.CatalogRowContainer;
-					catalogEntry.PositionTracker.LimitX = null;
-					var totalFrameWidth = CatalogEntryFrameSize.val + _relativeBorderWidth;
-					catalogEntry.PositionTracker.LimitY = new Vector2((_mainWindow.CatalogRows.Count * totalFrameWidth) - totalFrameWidth, totalFrameWidth);
-				}
-				else  //...Horizontal layout
-				{
-					catalogEntry.PositionTracker.AllowDragX = true;
-					catalogEntry.PositionTracker.AllowDragY = false;
-					catalogEntry.PositionTracker.ObjectToDrag = _mainWindow.CatalogColumnContainer;
-					var totalFrameWidth = CatalogEntryFrameSize.val + _relativeBorderWidth;
+			AddDraggingToCatalogEntryOverlay(catalogEntry);// Add mouse-over event...																																																																																				 // Create mouse-down event...
+			AddHoverEnterEventToCatalogEntryOverlay(catalogEntry);
+			AddHoverExitEventToCatalogEntryOverlay(catalogEntry);
+		}
 
-					catalogEntry.PositionTracker.LimitX = new Vector2(-_mainWindow.CatalogColumns.Count * totalFrameWidth + totalFrameWidth, 0);
-					catalogEntry.PositionTracker.LimitY = null;
-				}
-				catalogEntry.PositionTracker.IsIn3DSpace = !IsAnchoredOnHUD();
-				catalogEntry.PositionTracker.XMultiplier = -1000f;
-				catalogEntry.PositionTracker.YMultiplier = 1000f;
-			};
-			Func<float, float, bool> onWhileDraggingEvent = (newX, newY) =>
+		private void AddHoverExitEventToCatalogEntryOverlay(CatalogEntry catalogEntry)
+		{
+			// Add leave hover...
+			var existingExitTrigger = catalogEntry.UiSelectButton.gameObject.GetComponents<EventTrigger>().FirstOrDefault(t => t.name == "TriggerOnExit");
+			EventTrigger triggerPointerExit = existingExitTrigger ?? catalogEntry.UiSelectButton.gameObject.AddComponent<EventTrigger>();
+			triggerPointerExit.name = "TriggerOnExit";
+			var pointerExit = triggerPointerExit.triggers.FirstOrDefault(t => t.eventID == EventTriggerType.PointerExit) ?? new EventTrigger.Entry();
+			pointerExit.eventID = EventTriggerType.PointerExit;
+			pointerExit.callback.RemoveAllListeners();
+			pointerExit.callback.AddListener((e) =>
 			{
-				SetRowStateBasedOnScrollPosition(newX);
-				return true;
-			};
-			catalogEntry.PositionTracker.AddMouseDraggingToObject(catalogEntry.UiSelectButton.gameObject, _mainWindow.CatalogColumnContainer, false, true, onStartDraggingEvent, null, onWhileDraggingEvent); // allow user to drag-scroll using this button aswell				
-																																																																																											// Add mouse-over event...																																																																																				 // Create mouse-down event...
+				// Add hover information...
+				_mainWindow.InfoLabel.text = "";
+				_mainWindow.InfoLabel.transform.localScale = Vector3.zero;
+			});
+			triggerPointerExit.triggers.RemoveAll(t => t.eventID == EventTriggerType.PointerExit);
+			triggerPointerExit.triggers.Add(pointerExit);
+		}
+
+		private void AddHoverEnterEventToCatalogEntryOverlay(CatalogEntry catalogEntry)
+		{
 			var existingHoverTrigger = catalogEntry.UiSelectButton.gameObject.GetComponents<EventTrigger>().FirstOrDefault(t => t.name == "TriggerOnEnter");
 			EventTrigger triggerPointerEnter = existingHoverTrigger ?? catalogEntry.UiSelectButton.gameObject.AddComponent<EventTrigger>();
 			triggerPointerEnter.name = "TriggerOnEnter";
@@ -3959,23 +4114,42 @@ namespace juniperD.StatefullServices
 			});
 			triggerPointerEnter.triggers.RemoveAll(t => t.eventID == EventTriggerType.PointerEnter);
 			triggerPointerEnter.triggers.Add(pointerEnter);
+		}
 
-			// Add leave hover...
-			var existingExitTrigger = catalogEntry.UiSelectButton.gameObject.GetComponents<EventTrigger>().FirstOrDefault(t => t.name == "TriggerOnExit");
-			EventTrigger triggerPointerExit = existingExitTrigger ?? catalogEntry.UiSelectButton.gameObject.AddComponent<EventTrigger>();
-			triggerPointerExit.name = "TriggerOnExit";
-			var pointerExit = triggerPointerExit.triggers.FirstOrDefault(t => t.eventID == EventTriggerType.PointerExit) ?? new EventTrigger.Entry();
-			pointerExit.eventID = EventTriggerType.PointerExit;
-			pointerExit.callback.RemoveAllListeners();
-			pointerExit.callback.AddListener((e) =>
+		private void AddDraggingToCatalogEntryOverlay(CatalogEntry catalogEntry)
+		{
+			catalogEntry.PositionTracker = new DragHelper();
+			Action<DragHelper> onStartDraggingEvent = (helper) =>
 			{
-				// Add hover information...
-				_mainWindow.InfoLabel.text = "";
-				_mainWindow.InfoLabel.transform.localScale = Vector3.zero;
-			});
-			triggerPointerExit.triggers.RemoveAll(t => t.eventID == EventTriggerType.PointerExit);
-			triggerPointerExit.triggers.Add(pointerExit);
+				if (_expandDirection.val == EXPAND_WITH_MORE_ROWS) //...Vertical layout
+				{
+					catalogEntry.PositionTracker.AllowDragX = false;
+					catalogEntry.PositionTracker.AllowDragY = true;
+					catalogEntry.PositionTracker.ObjectToDrag = _mainWindow.CatalogRowContainer;
+					catalogEntry.PositionTracker.LimitX = null;
+					var totalFrameWidth = CatalogEntryFrameSize.val + _relativeBorderWidth;
+					catalogEntry.PositionTracker.LimitY = new Vector2((_mainWindow.CatalogRows.Count * totalFrameWidth) - totalFrameWidth, totalFrameWidth);
+				}
+				else  //...Horizontal layout
+				{
+					catalogEntry.PositionTracker.AllowDragX = true;
+					catalogEntry.PositionTracker.AllowDragY = false;
+					catalogEntry.PositionTracker.ObjectToDrag = _mainWindow.CatalogColumnContainer;
+					var totalFrameWidth = CatalogEntryFrameSize.val + _relativeBorderWidth;
 
+					catalogEntry.PositionTracker.LimitX = new Vector2(-_mainWindow.CatalogColumns.Count * totalFrameWidth + totalFrameWidth, 0);
+					catalogEntry.PositionTracker.LimitY = null;
+				}
+				catalogEntry.PositionTracker.IsIn3DSpace = !IsAnchoredOnHUD();
+				catalogEntry.PositionTracker.XMultiplier = -1000f;
+				catalogEntry.PositionTracker.YMultiplier = 1000f;
+			};
+			Func<float, float, bool> onWhileDraggingEvent = (newX, newY) =>
+			{
+				SetRowStateBasedOnScrollPosition(newX);
+				return true;
+			};
+			catalogEntry.PositionTracker.AddMouseDraggingToObject(catalogEntry.UiSelectButton.gameObject, _mainWindow.CatalogColumnContainer, false, true, onStartDraggingEvent, null, onWhileDraggingEvent); // allow user to drag-scroll using this button aswell				
 		}
 
 		private void SetRowStateBasedOnScrollPosition(float newX)
@@ -4133,21 +4307,19 @@ namespace juniperD.StatefullServices
 			return subPanel;
 		}
 
-		GameObject CreateButtonRow(GameObject parentPanel, int height, bool horizontal = true)
+		GameObject CreateButtonRow(GameObject parentPanel, int height, int spacer = 10)
 		{
-			int spacer = 10;
 			var subPanel = _catalogUi.CreateUIPanel(parentPanel, 0, height, "bottom", 0, 0, new Color(0.25f, 0.25f, 0.25f, 0.25f));
-			if (horizontal) _catalogUi.CreateHorizontalLayout(subPanel, spacer, false, false, false, false);
-			else _catalogUi.CreateVerticalLayout(subPanel, spacer, false, false, false, false);
+			_catalogUi.CreateHorizontalLayout(subPanel, spacer, false, false, false, false);
+			//else _catalogUi.CreateVerticalLayout(subPanel, spacer, false, false, false, false);
 			ContentSizeFitter psf = subPanel.AddComponent<ContentSizeFitter>();
 			psf.verticalFit = ContentSizeFitter.FitMode.PreferredSize;
 			psf.horizontalFit = ContentSizeFitter.FitMode.PreferredSize;
 			return subPanel;
 		}
 
-		GameObject CreateButtonRowLeftAnchored(GameObject parentPanel, int height, int offsetX = 0, int offsetY = 0)
+		GameObject CreateButtonRowLeftAnchored(GameObject parentPanel, int height, int spacer = 10)
 		{
-			int spacer = 10;
 			var subPanel = _catalogUi.CreateUIPanel(parentPanel, 0, height, "left", 0, 0, Color.clear);
 			_catalogUi.CreateHorizontalLayout(subPanel, spacer, false, false, false, false);
 			//else _catalogUi.CreateVerticalLayout(subPanel, spacer, false, false, false, false);
