@@ -3,6 +3,7 @@ using juniperD.Models;
 using System;
 using UnityEngine;
 using System.Collections.Generic;
+using UnityEngine.UI;
 
 namespace juniperD.Models
 {
@@ -12,10 +13,16 @@ namespace juniperD.Models
 		// Serialized...
 		public Mutation Mutation { get; set; }
 		public string ImageFormat { get;set; }
-		public string CatalogMode { get; set; }
+		public string CatalogEntryMode { get; set; }
 		public string UniqueName { get; set; }
 		public ImageInfo ImageInfo { get; set; }
 		public string EntryType { get;set; }
+		public bool Active { get; set; } = true;
+		public float TransitionTimeInSeconds { get; set; } = 1;
+		public float StartTimeRatio { get; set; } = 0;
+		public float EndTimeRatio { get; set; } = 1;
+		public List<CatalogEntry> ChildEntries { get;set;} = new List<CatalogEntry>();
+		
 
 		//public string ImageAsEncodedString { get; set; }
 
@@ -40,5 +47,9 @@ namespace juniperD.Models
 		public List<EntrySubItem> EntrySubItemToggles { get;set;} = new List<EntrySubItem>();
 		public UIDynamicButton UiShiftLeftButton { get; set; }
 		public UIDynamicButton UiShiftRightButton { get; set; }
+		public AnimatedItem AnimatedItem { get; internal set; }
+		public GameObject UiAnimationPanel { get; internal set; }
+		public GameObject UiAnimationInnerPanel { get; internal set; }
+		public VerticalLayoutGroup UiAnimationVLayout { get; internal set; }
 	}
 }

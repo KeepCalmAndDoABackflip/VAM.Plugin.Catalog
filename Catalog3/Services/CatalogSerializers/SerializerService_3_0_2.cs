@@ -191,9 +191,18 @@ namespace juniperD.Services.CatalogSerializers
 			var newJson = new JSONClass();
 			newJson.Add("Mutation", SerializeMutation(entry.Mutation));
 			newJson.Add("ImageInfo", SerializeImageInfo(entry.ImageInfo));
-			newJson.Add("CatalogMode", entry.CatalogMode);
+			newJson.Add("CatalogMode", entry.CatalogEntryMode);
 			newJson.Add("UniqueName", entry.UniqueName);
 			newJson.Add("EntryType", entry.EntryType);
+			newJson.Add("Active", entry.Active.ToString());
+			newJson.Add("TransitionTimeInSeconds", entry.TransitionTimeInSeconds.ToString());
+			newJson.Add("StartTimeRatio", entry.StartTimeRatio.ToString());
+			newJson.Add("EndTimeRatio", entry.EndTimeRatio.ToString());
+
+			JSONArray childEntries = new JSONArray();
+			entry.ChildEntries.Select(i => SerializeCatalogEntry(i)).ToList().ForEach(childEntries.Add);
+			newJson.Add("ChildEntries", childEntries);
+
 			return newJson;
 		}
 
@@ -205,11 +214,21 @@ namespace juniperD.Services.CatalogSerializers
 			{
 				Mutation = keys.IndexOf("Mutation") > -1 ? DeserializeIntoMutation(inputObject.Childs.ElementAt(keys.IndexOf("Mutation")).AsObject) : new Mutation(),
 				ImageInfo = keys.IndexOf("ImageInfo") > -1 ? DeserializeIntoImageInfo(inputObject.Childs.ElementAt(keys.IndexOf("ImageInfo")).AsObject) : new ImageInfo(),
-				CatalogMode = LoadStringFromJsonStringProperty(inputObject, "CatalogMode", null),
+				CatalogEntryMode = LoadStringFromJsonStringProperty(inputObject, "CatalogMode", null),
 				UniqueName = LoadStringFromJsonStringProperty(inputObject, "UniqueName", null),
-				EntryType = LoadStringFromJsonStringProperty(inputObject, "EntryType", null)
+				EntryType = LoadStringFromJsonStringProperty(inputObject, "EntryType", null),
+				Active = bool.Parse(string.IsNullOrEmpty(inputObject["Active"]?.Value) ? "True" : inputObject["Active"].Value),
+				TransitionTimeInSeconds = float.Parse(string.IsNullOrEmpty(inputObject["TransitionTimeInSeconds"]?.Value) ? "1" : inputObject["TransitionTimeInSeconds"].Value),
+				StartTimeRatio = float.Parse(string.IsNullOrEmpty(inputObject["StartTimeRatio"]?.Value) ? "0" : inputObject["StartTimeRatio"].Value),
+				EndTimeRatio = float.Parse(string.IsNullOrEmpty(inputObject["EndTimeRatio"]?.Value) ? "1" : inputObject["EndTimeRatio"].Value),
+				ChildEntries = inputObject["ChildEntries"]?.AsArray
+					?.Childs
+					?.Select(i => DeserializeIntoCatalogEntry(i.AsObject))
+					?.ToList() ?? new List<CatalogEntry>(),
 			};
-			
+
+
+
 			return newCatalogEntry;
 		}
 

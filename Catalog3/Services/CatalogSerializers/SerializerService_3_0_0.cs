@@ -193,7 +193,7 @@ namespace juniperD.Services.CatalogSerializers
 			var newJson = new JSONClass();
 			newJson.Add("Mutation", SerializeMutation(entry.Mutation));
 			newJson.Add("ImageFormat", UseDxtCompression? TextureFormat.DXT1.ToString(): TextureFormat.RGB24.ToString());
-			newJson.Add("CatalogMode", entry.CatalogMode);
+			newJson.Add("CatalogMode", entry.CatalogEntryMode);
 			newJson.Add("UniqueName", entry.UniqueName);
 			return newJson;
 		}
@@ -206,7 +206,7 @@ namespace juniperD.Services.CatalogSerializers
 			{
 				Mutation = keys.IndexOf("Mutation") > -1 ? DeserializeIntoMutation(inputObject.Childs.ElementAt(keys.IndexOf("Mutation")).AsObject) : new Mutation(),
 				ImageFormat = LoadStringFromJsonStringProperty(inputObject, "ImageFormat", null),
-				CatalogMode = LoadStringFromJsonStringProperty(inputObject, "CatalogMode", null),
+				CatalogEntryMode = LoadStringFromJsonStringProperty(inputObject, "CatalogMode", null),
 				UniqueName = LoadStringFromJsonStringProperty(inputObject, "UniqueName", null)
 			};
 			

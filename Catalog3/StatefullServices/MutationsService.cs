@@ -54,6 +54,7 @@ namespace juniperD.StatefullServices
 		protected JSONStorableBool _useCategoryMorphs;
 
 		DateTime _checkpoint = DateTime.Now;
+		Dictionary<string, DateTime> _namedCheckpoints = new Dictionary<string, DateTime>();
 		protected List<JSONStorableBool> _predefinedMorphsSetToggles = new List<JSONStorableBool>();
 		protected List<JSONStorableBool> _categoryMorphsSetToggles = new List<JSONStorableBool>();
 
@@ -256,7 +257,7 @@ namespace juniperD.StatefullServices
 
 		private bool IsPersonAtom()
 		{
-			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			Atom selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
 			if (selectedAtom == null) return false;
 			return selectedAtom.type == "Person";
 		}
@@ -520,6 +521,7 @@ namespace juniperD.StatefullServices
 		private Stack<Mutation> GetMutationStackForSelectedPersonOrDefault()
 		{
 			var trackingKey = GetTrackinKeyForCurrentPerson();
+			if (trackingKey == null) return new Stack<Mutation>();
 			if (!_mutationStacks.ContainsKey(trackingKey))
 			{
 				_mutationStacks.Add(trackingKey, new Stack<Mutation>());
@@ -529,7 +531,7 @@ namespace juniperD.StatefullServices
 
 		public string GetTrackinKeyForCurrentPerson()
 		{
-			var personName = GetSelectedPersonAtomOrDefault()?.name;
+			var personName = GetContainingOrSelectedPersonAtomOrDefault()?.name;
 			var catalogName = _context._catalogName.val;
 			if (personName == null) return null;
 			var trackingKey = personName + ":" + catalogName;
@@ -687,11 +689,20 @@ namespace juniperD.StatefullServices
 			return morph.FirstOrDefault(m => m.uid == id);
 		}
 
-		private TimeSpan TimeSinceLastCheckpoint()
+		public TimeSpan TimeSinceLastCheckpoint()
 		{
 			var currentTime = DateTime.Now;
 			var interval = currentTime - _checkpoint;
 			_checkpoint = currentTime;
+			return interval;
+		}
+
+		public TimeSpan TimeSinceLastCheckpoint(string name)
+		{
+			if (!_namedCheckpoints.ContainsKey(name)) _namedCheckpoints.Add(name, DateTime.Now);
+			var currentTime = DateTime.Now;
+			var interval = currentTime - _namedCheckpoints[name];
+			_namedCheckpoints[name] = currentTime;
 			return interval;
 		}
 
@@ -708,7 +719,7 @@ namespace juniperD.StatefullServices
 
 		public List<HairMutation> GetActiveHair()
 		{
-			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			Atom selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
 			if (selectedAtom == null) return new List<HairMutation>();
 			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
@@ -723,7 +734,7 @@ namespace juniperD.StatefullServices
 
 		public List<ClothingMutation> GetActiveClothes()
 		{
-			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			Atom selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
 			if (selectedAtom == null) return new List<ClothingMutation>();
 			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
@@ -739,7 +750,7 @@ namespace juniperD.StatefullServices
 
 		public void RemoveAllHair()
 		{
-			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			Atom selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
 			if (selectedAtom == null) return;
 			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
@@ -748,7 +759,7 @@ namespace juniperD.StatefullServices
 
 		public void RemoveAllClothing()
 		{
-			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			Atom selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
 			if (selectedAtom == null) return;
 			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
@@ -757,7 +768,7 @@ namespace juniperD.StatefullServices
 
 		private void NextHair()
 		{
-			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			Atom selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
 			if (selectedAtom == null) return;
 			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
@@ -784,7 +795,7 @@ namespace juniperD.StatefullServices
 
 		private void MutateClothing(bool removePrevious = false, bool addNewItem = true)
 		{
-			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			Atom selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
 			if (selectedAtom == null) return;
 			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
@@ -892,7 +903,7 @@ namespace juniperD.StatefullServices
 			throw new Exception("Unknown execution path");
 		}
 
-		public void ApplyMutation(ref Mutation mutation, float startDelay = 0, float animatedDurationInSeconds = 0, UnityAction whenFinishedCallback = null)
+		public void ApplyMutation(ref Mutation mutation, float startDelay = 0, float animatedDurationInSeconds = 0, bool excludeUi = false, UnityAction whenFinishedCallback = null)
 		{
 			try
 			{
@@ -950,12 +961,13 @@ namespace juniperD.StatefullServices
 				{
 					var item = mutation.PoseMorphs.ElementAt(i);
 					newPoseItems.Add(item);
-					AddPoseMorphToggle(ref item);
+					if (!excludeUi) AddPoseMorphToggle(ref item);
 					if (!item.Active) continue;
 					ApplyActivePoseItem(item, startDelay, animatedDurationInSeconds);
 				}
 				mutation.PoseMorphs = newPoseItems;
 				//--------------------------------------------
+
 
 				mutationStack.Push(mutation);
 			}
@@ -978,9 +990,9 @@ namespace juniperD.StatefullServices
 			SetMorphValue(morph, morphMutation.Value);
 		}
 
-		public List<FreeControllerV3> GetControllersForSelectedPersonOrDefault()
+		public List<FreeControllerV3> GetControllersForContainingOrSelectedPersonOrDefault()
 		{
-			var selectedAtom = GetSelectedPersonAtomOrDefault();
+			var selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
 			if (_context.containingAtom.type == "Person") selectedAtom = _context.containingAtom;
 			if (selectedAtom == null || selectedAtom.type != "Person")
 			{
@@ -996,7 +1008,7 @@ namespace juniperD.StatefullServices
 
 		public List<DAZMorph> GetMorphsForSelectedPersonOrDefault()
 		{
-			var selectedAtom = GetSelectedPersonAtomOrDefault();
+			var selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
 			if (_context.containingAtom.type == "Person") selectedAtom = _context.containingAtom;
 			if (selectedAtom == null || selectedAtom.type != "Person")
 			{
@@ -1011,7 +1023,7 @@ namespace juniperD.StatefullServices
 
 		public void ApplyClothingItem(ClothingMutation clothingItem)
 		{
-			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			Atom selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
 			if (selectedAtom == null) return;
 			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
@@ -1025,7 +1037,7 @@ namespace juniperD.StatefullServices
 			character.SetActiveClothingItem(dazClothingItem, true);
 		}
 
-		public Atom GetSelectedPersonAtomOrDefault()
+		public Atom GetContainingOrSelectedPersonAtomOrDefault()
 		{
 			if (_context.containingAtom.type == "Person") return _context.containingAtom;
 			var selectedAtom = SuperController.singleton.GetSelectedAtom();
@@ -1039,7 +1051,7 @@ namespace juniperD.StatefullServices
 
 		public void ApplyHairItem(HairMutation hairItem)
 		{
-			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			Atom selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
 			if (selectedAtom == null) return;
 			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
@@ -1076,41 +1088,42 @@ namespace juniperD.StatefullServices
 			}
 		}
 
-		private void UndoMutation(Mutation mutation, float animatedDurationInSeconds = 0)
+		private void UndoMutation(Mutation mutation, float animatedDurationInSeconds = 1)
 		{
 			try
 			{
+				if (mutation == null) return;
 				mutation.IsActive = false;
 				foreach (var item in mutation.FaceGenMorphSet)
 				{
-					_context.RemoveToggle(item.UiToggle);
+					if (item.UiToggle != null) _context.RemoveToggle(item.UiToggle);
 					UndoMutationMorph(item);
 				}
 
 				foreach (var item in mutation.ClothingItems)
 				{
-					_context.RemoveToggle(item.UiToggle);
+					if (item.UiToggle != null) _context.RemoveToggle(item.UiToggle);
 					if (!item.Active) continue;
 					RemoveClothingItem(item);
 				}
 
 				foreach (var item in mutation.HairItems)
 				{
-					_context.RemoveToggle(item.UiToggle);
+					if (item.UiToggle != null) _context.RemoveToggle(item.UiToggle);
 					if (!item.Active) continue;
 					RemoveHairItem(item);
 				}
 
 				foreach (var item in mutation.ActiveMorphs)
 				{
-					_context.RemoveToggle(item.UiToggle);
+					if (item.UiToggle != null) _context.RemoveToggle(item.UiToggle);
 					if (!item.Active) continue;
 					RemoveActiveMorphItem(item, animatedDurationInSeconds);
 				}
 
 				foreach (var item in mutation.PoseMorphs)
 				{
-					_context.RemoveToggle(item.UiToggle);
+					if (item.UiToggle != null) _context.RemoveToggle(item.UiToggle);
 					if (!item.Active) continue;
 					RemoveActivePoseItem(item, animatedDurationInSeconds);
 				}
@@ -1142,7 +1155,7 @@ namespace juniperD.StatefullServices
 		public void RemoveHairItem(HairMutation removeHairItem)
 		{
 
-			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			Atom selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
 			if (selectedAtom == null) return;
 			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
@@ -1183,7 +1196,7 @@ namespace juniperD.StatefullServices
 		{
 
 			var trackingKey = GetTrackinKeyForCurrentPerson();
-			var controllers = GetControllersForSelectedPersonOrDefault();
+			var controllers = GetControllersForContainingOrSelectedPersonOrDefault();
 			var posePoints = new List<PoseMutation>();
 
 			foreach (var controller in controllers)
@@ -1238,43 +1251,16 @@ namespace juniperD.StatefullServices
 		{
 			var trackingKey = GetTrackinKeyForCurrentPerson();
 			//if (!MorphBaseValuesHaveBeenSetForCurrentPerson(trackingKey)) _morphBaseValuesForTrackedPerson.Add(trackingKey, new List<MorphMutation>());
-			var controllers = GetControllersForSelectedPersonOrDefault();
-			//foreach (var item in mutationItem.Points)
-			//{
+			var controllers = GetControllersForContainingOrSelectedPersonOrDefault();
 			var controller = controllers.FirstOrDefault(c => c.name == mutationItem.Id);
 			if (controller == null)
 			{
 				SuperController.LogMessage("WARNING: could not find controller: " + controller.name);
 				return;
 			}
-
-			// Set the rotation and position states for the controller...
-			controller.SetPositionStateFromString(mutationItem.PositionState);
-			controller.SetRotationStateFromString(mutationItem.RotationState);
-			if (controller.currentPositionState == FreeControllerV3.PositionState.Off && controller.currentRotationState == FreeControllerV3.RotationState.Off) return;
 			// Start transitioning to next pose...
 			var animatedElement = mutationItem.AnimatedItem?.MasterElement;
-			_context.StartCoroutine(TransitionApplyPose(controller, mutationItem.Position, mutationItem.Rotation, animatedElement, startDelay, duration, 1, whenFinishedCallback));
-			
-			//controller.transform.localPosition = mutationItem.Position;
-			//controller.transform.localRotation = Quaternion.Euler(mutationItem.Rotation);
-			
-			//}
-			//if (morphs == null) return;
-			//DAZMorph morph = morphs.FirstOrDefault(h => GetMorphId(h) == mutationItem.Id);
-			//if (morph == null)
-			//{
-			//	_context.ShowPopupMessage("Morph cannot be used on this Person");
-			//	return;
-			//}
-			//if (!_morphBaseValuesForTrackedPerson[trackingKey].Any(m => m.Id == GetMorphId(morph)))
-			//{
-			//	InitializeBaseMorphForPerson(trackingKey, morph);
-			//}
-			//_context.StartCoroutine(TransitionApplyMorph(morph, mutationItem.Value, startDelay, duration));
-			////SetMorphValue(morph, mutationItem.Value);
-			//if (!_activeMorphStackForPerson.ContainsKey(trackingKey)) _activeMorphStackForPerson.Add(trackingKey, new List<MorphMutation>());
-			//_activeMorphStackForPerson[trackingKey].Add(mutationItem);
+			_context.StartCoroutine(TransitionApplyPose(controller, mutationItem, animatedElement, startDelay, duration, 1, whenFinishedCallback));
 		}
 
 		private static void SetControllerRotation(FreeControllerV3 controller, Vector3 rotation)
@@ -1290,25 +1276,31 @@ namespace juniperD.StatefullServices
 			return new Vector3(controller.transform.localRotation.x, controller.transform.localRotation.y, controller.transform.localRotation.z);
 		}
 
-		public IEnumerator TransitionApplyPose(FreeControllerV3 controller, Vector3 targetPosition, Vector3 targetRotation, AnimatedElement masterAnimatedElement = null, float startDelay = 0, float transitionTimeInSeconds = 0, float smoothMultiplier = 1, UnityAction whenFinishedCallback = null)
+		public IEnumerator TransitionApplyPose(FreeControllerV3 controller, PoseMutation poseMutation, AnimatedElement masterAnimatedElement = null, float startDelay = 0, float transitionTimeInSeconds = 0, float smoothMultiplier = 1, UnityAction whenFinishedCallback = null)
 		{
+			var actualStartDelay = startDelay;
+
 			if (masterAnimatedElement != null && transitionTimeInSeconds > 0) {
-				var prevTansitionTime = transitionTimeInSeconds;
 				var startTime = transitionTimeInSeconds * masterAnimatedElement.StartAtRatio;
 				var endTime = transitionTimeInSeconds * masterAnimatedElement.EndAtRatio;
 				transitionTimeInSeconds = endTime - startTime;
-				startDelay = startTime;
+				actualStartDelay = actualStartDelay + startTime;
 			}
+			SuperController.LogMessage($"startDelay: {startDelay}, actualStartDelay: {actualStartDelay}");
+			if (actualStartDelay > 0) yield return new WaitForSeconds(startDelay);
 
-			yield return new WaitForSeconds(startDelay);
+			// Set the rotation and position states for the controller...
+			controller.SetPositionStateFromString(poseMutation.PositionState);
+			controller.SetRotationStateFromString(poseMutation.RotationState);
+			if (controller.currentPositionState == FreeControllerV3.PositionState.Off && controller.currentRotationState == FreeControllerV3.RotationState.Off) yield break;
 
 			var transitionKey = _context.GetUniqueName();
 			var newTransition = new PoseTransition(transitionKey);
 			
 			if (transitionTimeInSeconds == 0)
 			{
-				controller.transform.localPosition = targetPosition;
-				SetControllerRotation(controller, targetRotation);
+				controller.transform.localPosition = poseMutation.Position;
+				SetControllerRotation(controller, poseMutation.Rotation);
 			}
 			else
 			{
@@ -1318,8 +1310,8 @@ namespace juniperD.StatefullServices
 				Vector3 newPosition = controller.transform.localPosition;
 				Vector3 newRotation = GetControllerRotation(controller);
 
-				Vector3 totalPositionToAdd = targetPosition - newPosition;
-				Vector3 totalRotationToAdd = targetRotation - newRotation;
+				Vector3 totalPositionToAdd = poseMutation.Position - newPosition;
+				Vector3 totalRotationToAdd = poseMutation.Rotation - newRotation;
 
 				var numberOfIterations = transitionTimeInSeconds * framesPerSecond;
 				var positionSingleIterationDistance = totalPositionToAdd / numberOfIterations;
@@ -1356,8 +1348,8 @@ namespace juniperD.StatefullServices
 					}
 					yield return new WaitForSeconds(1 / numberOfIterations);
 				}
-				controller.transform.localPosition = targetPosition;
-				SetControllerRotation(controller, targetRotation);
+				controller.transform.localPosition = poseMutation.Position;
+				SetControllerRotation(controller, poseMutation.Rotation);
 				RemoveActiveTransition(newTransition);
 				if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
 			}
@@ -1856,7 +1848,7 @@ namespace juniperD.StatefullServices
 
 		public void RemoveClothingItem(ClothingMutation removeClothingItem)
 		{
-			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			Atom selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
 			if (selectedAtom == null) return;
 			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
@@ -1880,7 +1872,7 @@ namespace juniperD.StatefullServices
 
 		public IEnumerable<DAZClothingItem> GetClothingItemsForSelectedPersonOrDefault()
 		{
-			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			Atom selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
 			if (selectedAtom == null) return null;
 			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;
@@ -1889,7 +1881,7 @@ namespace juniperD.StatefullServices
 
 		public IEnumerable<DAZHairGroup> GetHairItemsForSelectedPersonOrDefault()
 		{
-			Atom selectedAtom = GetSelectedPersonAtomOrDefault();
+			Atom selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
 			if (selectedAtom == null) return null;
 			JSONStorable geometry = selectedAtom.GetStorableByID("geometry");
 			DAZCharacterSelector character = geometry as DAZCharacterSelector;

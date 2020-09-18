@@ -104,6 +104,8 @@ namespace juniperD.Models
 		public UIDynamicButton ButtonHideCatalogShortcut { get; internal set; }
 		public UIDynamicButton ButtonPlayStop { get; internal set; }
 		public UIDynamicButton ButtonMinimizeSubItemPanel { get; internal set; }
+		public UIDynamicButton ButtonCreateMergedEntryGroup { get; internal set; }
+		public UIDynamicButton ButtonToggleAnimFeatures { get; internal set; }
 
 		public DynamicMainWindow(CatalogUiHelper uiHelper)
 		{

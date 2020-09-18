@@ -44,7 +44,7 @@ namespace juniperD.Services
 		{
 			foreach (var entry in catalog.Entries)
 			{
-				if (entry.CatalogMode != CatalogModeEnum.CATALOG_MODE_SESSION) continue;
+				if (entry.CatalogEntryMode != CatalogModeEnum.CATALOG_MODE_SESSION) continue;
 				var mutation = entry.Mutation;
 				var storedAtom = new StoredAtom()
 				{
