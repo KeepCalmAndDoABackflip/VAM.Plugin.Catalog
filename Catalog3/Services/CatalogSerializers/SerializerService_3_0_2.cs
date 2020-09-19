@@ -227,8 +227,6 @@ namespace juniperD.Services.CatalogSerializers
 					?.ToList() ?? new List<CatalogEntry>(),
 			};
 
-
-
 			return newCatalogEntry;
 		}
 
@@ -461,11 +459,21 @@ namespace juniperD.Services.CatalogSerializers
 		{
 			var newJson = new JSONClass();
 			newJson.Add("Name", new JSONData(mutationComponent.Id));
-			newJson.Add("Rotation", SerializeVector3(mutationComponent.Rotation));
+			newJson.Add("Rotation", SerializeQuaternion(mutationComponent.Rotation));
 			newJson.Add("Position", SerializeVector3(mutationComponent.Position));
 			newJson.Add("PositionState", mutationComponent.PositionState.ToString());
 			newJson.Add("RotationState", mutationComponent.RotationState.ToString());
 			newJson.Add("Active", new JSONData(mutationComponent.Active));
+			return newJson;
+		}
+
+		public static JSONNode SerializeQuaternion(Quaternion quaternion)
+		{
+			var newJson = new JSONClass();
+			newJson["x"] = new JSONData(quaternion.x);
+			newJson["y"] = new JSONData(quaternion.y);
+			newJson["z"] = new JSONData(quaternion.z);
+			newJson["w"] = new JSONData(quaternion.w);
 			return newJson;
 		}
 
@@ -476,6 +484,16 @@ namespace juniperD.Services.CatalogSerializers
 			newJson["y"] = new JSONData(vector3.y);
 			newJson["z"] = new JSONData(vector3.z);
 			return newJson;
+		}
+
+		public static Quaternion DeserializeQuaternion(JSONClass vector3Json)
+		{
+			var newVector3 = new Quaternion();
+			newVector3.x = float.Parse(vector3Json["x"].Value);
+			newVector3.y = float.Parse(vector3Json["y"].Value);
+			newVector3.z = float.Parse(vector3Json["z"].Value);
+			newVector3.w = float.Parse(vector3Json["w"].Value);
+			return newVector3;
 		}
 
 		public static Vector3 DeserializeVector3(JSONClass vector3Json)
@@ -506,7 +524,7 @@ namespace juniperD.Services.CatalogSerializers
 			var mutationComponent = new PoseMutation()
 			{
 				Id = inputObject.Childs.ElementAt(keys.IndexOf("Name")).Value,
-				Rotation = DeserializeVector3(inputObject["Rotation"]?.AsObject),
+				Rotation = DeserializeQuaternion(inputObject["Rotation"]?.AsObject),
 				Position = DeserializeVector3(inputObject["Position"]?.AsObject),
 				PositionState = inputObject["PositionState"]?.Value,
 				RotationState = inputObject["RotationState"]?.Value,

@@ -44,7 +44,7 @@ namespace juniperD.StatefullServices
 		public string pluginDescription = @"Create a catalog of the current scene";
 		#endregion
 		// Config...
-		protected bool _debugMode = false;
+		protected bool _debugMode = true;
 
 		protected float _defaultNumberOfCatalogColumns = 10;
 		protected float _defaultNumberOfCatalogRows = 1;
@@ -1074,9 +1074,8 @@ namespace juniperD.StatefullServices
 			{
 				_floatingTriggerButton.buttonText.text = "Generate Faces";
 				_mainWindow.ButtonNameLabel.buttonText.text = "Generate Faces";
-				if (_triggerButtonVisible.val) _floatingTriggerButton.button.transform.localScale = Vector3.one; //_generateButton.button.transform.localScale = Vector3.one;
+				if (_triggerButtonVisible.val) _floatingTriggerButton.button.transform.localScale = Vector3.one;
 				_catalog.Entries.ForEach(e => e.UiBottomButtonGroup.transform.localScale = Vector3.one);
-				//_dynamicButtonSort.button.transform.localScale = Vector3.one;
 				ShowButtonInGroup(_mainWindow.ButtonCapture, _mainWindow.SubPanelCapture);
 				_mainWindow.ButtonCapture.buttonText.text = "";
 				_mainWindow.ButtonCapture.button.onClick.AddListener(() =>
@@ -1096,7 +1095,7 @@ namespace juniperD.StatefullServices
 			{
 				_mainWindow.ButtonNameLabel.buttonText.text = "Capture Styles";
 				_floatingTriggerButton.buttonText.text = "Capture Styles";
-				if (_triggerButtonVisible.val) _floatingTriggerButton.button.transform.localScale = Vector3.one; //_captureButton.button.transform.localScale = Vector3.one;
+				if (_triggerButtonVisible.val) _floatingTriggerButton.button.transform.localScale = Vector3.one;
 				_catalog.Entries.ForEach(e => e.UiBottomButtonGroup.transform.localScale = Vector3.one);
 				ShowButtonInGroup(_mainWindow.ButtonCapture, _mainWindow.SubPanelCapture);
 				ShowButtonInGroup(_mainWindow.ToggleButtonCaptureClothes, _mainWindow.SubPanelCapture);
@@ -1105,7 +1104,6 @@ namespace juniperD.StatefullServices
 				ShowButtonInGroup(_mainWindow.ToggleButtonCapturePose, _mainWindow.SubPanelCapture);
 				ShowButtonInGroup(_mainWindow.ButtonRemoveAllClothing, _mainWindow.SubPanelSceneTools);
 				ShowButtonInGroup(_mainWindow.ButtonRemoveAllHair, _mainWindow.SubPanelSceneTools);
-
 				_mainWindow.ButtonCapture.buttonText.text = "";
 				_mainWindow.ButtonCapture.button.onClick.AddListener(() => RequestNextCaptureSet(1, CaptureRequest.MUTATION_AQUISITION_MODE_CAPTURE));
 				_mainWindow.ButtonCapture.button.image.sprite = _mainWindow.IconForCapturePerson;
@@ -2715,22 +2713,36 @@ namespace juniperD.StatefullServices
 			var dynamicButton4 = _catalogUi.CreateButton(mainPanel, "", 40, 40, 300, 0, new Color(0.7f, 0.5f, 0.7f, 0.95f), new Color(1.0f, 0.5f, 1.0f, 1f), new Color(0.7f, 0.7f, 0.7f, 1));
 
 			// ########### TEMP DYNAMIC ACTIONS #############
+			// ########### TEMP DYNAMIC ACTIONS #############
 			dynamicButton1.button.onClick.AddListener(() =>
 			{
 				//...put your custom actions here...
+				try
+				{
+					var selectedController = SuperController.singleton.GetSelectedController();
+					//selectedController.transform.localRotation = selectedController.transform.localRotation * new Quaternion(0f, 1f, 0, 1f);
+					selectedController.transform.localRotation = Quaternion.Lerp(selectedController.transform.localRotation, new Quaternion(0f, 1f, 0, 1f), 0.1f);
+					//selectedController.transform.RotateAround(selectedController.transform.position, new Vector3(1, 0, 0), 10);
+				}
+				catch (Exception e) { SuperController.LogError(e.ToString()); }
 			});
 			dynamicButton2.button.onClick.AddListener(() =>
 			{
 				//...put your custom actions here...
+				var selectedController = SuperController.singleton.GetSelectedController();
+				selectedController.transform.RotateAround(selectedController.transform.position, new Vector3(0, 1, 0), 10);
 			});
 			dynamicButton3.button.onClick.AddListener(() =>
 			{
 				//...put your custom actions here...
+				var selectedController = SuperController.singleton.GetSelectedController();
+				selectedController.transform.RotateAround(selectedController.transform.position, new Vector3(0, 1, 0), -10);
 			});
 			dynamicButton4.button.onClick.AddListener(() =>
 			{
 				//...put your custom actions here...
 			});
+			// ##############################################
 			// ##############################################
 
 
@@ -3066,30 +3078,32 @@ namespace juniperD.StatefullServices
 			if (!_updateLoopEnabled) return;
 
 			//####### TEMP #################################################################
-			//if (_debugMode == true) { 
-			//	var selectedController = SuperController.singleton.GetSelectedController();
-			//	if (selectedController != null)
-			//	{
-			//		_mainWindow.TextDebugPanelText.UItext.text =
-			//			$"{selectedController.name} " +
-			//			$"\nrotation" +
-			//			$"\n  x:{selectedController.transform.rotation.x}" +
-			//			$"\n  y:{selectedController.transform.rotation.y}" +
-			//			$"\n  z:{selectedController.transform.rotation.z}" +
-			//			$"\nrotation.eulerAngles" +
-			//			$"\n  x:{selectedController.transform.rotation.eulerAngles.x}" +
-			//			$"\n  y:{selectedController.transform.rotation.eulerAngles.y}" +
-			//			$"\n  z:{selectedController.transform.rotation.eulerAngles.z}" +
-			//			$"\nlocalRotation" +
-			//			$"\n  x:{selectedController.transform.localRotation.x}" +
-			//			$"\n  y:{selectedController.transform.localRotation.y}" +
-			//			$"\n  z:{selectedController.transform.localRotation.z}" +
-			//			$"\nlocalRotation.eulerAngles" +
-			//			$"\n  x:{selectedController.transform.localRotation.eulerAngles.x}" +
-			//			$"\n  y:{selectedController.transform.localRotation.eulerAngles.y}" +
-			//			$"\n  z:{selectedController.transform.localRotation.eulerAngles.z}";
-			//	}
-			//}
+			if (_debugMode == true)
+			{
+				var selectedController = SuperController.singleton.GetSelectedController();
+				if (selectedController != null)
+				{
+					_mainWindow.TextDebugPanelText.UItext.text =
+						$"{selectedController.name} " +
+						$"\nrotation" +
+						$"\n  x:{selectedController.transform.rotation.x}" +
+						$"\n  y:{selectedController.transform.rotation.y}" +
+						$"\n  z:{selectedController.transform.rotation.z}" +
+						$"\n  w:{selectedController.transform.rotation.w}" +
+						$"\nrotation.eulerAngles" +
+						$"\n  x:{selectedController.transform.rotation.eulerAngles.x}" +
+						$"\n  y:{selectedController.transform.rotation.eulerAngles.y}" +
+						$"\n  z:{selectedController.transform.rotation.eulerAngles.z}" +
+						$"\nlocalRotation" +
+						$"\n  x:{selectedController.transform.localRotation.x}" +
+						$"\n  y:{selectedController.transform.localRotation.y}" +
+						$"\n  z:{selectedController.transform.localRotation.z}" +
+						$"\nlocalRotation.eulerAngles" +
+						$"\n  x:{selectedController.transform.localRotation.eulerAngles.x}" +
+						$"\n  y:{selectedController.transform.localRotation.eulerAngles.y}" +
+						$"\n  z:{selectedController.transform.localRotation.eulerAngles.z}";
+				}
+			}
 			//##############################################################################
 
 			try
@@ -3909,6 +3923,20 @@ namespace juniperD.StatefullServices
 				AnimatedElements = positionElements.Concat(rotationElements).ToList()
 			};
 			return newAnimationItem;
+		}
+
+		private List<AnimatedElement> GetAnimatedElementsFromVector(string vectorName, Quaternion targetPosition)
+		{
+			var newElementList = new List<AnimatedElement>();
+			var xComp = GetAnimatedElementsFromValues($"{vectorName}.x", targetPosition.x);
+			var yComp = GetAnimatedElementsFromValues($"{vectorName}.y", targetPosition.y);
+			var zComp = GetAnimatedElementsFromValues($"{vectorName}.z", targetPosition.z);
+			var wComp = GetAnimatedElementsFromValues($"{vectorName}.w", targetPosition.w);
+			newElementList.Add(xComp);
+			newElementList.Add(yComp);
+			newElementList.Add(zComp);
+			newElementList.Add(wComp);
+			return newElementList;
 		}
 
 		private List<AnimatedElement> GetAnimatedElementsFromVector(string vectorName, Vector3 targetPosition)

@@ -10,7 +10,7 @@ namespace juniperD.Models
 		//public bool Active { get; set; } = true;
 		public List<ActiveController> Points = new List<ActiveController>();
 
-		public Vector3 Rotation { get; set; }
+		public Quaternion Rotation { get; set; }
 		public Vector3 Position { get; set; }
 		public string PositionState { get; internal set; }
 		public string RotationState { get; internal set; }

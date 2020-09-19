@@ -1,4 +1,5 @@
 ﻿using juniperD.Models;
+using Leap.Unity;
 using SimpleJSON;
 using System;
 using System.Collections;
@@ -13,6 +14,9 @@ namespace juniperD.StatefullServices
 
 	public class MutationsService
 	{
+
+		private List<string> _nonObjectAtomTypes = new List<string>(){ "CoreControl" , "NavigationPanel", "None" };
+		private List<string> _nonObjectAtomNames = new List<string>() { "CoreControl", "NavigationPanel", "None" };
 
 		#region PluginInfo    
 		public string pluginAuthor = "juniperD";
@@ -271,7 +275,7 @@ namespace juniperD.StatefullServices
 				if (MustCaptureHair) newMutation.HairItems = GetActiveHair();
 				if (MustCaptureFaceGenMorphs) newMutation.FaceGenMorphSet = GetCurrentMutationMorphs();
 				if (MustCaptureActiveMorphs) newMutation.ActiveMorphs = CaptureActiveMorphsForCurrentPerson();
-				if (MustCapturePoseMorphs) newMutation.PoseMorphs = CapturePoseMorphsForCurrentPerson();
+				if (MustCapturePoseMorphs) newMutation.PoseMorphs = CapturePoseMorphsForCurrentAtom();
 				if (MustCaptureAnimations) newMutation.Animations = CaptureAnimationsForCurrentPerson();
 				return newMutation;
 			}
@@ -500,7 +504,7 @@ namespace juniperD.StatefullServices
 
 		public List<MorphMutation> GetCurrentMutationMorphs()
 		{
-			var mutationStack = GetMutationStackForSelectedPersonOrDefault();
+			var mutationStack = GetMutationStackForSelectedAtomOrDefault();
 			if (mutationStack == null) return new List<MorphMutation>(); ;
 			var finalMorphSet = new List<MorphMutation>();
 			foreach (var mutation in mutationStack)
@@ -518,9 +522,9 @@ namespace juniperD.StatefullServices
 			return finalMorphSet;
 		}
 
-		private Stack<Mutation> GetMutationStackForSelectedPersonOrDefault()
+		private Stack<Mutation> GetMutationStackForSelectedAtomOrDefault()
 		{
-			var trackingKey = GetTrackinKeyForCurrentPerson();
+			var trackingKey = GetTrackinKeyForCurrentAtom();
 			if (trackingKey == null) return new Stack<Mutation>();
 			if (!_mutationStacks.ContainsKey(trackingKey))
 			{
@@ -529,9 +533,9 @@ namespace juniperD.StatefullServices
 			return _mutationStacks[trackingKey];
 		}
 
-		public string GetTrackinKeyForCurrentPerson()
+		public string GetTrackinKeyForCurrentAtom()
 		{
-			var personName = GetContainingOrSelectedPersonAtomOrDefault()?.name;
+			var personName = GetContainingOrSelectedAtomOrDefault()?.name;
 			var catalogName = _context._catalogName.val;
 			if (personName == null) return null;
 			var trackingKey = personName + ":" + catalogName;
@@ -542,7 +546,9 @@ namespace juniperD.StatefullServices
 		{
 			try
 			{
-				var trackingKey = GetTrackinKeyForCurrentPerson();
+				var selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
+				if (!IsValidObjectAtom(selectedAtom) || selectedAtom.type != "Person") return;
+				var trackingKey = GetTrackinKeyForCurrentAtom();
 				if (!_animatedMorphsForPerson.ContainsKey(trackingKey)) _animatedMorphsForPerson.Add(trackingKey, new List<MorphMutation>());
 				SetAnimatedMorphsForCurrentPerson();
 				if (!_morphBaseValuesForTrackedPerson.ContainsKey(trackingKey)) _morphBaseValuesForTrackedPerson.Add(trackingKey, new List<MorphMutation>());
@@ -594,12 +600,13 @@ namespace juniperD.StatefullServices
 			try
 			{
 				var morphs = GetMorphsForSelectedPersonOrDefault();
+				if (morphs == null) return;
 				var staleMorphs = GetMorphMutationsFromMorphs(morphs);
 				DateTime delay = DateTime.Now;
 				while ((DateTime.Now - delay).TotalSeconds < 1) { }
 				//List<MorphMutation> activeMorphsAfter1Second = CaptureActiveMorphsForCurrentPerson();
 				List<MorphMutation> animatedMorphs = DeltaMorphsForCurrentPerson(staleMorphs);
-				var trackingKey = GetTrackinKeyForCurrentPerson();
+				var trackingKey = GetTrackinKeyForCurrentAtom();
 				if (!_animatedMorphsForPerson.ContainsKey(trackingKey))
 				{
 					_animatedMorphsForPerson.Add(trackingKey, new List<MorphMutation>());
@@ -614,6 +621,7 @@ namespace juniperD.StatefullServices
 
 		private List<MorphMutation> GetMorphMutationsFromMorphs(List<DAZMorph> morphs)
 		{
+			if (morphs == null) return new List<MorphMutation>();
 			return morphs.Select(GetMutationMorphFromMorph).ToList();
 		}
 
@@ -907,7 +915,7 @@ namespace juniperD.StatefullServices
 		{
 			try
 			{
-				var mutationStack = GetMutationStackForSelectedPersonOrDefault();
+				var mutationStack = GetMutationStackForSelectedAtomOrDefault();
 				if (mutationStack == null) return;
 
 				mutation.IsActive = true;
@@ -993,16 +1001,25 @@ namespace juniperD.StatefullServices
 		public List<FreeControllerV3> GetControllersForContainingOrSelectedPersonOrDefault()
 		{
 			var selectedAtom = GetContainingOrSelectedPersonAtomOrDefault();
-			if (_context.containingAtom.type == "Person") selectedAtom = _context.containingAtom;
 			if (selectedAtom == null || selectedAtom.type != "Person")
 			{
 				_context.ShowPopupMessage("Please select a Person");
 				return null;
 			}
-			
 			var controllers = selectedAtom.GetComponentsInChildren<FreeControllerV3>(true).ToList();
-			//var filteredControllers = controllers.Where(c => !_nonBodyControllerList.Contains(c.name)).ToList();
+			return controllers;
+		}
 
+		public List<FreeControllerV3> GetControllersForContainingOrSelectedAtomOrDefault()
+		{
+			var selectedAtom = GetContainingOrSelectedAtomOrDefault();
+			if (!IsValidObjectAtom(selectedAtom)) return null;
+			var controllers = selectedAtom.GetComponentsInChildren<FreeControllerV3>(true).ToList();
+			SuperController.LogMessage($"atom: {selectedAtom.name} controllersCount: " + controllers.Count());
+			foreach (var controller in controllers)
+			{
+				SuperController.LogMessage("controller.name: " + controller.name);
+			}
 			return controllers;
 		}
 
@@ -1039,7 +1056,7 @@ namespace juniperD.StatefullServices
 
 		public Atom GetContainingOrSelectedPersonAtomOrDefault()
 		{
-			if (_context.containingAtom.type == "Person") return _context.containingAtom;
+			if (_context.containingAtom != null && _context.containingAtom.type == "Person") return _context.containingAtom;
 			var selectedAtom = SuperController.singleton.GetSelectedAtom();
 			if (selectedAtom != null && selectedAtom.type == "Person") return selectedAtom;
 			var personAtoms = SuperController.singleton.GetAtoms().Where(a => a.type == "Person").ToList();
@@ -1047,6 +1064,23 @@ namespace juniperD.StatefullServices
 			//...else there are either no Person atoms, or more than one Person atom.
 			SuperController.LogMessage("REQUEST: Please select a Person in the scene");
 			return null;
+		}
+
+		public Atom GetContainingOrSelectedAtomOrDefault()
+		{
+			if (IsValidObjectAtom(_context.containingAtom)) return _context.containingAtom;
+			var selectedAtom = SuperController.singleton.GetSelectedAtom();
+			if (IsValidObjectAtom(selectedAtom)) return selectedAtom;
+			//...else there are either no Person atoms, or more than one Person atom.
+			SuperController.LogMessage("REQUEST: Please select an Object in the scene");
+			return null;
+		}
+
+		public bool IsValidObjectAtom(Atom atom)
+		{
+			return atom != null 
+				&& !_nonObjectAtomTypes.Contains(atom.type)
+				&& !_nonObjectAtomNames.Contains(atom.name);
 		}
 
 		public void ApplyHairItem(HairMutation hairItem)
@@ -1070,7 +1104,7 @@ namespace juniperD.StatefullServices
 			try
 			{
 				if (_context._overlayMutations.val == true) return false;
-				var mutationStack = GetMutationStackForSelectedPersonOrDefault();
+				var mutationStack = GetMutationStackForSelectedAtomOrDefault();
 				if (mutationStack == null || mutationStack.Count == 0)
 				{
 					//_context.DebugLog("No previous mutation found");
@@ -1180,7 +1214,7 @@ namespace juniperD.StatefullServices
 		public List<MorphMutation> CaptureActiveMorphsForCurrentPerson()
 		{
 
-			var trackingKey = GetTrackinKeyForCurrentPerson();
+			var trackingKey = GetTrackinKeyForCurrentAtom();
 			if (!MorphBaseValuesHaveBeenSetForCurrentPerson(trackingKey)) SetMorphBaseValuesForCurrentPerson();
 
 			var baseValuesForPerson = _morphBaseValuesForTrackedPerson[trackingKey];
@@ -1192,11 +1226,10 @@ namespace juniperD.StatefullServices
 			return changedMorphs;
 		}
 
-		public List<PoseMutation> CapturePoseMorphsForCurrentPerson()
+		public List<PoseMutation> CapturePoseMorphsForCurrentAtom()
 		{
-
-			var trackingKey = GetTrackinKeyForCurrentPerson();
-			var controllers = GetControllersForContainingOrSelectedPersonOrDefault();
+			var controllers = GetControllersForContainingOrSelectedAtomOrDefault();
+			if (controllers == null) return new List<PoseMutation>();
 			var posePoints = new List<PoseMutation>();
 
 			foreach (var controller in controllers)
@@ -1206,12 +1239,11 @@ namespace juniperD.StatefullServices
 				newPosePoint.Active = true;
 				newPosePoint.PositionState = controller.currentPositionState.ToString();
 				newPosePoint.RotationState = controller.currentRotationState.ToString();
-				newPosePoint.Rotation = GetControllerRotation(controller);
+				newPosePoint.Rotation = controller.transform.localRotation; //GetControllerRotation(controller);
 				newPosePoint.Position = controller.transform.localPosition;
 				if (controller.containingAtom.type == "Person" && _nonBodyControllerList.Contains(controller.name)) newPosePoint.Active = false;
 				posePoints.Add(newPosePoint);
 			}
-
 			return posePoints;
 		}
 
@@ -1227,7 +1259,7 @@ namespace juniperD.StatefullServices
 
 		public void ApplyActiveMorphItem(MorphMutation mutationItem, float startDelay = 0, float duration = 0, UnityAction whenFinishedCallback = null)
 		{
-			var trackingKey = GetTrackinKeyForCurrentPerson();
+			var trackingKey = GetTrackinKeyForCurrentAtom();
 			if (!MorphBaseValuesHaveBeenSetForCurrentPerson(trackingKey)) _morphBaseValuesForTrackedPerson.Add(trackingKey, new List<MorphMutation>());
 			var morphs = GetMorphsForSelectedPersonOrDefault();
 			if (morphs == null) return;
@@ -1249,9 +1281,10 @@ namespace juniperD.StatefullServices
 
 		public void ApplyActivePoseItem(PoseMutation mutationItem, float startDelay = 0, float duration = 0, UnityAction whenFinishedCallback = null)
 		{
-			var trackingKey = GetTrackinKeyForCurrentPerson();
+			var trackingKey = GetTrackinKeyForCurrentAtom();
 			//if (!MorphBaseValuesHaveBeenSetForCurrentPerson(trackingKey)) _morphBaseValuesForTrackedPerson.Add(trackingKey, new List<MorphMutation>());
-			var controllers = GetControllersForContainingOrSelectedPersonOrDefault();
+			var controllers = GetControllersForContainingOrSelectedAtomOrDefault();
+			if (controllers == null) return;
 			var controller = controllers.FirstOrDefault(c => c.name == mutationItem.Id);
 			if (controller == null)
 			{
@@ -1261,19 +1294,6 @@ namespace juniperD.StatefullServices
 			// Start transitioning to next pose...
 			var animatedElement = mutationItem.AnimatedItem?.MasterElement;
 			_context.StartCoroutine(TransitionApplyPose(controller, mutationItem, animatedElement, startDelay, duration, 1, whenFinishedCallback));
-		}
-
-		private static void SetControllerRotation(FreeControllerV3 controller, Vector3 rotation)
-		{
-			//controller.transform.localRotation = Quaternion.Euler(rotation.x, rotation.y, rotation.z);
-			//if (controller.currentPositionState != FreeControllerV3.PositionState.On && controller.currentRotationState != FreeControllerV3.RotationState.On) continue;
-			controller.transform.localRotation = new Quaternion(rotation.x, rotation.y, rotation.z, controller.transform.localRotation.w);
-		}
-
-		private static Vector3 GetControllerRotation(FreeControllerV3 controller)
-		{
-			//if (controller.currentPositionState != FreeControllerV3.PositionState.On && controller.currentRotationState != FreeControllerV3.RotationState.On) continue;
-			return new Vector3(controller.transform.localRotation.x, controller.transform.localRotation.y, controller.transform.localRotation.z);
 		}
 
 		public IEnumerator TransitionApplyPose(FreeControllerV3 controller, PoseMutation poseMutation, AnimatedElement masterAnimatedElement = null, float startDelay = 0, float transitionTimeInSeconds = 0, float smoothMultiplier = 1, UnityAction whenFinishedCallback = null)
@@ -1286,7 +1306,6 @@ namespace juniperD.StatefullServices
 				transitionTimeInSeconds = endTime - startTime;
 				actualStartDelay = actualStartDelay + startTime;
 			}
-			SuperController.LogMessage($"startDelay: {startDelay}, actualStartDelay: {actualStartDelay}");
 			if (actualStartDelay > 0) yield return new WaitForSeconds(startDelay);
 
 			// Set the rotation and position states for the controller...
@@ -1300,59 +1319,174 @@ namespace juniperD.StatefullServices
 			if (transitionTimeInSeconds == 0)
 			{
 				controller.transform.localPosition = poseMutation.Position;
-				SetControllerRotation(controller, poseMutation.Rotation);
+				controller.transform.localRotation = poseMutation.Rotation;
 			}
 			else
 			{
+				SuperController.LogMessage("new y: " + new Quaternion(poseMutation.Rotation.x, poseMutation.Rotation.y, poseMutation.Rotation.z, 1).eulerAngles.y);
+
 				if (smoothMultiplier < 1) smoothMultiplier = 1;
 				float framesPerSecond = 25 * smoothMultiplier;
-				
-				Vector3 newPosition = controller.transform.localPosition;
-				Vector3 newRotation = GetControllerRotation(controller);
 
-				Vector3 totalPositionToAdd = poseMutation.Position - newPosition;
-				Vector3 totalRotationToAdd = poseMutation.Rotation - newRotation;
+				Vector3 newPosition = controller.transform.localPosition;
+				//Vector4 newRotation = GetControllerRotation(controller); ... TEMP COMMENT OUT
+				Quaternion newRotation = controller.transform.localRotation;
+
+				Vector3 positionDelta = poseMutation.Position - newPosition;
+				//Vector4 rotationDelta = GetRotationDelta(GetVector4(poseMutation.Rotation), GetVector4(newRotation)); ... TEMP COMMENT OUT
+				//Vector4 rotationDelta = GetRotationDelta(poseMutation.Rotation, new Quaternion(newRotation.x, newRotation.y, newRotation.z, newRotation.w));
+				Quaternion rotationDelta = GetRotationDelta(controller.transform.localRotation, poseMutation.Rotation);
+				var initialRotation = controller.transform.localRotation;
+
 
 				var numberOfIterations = transitionTimeInSeconds * framesPerSecond;
-				var positionSingleIterationDistance = totalPositionToAdd / numberOfIterations;
-				var rotationSingleIterationDistance = totalRotationToAdd / numberOfIterations;
-				
-				newTransition.XPositionEnabled = totalPositionToAdd.x != 0;
-				newTransition.YPositionEnabled = totalPositionToAdd.y != 0;
-				newTransition.ZPositionEnabled = totalPositionToAdd.z != 0;
-				newTransition.XRotationEnabled = totalRotationToAdd.x != 0;
-				newTransition.YRotationEnabled = totalRotationToAdd.y != 0;
-				newTransition.ZRotationEnabled = totalRotationToAdd.z != 0;
-				
+				var positionIterationDistance = positionDelta / numberOfIterations;
+				var rotationIterationDistance = GetVector4(rotationDelta) / numberOfIterations;
+
+				newTransition.XPositionEnabled = positionDelta.x != 0;
+				newTransition.YPositionEnabled = positionDelta.y != 0;
+				newTransition.ZPositionEnabled = positionDelta.z != 0;
+				newTransition.XRotationEnabled = rotationDelta.x != 0;
+				newTransition.YRotationEnabled = rotationDelta.y != 0;
+				newTransition.ZRotationEnabled = rotationDelta.z != 0;
+				//newTransition.WRotationEnabled = totalRotationToAdd.w != 0;
+
 				RegisterAndMergeTransitionIntoActiveTransitions(newTransition);
+
+				//List<Quaternion> rotationSteps = new List<Quaternion>();
+				//for (var i = 0; i < numberOfIterations; i++)
+				//{
+				//	float stepRatio = 1 / numberOfIterations * (i + 1);
+				//	rotationSteps.Add();
+				//}
+				
 
 				for (int i = 0; i < numberOfIterations; i++)
 				{
 					try
 					{
-						float easeFactor = GetEaseFactor(i, numberOfIterations);
+						float positionEaseFactor = GetEaseFactor(i, numberOfIterations); //...TEMP Substitute
+						float rotationEaseFactor = GetEaseFactor(i, numberOfIterations); //...TEMP Substitute
+						float stepRatio = 1 / numberOfIterations * (i + 1);
 
-						var positionNudgeDistance = new Vector3(positionSingleIterationDistance.x * easeFactor, positionSingleIterationDistance.y * easeFactor, positionSingleIterationDistance.z * easeFactor);
-						var rotationNudgeDistance = new Vector3(rotationSingleIterationDistance.x * easeFactor, rotationSingleIterationDistance.y * easeFactor, rotationSingleIterationDistance.z * easeFactor);
-
-						// Move point...
+						var positionNudgeDistance = new Vector3(positionIterationDistance.x * positionEaseFactor, positionIterationDistance.y * positionEaseFactor, positionIterationDistance.z * positionEaseFactor);
+						//var rotationNudgeDistance = new Vector4(rotationIterationDistance.x * easeFactor, rotationIterationDistance.y * easeFactor, rotationIterationDistance.z * easeFactor, rotationIterationDistance.w * easeFactor);
+						// determine new points and angles...
 						newPosition += positionNudgeDistance;
-						newRotation += rotationNudgeDistance;
-
+						//var rotationNudge = GetQuaternion(rotationNudgeDistance);
+						//rotationNudge.w = controller.transform.localRotation.w;//1f;
+						//newRotation = newRotation * rotationNudge;
+						//newRotation += rotationNudgeDistance; ... TEMP COMMENT OUT
+						//newRotation = newRotation * rotationDelta;//GetQuaternion(rotationNudgeDistance);
+						// Perform nudges...
 						controller.transform.localPosition = new Vector3(newPosition.x, newPosition.y, newPosition.z);
-						controller.transform.localRotation = new Quaternion(newRotation.x, newRotation.y, newRotation.z, controller.transform.localRotation.w);
+						controller.transform.localRotation = Quaternion.Lerp(initialRotation, poseMutation.Rotation, stepRatio + rotationEaseFactor); //rotationSteps[i];//Quaternion.Lerp(controller.transform.localRotation, new Quaternion(0f, 1f, 0, 1f), 0.1f); //newRotation; //new Quaternion(newRotation.x, newRotation.y, newRotation.z, newRotation.w);
+						//PerformRotation(controller, rotationNudgeDistance); // ...TEMP REPLACE
 					}
 					catch (Exception e)
 					{
 						SuperController.LogError(e.ToString());
 					}
+					//SuperController.LogMessage($"Iteration {i}/{numberOfIterations}");
 					yield return new WaitForSeconds(1 / numberOfIterations);
 				}
+				// Set final position and rotation...
 				controller.transform.localPosition = poseMutation.Position;
-				SetControllerRotation(controller, poseMutation.Rotation);
+				//controller.transform.localRotation = newRotation; // ...TEMP COMMENT OUT
+				//controller.transform.localRotation = poseMutation.Rotation;
+				//var finalRotation = controller.transform.localRotation * rotationDelta; // ...EXPERIMENT
+				//finalRotation.w = 1;
+				
+				//controller.transform.localRotation = poseMutation.Rotation;
+
+				//SetControllerRotation(controller, poseMutation.Rotation); // ...TEMP COMMENT OUT
 				RemoveActiveTransition(newTransition);
 				if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
 			}
+		}
+
+
+		//Quaternion avoidJumps(Quaternion q_Current, Quaternion q_Prev)
+		//{
+		//	if GetQuaternion((GetVector4(q_Prev) - GetVector4(q_Current))).ToNormalized < (q_Prev + q_Current).squaredNorm())
+		//		return -q_Current;
+		//	else
+		//		return q_Current;
+		//}
+
+		private Quaternion Invert(Quaternion rotationDelta)
+		{
+			return rotationDelta.Flipped();
+		}
+
+		private Vector4 Invert(Vector4 rotationDelta, Vector4 axis)
+		{
+			var xComp = axis.x > 0 ? 1 - rotationDelta.x : rotationDelta.x;
+			var yComp = axis.y > 0 ? 1 - rotationDelta.y : rotationDelta.y;
+			var zComp = axis.z > 0 ? 1 - rotationDelta.z : rotationDelta.z;
+			var wComp = axis.w > 0 ? 1 - rotationDelta.w : rotationDelta.w;
+			return new Vector4(xComp, yComp, zComp, wComp);
+		}
+
+		private Vector4 Multiply(Vector4 rotationDelta, Vector4 axis)
+		{
+			return new Vector4(rotationDelta.x * axis.x, rotationDelta.y * axis.y, rotationDelta.z * axis.z, rotationDelta.w * axis.w);
+		}
+
+		private static Vector4 GetRotationDelta(Vector4 fromRotation, Vector4 toRotation)
+		{
+			return fromRotation - toRotation;
+		}
+
+		private static Quaternion GetRotationDelta(Quaternion fromRotation, Quaternion toRotation)
+		{
+			var delataRotation = toRotation * Quaternion.Inverse(fromRotation);
+			return delataRotation;
+			//var deltaQuaternion = fromRotation.To(toRotation);
+			//return new Vector4(deltaQuaternion.x, deltaQuaternion.y, deltaQuaternion.z, deltaQuaternion.z);
+		}
+
+		private static Vector3 GetVector3(Quaternion quaternion)
+		{
+			return new Vector4(quaternion.x, quaternion.y, quaternion.z);
+		}
+
+		private static Vector4 GetVector4(Quaternion quaternion)
+		{
+			return new Vector4(quaternion.x, quaternion.y, quaternion.z, quaternion.w);
+		}
+
+		private static Quaternion GetQuaternion(Vector4 vector4)
+		{
+			return new Quaternion(vector4.x, vector4.y, vector4.z, vector4.w);
+		}
+
+		private static Quaternion GetQuaternion(Vector3 vector3, float wComponent)
+		{
+			return new Quaternion(vector3.x, vector3.y, vector3.z, wComponent);
+		}
+
+		private static void SetControllerRotation(FreeControllerV3 controller, Quaternion rotation)
+		{
+			//controller.transform.localRotation = Quaternion.Euler(rotation.x, rotation.y, rotation.z);
+			//if (controller.currentPositionState != FreeControllerV3.PositionState.On && controller.currentRotationState != FreeControllerV3.RotationState.On) continue;
+			controller.transform.localRotation = rotation; //new Quaternion(rotation.x, rotation.y, rotation.z, controller.transform.localRotation.w);
+		}
+
+		private static Vector4 GetControllerRotation(FreeControllerV3 controller)
+		{
+			//if (controller.currentPositionState != FreeControllerV3.PositionState.On && controller.currentRotationState != FreeControllerV3.RotationState.On) continue;
+			//return new Quaternion(controller.transform.localRotation.x, controller.transform.localRotation.y, controller.transform.localRotation.z, controller.transform.localRotation.w);
+			return GetVector4(controller.transform.localRotation);
+		}
+
+		private void PerformRotation(FreeControllerV3 controller, Vector3 quaternion)
+		{
+			//var quat = new Quaternion(quaternion.x, quaternion.y, quaternion.y, 0);
+			//controller.transform.RotateAround(controller.transform.position, new Vector3(1, 0, 0), 10);
+			var angles = new Quaternion(quaternion.x, quaternion.y, quaternion.z, 1).eulerAngles;
+			controller.transform.RotateAround(controller.transform.position, new Vector3(0, 1, 0), angles.y);
+			//controller.transform.RotateAround(controller.transform.position, new Vector3(0, 0, 1), quaternion.z);
 		}
 
 		private void RemoveActiveTransition(PoseTransition newTransition)
@@ -1381,12 +1515,22 @@ namespace juniperD.StatefullServices
 
 		private static float GetEaseFactor(int interationNumber, float totalIterations, int curveMultiplier = 2)
 		{
-			var mean = totalIterations / 2;
-			var deviation = Math.Abs(mean - interationNumber); //...how far away we are from the center of the bell curve
-			var tail = mean - deviation; //...how far away we are from the edges
-			var tailRatio = tail / mean; //...ratio of how close we are to the center of the bell curve
-			var heightFactor = tailRatio * curveMultiplier;
+			float mean = totalIterations / 2;
+			float deviation = Math.Abs(mean - interationNumber); //...how far away we are from the center of the bell curve
+			float tail = mean - deviation; //...how far away we are from the edges
+			float tailRatio = tail / mean; //...ratio of how close we are to the center of the bell curve
+			float heightFactor = tailRatio * curveMultiplier;
 			return heightFactor;
+		}
+
+		private static float GetEaseRatio(int interationNumber, float totalIterations)
+		{
+			float distanceFromEdgeToPeak = totalIterations / 2;
+			float distanceFromPointToPeak = Math.Abs(distanceFromEdgeToPeak - interationNumber); //...how far away we are from the center of the bell curve
+			float distanceFromEdge = distanceFromEdgeToPeak - distanceFromPointToPeak; //...how far away we are from the edges
+			float ratioOfPointFromEdgeToPeak = distanceFromEdge / distanceFromEdgeToPeak; //...ratio of how close we are to the center of the bell curve
+			if (ratioOfPointFromEdgeToPeak < 0.25) ratioOfPointFromEdgeToPeak *= -1;
+			return ratioOfPointFromEdgeToPeak;
 		}
 
 		//private float GetLargestMagnitudeFromVector(Vector3 totalPositionToAdd)
@@ -1600,7 +1744,7 @@ namespace juniperD.StatefullServices
 
 		public void RemoveActiveMorphItem(MorphMutation mutationItemToRemove, float animatedDurationInSeconds = 0)
 		{
-			var trackingKey = GetTrackinKeyForCurrentPerson();
+			var trackingKey = GetTrackinKeyForCurrentAtom();
 			var morphs = GetMorphsForSelectedPersonOrDefault();
 			if (morphs == null) return;
 			DAZMorph morph = morphs.FirstOrDefault(m => GetMorphId(m) == mutationItemToRemove.Id);
@@ -1643,7 +1787,7 @@ namespace juniperD.StatefullServices
 		public List<AnimationLink> CaptureAnimationsForCurrentPerson()
 		{
 
-			var trackingKey = GetTrackinKeyForCurrentPerson();
+			var trackingKey = GetTrackinKeyForCurrentAtom();
 			var animationLinks = GetSceneAnimations();
 			return animationLinks;
 		}
@@ -1898,7 +2042,7 @@ namespace juniperD.StatefullServices
 
 		public void RetryMutation()
 		{
-			var mutationStack = GetMutationStackForSelectedPersonOrDefault();
+			var mutationStack = GetMutationStackForSelectedAtomOrDefault();
 			if (mutationStack == null) return;
 			if (mutationStack.Count > 0) UndoPreviousMutation();
 			var mutation = CreateMorphMutation();
