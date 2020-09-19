@@ -44,7 +44,7 @@ namespace juniperD.StatefullServices
 		public string pluginDescription = @"Create a catalog of the current scene";
 		#endregion
 		// Config...
-		protected bool _debugMode = true;
+		protected bool _debugMode = false;
 
 		protected float _defaultNumberOfCatalogColumns = 10;
 		protected float _defaultNumberOfCatalogRows = 1;

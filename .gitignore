@@ -4,6 +4,8 @@
 # But not these files...
 !.gitignore
 
+Catalog3.1/*.gitignore
+
 # ...even if they are in subdirectories
 !*/
 

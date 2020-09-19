@@ -31,6 +31,9 @@ namespace juniperD.Services
 				case "3.0.2":
 					catalog = SerializerService_3_0_2.LoadCatalog(fileContents);
 					break;
+				default:
+					catalog = SerializerService_3_0_2.LoadCatalog(fileContents);
+					break;
 			}
 			
 			// Upgrade catalog...
