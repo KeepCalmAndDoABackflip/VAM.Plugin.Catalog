@@ -1339,12 +1339,13 @@ namespace juniperD.StatefullServices
 
 			RegisterAndMergeTransitionIntoActiveTransitions(newTransition);
 
-			TimeSinceLastCheckpoint();
+			//TimeSinceLastCheckpoint();
 			for (int i = 0; i < numberOfIterations; i++)
 			{
 				newPosition = IncrementPositionAndRotation(controller, poseMutation, newPosition, initialRotation, numberOfIterations, positionIterationDistance, i);
-				yield return new WaitForSeconds(transitionTimeInSeconds / numberOfIterations * Time.deltaTime * speed);
+				yield return new WaitForSeconds(transitionTimeInSeconds / numberOfIterations);
 			}
+			//SuperController.LogMessage("TimeSinceLastCheckpoint():" + TimeSinceLastCheckpoint());
 			// Set final position and rotation...
 			controller.transform.localPosition = poseMutation.Position;
 			controller.transform.localRotation = poseMutation.Rotation;

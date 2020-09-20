@@ -52,6 +52,7 @@ namespace juniperD.Models
 		public GameObject UiAnimationPanel { get; internal set; }
 		public GameObject UiAnimationInnerPanel { get; internal set; }
 		public VerticalLayoutGroup UiAnimationVLayout { get; internal set; }
+		public string OriginName { get; set; }
 
 		public CatalogEntry Clone()
 		{
@@ -60,7 +61,8 @@ namespace juniperD.Models
 				Mutation = Mutation,
 				ImageFormat = ImageFormat,
 				CatalogEntryMode = CatalogEntryMode,
-				UniqueName = UniqueName,
+				OriginName = UniqueName,
+				UniqueName = GetUniqueName(),
 				ImageInfo = ImageInfo,
 				EntryType = EntryType,
 				Active = Active,
@@ -69,6 +71,11 @@ namespace juniperD.Models
 				EndTimeRatio = EndTimeRatio,
 				ChildEntries = ChildEntries.Select(childEntry => childEntry.Clone()).ToList()
 			};
+		}
+
+		private string GetUniqueName()
+		{
+			return Guid.NewGuid().ToString().Substring(0, 5);
 		}
 	}
 }
