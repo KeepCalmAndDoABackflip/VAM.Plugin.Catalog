@@ -463,6 +463,8 @@ namespace juniperD.Services.CatalogSerializers
 			newJson.Add("Position", SerializeVector3(mutationComponent.Position));
 			newJson.Add("PositionState", mutationComponent.PositionState.ToString());
 			newJson.Add("RotationState", mutationComponent.RotationState.ToString());
+			newJson.Add("StartAtTimeRatio", mutationComponent.StartAtTimeRatio.ToString());
+			newJson.Add("EndAtTimeRatio", mutationComponent.EndAtTimeRatio.ToString());
 			newJson.Add("Active", new JSONData(mutationComponent.Active));
 			return newJson;
 		}
@@ -486,22 +488,24 @@ namespace juniperD.Services.CatalogSerializers
 			return newJson;
 		}
 
-		public static Quaternion DeserializeQuaternion(JSONClass vector3Json)
+		public static Quaternion DeserializeQuaternion(JSONClass parentObject, string propertyName, Quaternion defaultValue)
 		{
+			if (parentObject[propertyName] ==  null) return defaultValue;
 			var newVector3 = new Quaternion();
-			newVector3.x = float.Parse(vector3Json["x"].Value);
-			newVector3.y = float.Parse(vector3Json["y"].Value);
-			newVector3.z = float.Parse(vector3Json["z"].Value);
-			newVector3.w = float.Parse(vector3Json["w"].Value);
+			newVector3.x = float.Parse(parentObject[propertyName]["x"].Value);
+			newVector3.y = float.Parse(parentObject[propertyName]["y"].Value);
+			newVector3.z = float.Parse(parentObject[propertyName]["z"].Value);
+			newVector3.w = float.Parse(parentObject[propertyName]["w"].Value);
 			return newVector3;
 		}
 
-		public static Vector3 DeserializeVector3(JSONClass vector3Json)
+		public static Vector3 DeserializeVector3(JSONClass parentObject, string propertyName, Vector3 defaultValue)
 		{
+			if (parentObject[propertyName] == null) return defaultValue;
 			var newVector3 = new Vector3();
-			newVector3.x = float.Parse(vector3Json["x"].Value);
-			newVector3.y = float.Parse(vector3Json["y"].Value);
-			newVector3.z = float.Parse(vector3Json["z"].Value);
+			newVector3.x = float.Parse(parentObject[propertyName]["x"].Value);
+			newVector3.y = float.Parse(parentObject[propertyName]["y"].Value);
+			newVector3.z = float.Parse(parentObject[propertyName]["z"].Value);
 			return newVector3;
 		}
 
@@ -524,13 +528,20 @@ namespace juniperD.Services.CatalogSerializers
 			var mutationComponent = new PoseMutation()
 			{
 				Id = inputObject.Childs.ElementAt(keys.IndexOf("Name")).Value,
-				Rotation = DeserializeQuaternion(inputObject["Rotation"]?.AsObject),
-				Position = DeserializeVector3(inputObject["Position"]?.AsObject),
-				PositionState = inputObject["PositionState"]?.Value,
-				RotationState = inputObject["RotationState"]?.Value,
+				Rotation = DeserializeQuaternion(inputObject, "Rotation", Quaternion.identity),
+				Position = DeserializeVector3(inputObject, "Position", Vector3.zero),
+				PositionState = DeserializeString(inputObject, "PositionState", FreeControllerV3.PositionState.On.ToString()),
+				RotationState = DeserializeString(inputObject, "RotationState", FreeControllerV3.PositionState.On.ToString()),
+				StartAtTimeRatio = float.Parse(DeserializeString(inputObject, "StartAtTimeRatio", "0")),
+				EndAtTimeRatio = float.Parse(DeserializeString(inputObject, "EndAtTimeRatio", "1")),
 				Active = bool.Parse(inputObject["Active"].Value)
 			};
 			return mutationComponent;
+		}
+
+		private static string DeserializeString(JSONClass inputObject, string propertyName, string defaultValue)
+		{
+			return string.IsNullOrEmpty(inputObject[propertyName]?.Value) ? defaultValue : inputObject[propertyName].Value;
 		}
 
 		//private static FreeControllerV3.RotationState DeserializeIntoRotationState(string value)

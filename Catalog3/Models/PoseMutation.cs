@@ -12,13 +12,16 @@ namespace juniperD.Models
 
 		public Quaternion Rotation { get; set; }
 		public Vector3 Position { get; set; }
-		public string PositionState { get; internal set; }
-		public string RotationState { get; internal set; }
+		public string PositionState { get; set; }
+		public string RotationState { get; set; }
+
+		public float StartAtTimeRatio { get; set; }
+		public float EndAtTimeRatio { get; set; }
 
 		// Non-Serialized...
 		public string Label;
 		public UIDynamicToggle UiToggle {get;set; }
-		internal AnimatedItem AnimatedItem { get; set; }
+		public AnimationElement AnimationItem { get; set; }
 	}
 
 }

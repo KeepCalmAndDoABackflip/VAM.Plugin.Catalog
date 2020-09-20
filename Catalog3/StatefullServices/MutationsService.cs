@@ -1235,6 +1235,8 @@ namespace juniperD.StatefullServices
 				newPosePoint.RotationState = controller.currentRotationState.ToString();
 				newPosePoint.Rotation = controller.transform.localRotation; //GetControllerRotation(controller);
 				newPosePoint.Position = controller.transform.localPosition;
+				newPosePoint.StartAtTimeRatio = 0;
+				newPosePoint.EndAtTimeRatio = 1;
 				if (controller.containingAtom.type == "Person" && _nonBodyControllerList.Contains(controller.name)) newPosePoint.Active = false;
 				posePoints.Add(newPosePoint);
 			}
@@ -1286,17 +1288,21 @@ namespace juniperD.StatefullServices
 				return;
 			}
 			// Start transitioning to next pose...
-			var animatedElement = mutationItem.AnimatedItem?.MasterElement;
-			_context.StartCoroutine(TransitionApplyPose(controller, mutationItem, animatedElement, startDelay, duration, 1, whenFinishedCallback));
+
+			startDelay += duration * mutationItem.StartAtTimeRatio;
+			duration = (mutationItem.EndAtTimeRatio - mutationItem.StartAtTimeRatio) * duration;
+
+			_context.StartCoroutine(TransitionApplyPose(controller, mutationItem, startDelay, duration, whenFinishedCallback));
 		}
 
-		public IEnumerator TransitionApplyPose(FreeControllerV3 controller, PoseMutation poseMutation, AnimatedElement masterAnimatedElement = null, float startDelay = 0, float transitionTimeInSeconds = 0, float smoothMultiplier = 1, UnityAction whenFinishedCallback = null)
+		public IEnumerator TransitionApplyPose(FreeControllerV3 controller, PoseMutation poseMutation, float startDelay = 0, float transitionTimeInSeconds = 0, UnityAction whenFinishedCallback = null)
 		{
-			var actualStartDelay = startDelay;
+			float actualStartDelay = startDelay;
+			float speed = 150f;
 
-			if (masterAnimatedElement != null && transitionTimeInSeconds > 0) {
-				var startTime = transitionTimeInSeconds * masterAnimatedElement.StartAtRatio;
-				var endTime = transitionTimeInSeconds * masterAnimatedElement.EndAtRatio;
+			if (transitionTimeInSeconds > 0) {
+				var startTime = transitionTimeInSeconds * poseMutation.StartAtTimeRatio;
+				var endTime = transitionTimeInSeconds * poseMutation.EndAtTimeRatio;
 				transitionTimeInSeconds = endTime - startTime;
 				actualStartDelay = actualStartDelay + startTime;
 			}
@@ -1309,57 +1315,65 @@ namespace juniperD.StatefullServices
 
 			var transitionKey = _context.GetUniqueName();
 			var newTransition = new PoseTransition(transitionKey);
+
 			
 			if (transitionTimeInSeconds == 0)
 			{
 				controller.transform.localPosition = poseMutation.Position;
 				controller.transform.localRotation = poseMutation.Rotation;
+				yield break;
 			}
-			else
+
+			float framesPerSecond = 25;
+
+			Vector3 newPosition = controller.transform.localPosition;
+			Vector3 positionDelta = poseMutation.Position - newPosition;
+			var initialRotation = controller.transform.localRotation;
+
+			var numberOfIterations = transitionTimeInSeconds * framesPerSecond;
+			var positionIterationDistance = positionDelta / numberOfIterations;
+
+			newTransition.XPositionEnabled = positionDelta.x != 0;
+			newTransition.YPositionEnabled = positionDelta.y != 0;
+			newTransition.ZPositionEnabled = positionDelta.z != 0;
+
+			RegisterAndMergeTransitionIntoActiveTransitions(newTransition);
+
+			TimeSinceLastCheckpoint();
+			for (int i = 0; i < numberOfIterations; i++)
 			{
-				if (smoothMultiplier < 1) smoothMultiplier = 1;
-				float framesPerSecond = 25 * smoothMultiplier;
-
-				Vector3 newPosition = controller.transform.localPosition;
-				Vector3 positionDelta = poseMutation.Position - newPosition;
-				var initialRotation = controller.transform.localRotation;
-
-				var numberOfIterations = transitionTimeInSeconds * framesPerSecond;
-				var positionIterationDistance = positionDelta / numberOfIterations;
-
-				newTransition.XPositionEnabled = positionDelta.x != 0;
-				newTransition.YPositionEnabled = positionDelta.y != 0;
-				newTransition.ZPositionEnabled = positionDelta.z != 0;
-
-				RegisterAndMergeTransitionIntoActiveTransitions(newTransition);
-
-				for (int i = 0; i < numberOfIterations; i++)
-				{
-					try
-					{
-						float positionEaseFactor = GetEaseFactor(i, numberOfIterations);
-						float shiftingReducer = GetShiftingReducer(i + 1, numberOfIterations);
-						float stepRatio = 1 / numberOfIterations * (i + 1);
-
-						var positionNudgeDistance = new Vector3(positionIterationDistance.x * positionEaseFactor, positionIterationDistance.y * positionEaseFactor, positionIterationDistance.z * positionEaseFactor);
-						// Determine new points and angles...
-						newPosition += positionNudgeDistance;
-						// Perform nudges...
-						controller.transform.localPosition = new Vector3(newPosition.x, newPosition.y, newPosition.z);
-						controller.transform.localRotation = Quaternion.Lerp(initialRotation, poseMutation.Rotation, stepRatio + shiftingReducer);
-					}
-					catch (Exception e)
-					{
-						SuperController.LogError(e.ToString());
-					}
-					yield return new WaitForSeconds(1 / numberOfIterations);
-				}
-				// Set final position and rotation...
-				controller.transform.localPosition = poseMutation.Position;
-				controller.transform.localRotation = poseMutation.Rotation;
-				RemoveActiveTransition(newTransition);
-				if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
+				newPosition = IncrementPositionAndRotation(controller, poseMutation, newPosition, initialRotation, numberOfIterations, positionIterationDistance, i);
+				yield return new WaitForSeconds(transitionTimeInSeconds / numberOfIterations * Time.deltaTime * speed);
 			}
+			// Set final position and rotation...
+			controller.transform.localPosition = poseMutation.Position;
+			controller.transform.localRotation = poseMutation.Rotation;
+			RemoveActiveTransition(newTransition);
+			if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
+			
+		}
+
+		private static Vector3 IncrementPositionAndRotation(FreeControllerV3 controller, PoseMutation poseMutation, Vector3 newPosition, Quaternion initialRotation, float numberOfIterations, Vector3 positionIterationDistance, int iteration)
+		{
+			try
+			{
+				float positionEaseFactor = GetEaseFactor(iteration, numberOfIterations);
+				float shiftingReducer = GetShiftingReducer(iteration + 1, numberOfIterations);
+				float stepRatio = 1 / numberOfIterations * (iteration + 1);
+
+				var positionNudgeDistance = new Vector3(positionIterationDistance.x * positionEaseFactor, positionIterationDistance.y * positionEaseFactor, positionIterationDistance.z * positionEaseFactor);
+				// Determine new points and angles...
+				newPosition += positionNudgeDistance;
+				// Perform nudges...
+				controller.transform.localPosition = new Vector3(newPosition.x, newPosition.y, newPosition.z);
+				controller.transform.localRotation = Quaternion.Lerp(initialRotation, poseMutation.Rotation, stepRatio + shiftingReducer);
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+			}
+
+			return newPosition;
 		}
 
 		private static Quaternion GetRotationDelta(Quaternion fromRotation, Quaternion toRotation)

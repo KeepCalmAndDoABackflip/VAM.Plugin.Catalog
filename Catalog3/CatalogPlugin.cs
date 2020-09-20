@@ -127,7 +127,7 @@ namespace juniperD.StatefullServices
 		public JSONStorableFloat _cycleEntriesInterval;
 		public JSONStorableBool _playOnce;
 		public int _numberOfEntriesToPlay;
-		public JSONStorableFloat _morphTransitionTimeSeconds;
+		public JSONStorableFloat _defaultMorphTransitionTimeSeconds;
 		protected JSONStorableString _entrySelectionMethod;
 		protected Atom _handleObjectForCatalog;
 		protected Color _dynamicButtonCheckColor; //= Color.red;
@@ -166,6 +166,7 @@ namespace juniperD.StatefullServices
 		private bool _animationFeaturesVisible;
 
 		public JSONStorableFloat _catalogUiSizeJSON { get; private set; }
+		public object Enums { get; private set; }
 
 		public override void PostRestore()
 		{
@@ -799,9 +800,9 @@ namespace juniperD.StatefullServices
 				ApplyEntryAt((int)newVal); //...changing column count
 			});
 
-			_morphTransitionTimeSeconds = new JSONStorableFloat("Morph transition time (seconds)", 1f, 0, 10);
-			RegisterFloat(_morphTransitionTimeSeconds);
-			var morphTransitionTime = CreateSlider(_morphTransitionTimeSeconds);
+			_defaultMorphTransitionTimeSeconds = new JSONStorableFloat("Morph transition time (seconds)", 1f, 0, 10);
+			RegisterFloat(_defaultMorphTransitionTimeSeconds);
+			var morphTransitionTime = CreateSlider(_defaultMorphTransitionTimeSeconds);
 			morphTransitionTime.valueFormat = "F1";
 
 			_cycleEntriesOnInterval = new JSONStorableBool("Cycle entries on interval", false);
@@ -1956,22 +1957,32 @@ namespace juniperD.StatefullServices
 				_mainWindow.ButtonCreateMergedEntryGroup = _catalogUi.CreateButton(_mainWindow.SubPanelCapture, "", 45, 45, 0, 0, new Color(1f, 0.5f, 0.05f, 0.5f), new Color(1f, 0.5f, 0.05f, 1f), new Color(1f, 1f, 1f), iconTexture);
 				_mainWindow.ButtonCreateMergedEntryGroup.button.onClick.AddListener(() =>
 				{
-					try
-					{
-						List<CatalogEntry> favoritedEntries = _catalog.Entries.Where(e => e.Favorited > 0).ToList();
-						CatalogEntry masterCatalogEntry = CreateMasterCatalogEntry();
-						foreach (var entry in favoritedEntries)
-						{
-							for (var i = 0; i < entry.Favorited; i++){
-								AddEntryToEntry(entry, masterCatalogEntry);
-							}
-						}
-						GenerateNewMasterCatalogEntryImage(masterCatalogEntry);
-						ResetScrollPosition();
-					}
-					catch (Exception e) { SuperController.LogError(e.ToString()); }
+					MergeFavoriteEntries();
 				});
 				SetTooltipForDynamicButton(_mainWindow.ButtonCreateMergedEntryGroup, () => "Merge Favorite Entries");
+			}
+			catch (Exception e) { SuperController.LogError(e.ToString()); }
+		}
+
+		private void MergeFavoriteEntries(bool asReferencedEntries = false)
+		{
+			try
+			{
+				List<CatalogEntry> favoritedEntries = _catalog.Entries.Where(e => e.Favorited > 0).ToList();
+				CatalogEntry masterCatalogEntry = CreateMasterCatalogEntry();
+				masterCatalogEntry.TransitionTimeInSeconds = 0;
+				foreach (var entry in favoritedEntries)
+				{
+					for (var i = 0; i < entry.Favorited; i++)
+					{
+						var duplicateEntry = asReferencedEntries ? entry : entry.Clone();
+						AddEntryToEntry(duplicateEntry, masterCatalogEntry);
+						masterCatalogEntry.TransitionTimeInSeconds += entry.TransitionTimeInSeconds;
+					}
+					entry.Favorited = 0;
+				}
+				GenerateNewMasterCatalogEntryImage(masterCatalogEntry);
+				RefreshCatalogPosition();
 			}
 			catch (Exception e) { SuperController.LogError(e.ToString()); }
 		}
@@ -1981,13 +1992,13 @@ namespace juniperD.StatefullServices
 			try
 			{
 				var iconTexture = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/SubItemMenu.png");
-				_mainWindow.ButtonToggleAnimFeatures = _catalogUi.CreateButton(_mainWindow.SubPanelCapture, "", 35, 35, 0, 0, new Color(1f, 0.5f, 0.05f, 0.5f), new Color(1f, 0.5f, 0.05f, 1f), new Color(1f, 1f, 1f), iconTexture);
+				_mainWindow.ButtonToggleAnimFeatures = _catalogUi.CreateButton(_mainWindow.SubPanelCapture, "", 45, 45, 0, 0, _dynamicButtonUnCheckColor, new Color(1f, 0.5f, 0.05f, 1f), new Color(1f, 1f, 1f), iconTexture);
 				_mainWindow.ButtonToggleAnimFeatures.button.onClick.AddListener(() =>
 				{
 					_animationFeaturesVisible = !_animationFeaturesVisible;
-					_mainWindow.ButtonToggleAnimFeatures.buttonColor = _animationFeaturesVisible ? new Color(1f, 0.5f, 0.05f, 0.5f) : _dynamicButtonUnCheckColor;
+					_mainWindow.ButtonToggleAnimFeatures.buttonColor = _animationFeaturesVisible ? new Color(1f, 0.5f, 0.05f, 1f) : _dynamicButtonUnCheckColor;
 					CatalogEntry selectedCatalogEntry = GetSelectedCatalogEntryOrDefault();
-					if (selectedCatalogEntry != null) AddOrShowAnimationUi(selectedCatalogEntry);
+					if (selectedCatalogEntry != null && selectedCatalogEntry.UiAnimationPanel == null) AddOrShowAnimationUi(selectedCatalogEntry);
 					selectedCatalogEntry.UiAnimationPanel.transform.localScale = _animationFeaturesVisible ? Vector3.one : Vector3.zero;
 				});
 				SetTooltipForDynamicButton(_mainWindow.ButtonToggleAnimFeatures, () => "Toggle Animation Features");
@@ -2005,10 +2016,15 @@ namespace juniperD.StatefullServices
 
 		private void AddEntryToEntry(CatalogEntry selectedEntry, CatalogEntry masterCatalogEntry)
 		{
-			masterCatalogEntry.ChildEntries.Add(selectedEntry);
-			masterCatalogEntry.TransitionTimeInSeconds = masterCatalogEntry.ChildEntries
-				.Select(e => e.TransitionTimeInSeconds)
-				.Aggregate((a, b) => a + b);
+			masterCatalogEntry.ChildEntries.Add(selectedEntry.Clone());
+			masterCatalogEntry.TransitionTimeInSeconds += selectedEntry.TransitionTimeInSeconds;
+			UpdateTransitionTimesUi(selectedEntry);
+		}
+
+		private void UpdateTransitionTimesUi(CatalogEntry selectedEntry)
+		{
+			//var masterElement = selectedEntry.AnimatedItem.MasterElement;
+			//.UiLabel.buttonText.text = {  }
 		}
 
 		private void GenerateNewMasterCatalogEntryImage(CatalogEntry masterCatalogEntry)
@@ -2323,6 +2339,13 @@ namespace juniperD.StatefullServices
 			};
 			positionTracker.AddMouseDraggingToObject(handleObject, dragObject, dragX, dragY, onStartDraggingEvent, afterDragAction, whileDragAction);
 		}
+
+		//public void AddDragging(GameObject handleObject, GameObject dragObject, Action<DragHelper> beforeDragAction = null, Action<DragHelper> afterDragAction = null, Func<float, float, bool> whileDragAction = null, bool dragX = true, bool dragY = true)
+		//{
+		//	var positionTracker = new DragHelper();
+		//	_positionTrackers.Add("draggableObject_" + DateTime.Now + GetUniqueName(), positionTracker);
+		//	positionTracker.AddMouseDraggingToObject(handleObject, dragObject, dragX, dragY, beforeDragAction, afterDragAction, whileDragAction);
+		//}
 
 		private void CreateDynamicButton_CreateMannequinPicker(DynamicMainWindow mainWindow)
 		{
@@ -3706,6 +3729,7 @@ namespace juniperD.StatefullServices
 				newCatalogEntry.CatalogEntryMode = _catalogMode.val;
 				newCatalogEntry.ImageInfo = imageInfo;
 				newCatalogEntry.Mutation = mutation;
+				newCatalogEntry.TransitionTimeInSeconds = _defaultMorphTransitionTimeSeconds.val;
 				MakeCatalogEntry(newCatalogEntry); // ...Capturing and entry
 
 				RenderTexture.ReleaseTemporary(renderTexture);
@@ -3761,132 +3785,168 @@ namespace juniperD.StatefullServices
 
 		private void AddOrShowAnimationUi(CatalogEntry catalogEntry)
 		{
-
-			List<AnimatedItem> animatedChildEntries = GetAnimatedItemsForChildCatalogEntries(catalogEntry);
-			List<AnimatedItem> animatedPoseMorphs = GetAnimatedItemsForPoseMorphs(catalogEntry);
-
+			var animatedElement = GetAnimationElementFromCatalogEntry(catalogEntry);
+			animatedElement.OnDisplay = true;
+			var displayElements = GetDisplayElementsFromAnimationTree(animatedElement);
 			GameObject animationPanel = CatalogUiHelper.CreatePanel(catalogEntry.UiCatalogEntryPanel, 0, (int)CatalogEntryFrameSize.val, 0, 0, Color.clear, Color.white);
-			var innerPanel = CatalogUiHelper.CreatePanel(animationPanel, (int)CatalogEntryFrameSize.val, animatedPoseMorphs.Count() * 25, 0, 0, new Color(0.1f, 0.1f, 0.1f, 0.9f), Color.clear);
+			var innerPanel = CatalogUiHelper.CreatePanel(animationPanel, (int)CatalogEntryFrameSize.val, displayElements.Count() * 25, 0, 0, new Color(0.1f, 0.1f, 0.1f, 0.9f), Color.clear);
 			VerticalLayoutGroup animationVLayout = _catalogUi.CreateVerticalLayout(innerPanel, 0, true, false, false, false);
 			catalogEntry.UiAnimationPanel = animationPanel;
 			catalogEntry.UiAnimationInnerPanel = innerPanel;
 			catalogEntry.UiAnimationVLayout = animationVLayout;
-
-			foreach (var animatedItem in animatedChildEntries)
+			foreach (var element in displayElements)
 			{
-				CreateAnimationBar(animatedItem, animationPanel, animationVLayout);
+				CreateAnimationBar(element, animationPanel, animationVLayout, catalogEntry);
 			}
-			foreach (var animatedItem in animatedPoseMorphs)
-			{
-				CreateAnimationBar(animatedItem, animationPanel, animationVLayout);
-			}
-			animationPanel.transform.localPosition = new Vector3(animationPanel.transform.localPosition.x, (animatedPoseMorphs.Count * 25), animationPanel.transform.localPosition.z);
+			animationPanel.transform.localPosition = new Vector3(animationPanel.transform.localPosition.x, (displayElements.Count * 25), animationPanel.transform.localPosition.z);
 		}
 
-		private List<AnimatedItem> GetAnimatedItemsForChildCatalogEntries(CatalogEntry catalogEntry)
+		private List<AnimationElement> GetDisplayElementsFromAnimationTree(AnimationElement animatedElement)
 		{
-			var relevantItems = catalogEntry.ChildEntries
-				.Where(p => p.Active)
-				.ToList();
-			List<AnimatedItem> animatedItems = new List<AnimatedItem>();
-			foreach (var childEntry in relevantItems)
+			List<AnimationElement> displayElements =  new List<AnimationElement>();
+			if (animatedElement.OnDisplay) displayElements.Add(animatedElement);
+			foreach (var childElement in animatedElement.ChildElements)
 			{
-				childEntry.AnimatedItem = GetAnimatedItemsFromChildCatalogEntry(childEntry);
-				animatedItems.Add(childEntry.AnimatedItem);
+				displayElements.AddRange(GetDisplayElementsFromAnimationTree(childElement));
 			}
-			return animatedItems;
+			foreach (var subElement in animatedElement.SubElements)
+			{
+				displayElements.AddRange(GetDisplayElementsFromAnimationTree(subElement));
+			}
+			return displayElements;
 		}
 
-		private List<AnimatedItem> GetAnimatedItemsForPoseMorphs(CatalogEntry catalogEntry)
+		//private List<AnimatedItem> GetAnimatedItemsForChildCatalogEntries(CatalogEntry catalogEntry)
+		//{
+		//	var relevantItems = catalogEntry.ChildEntries
+		//		.Where(p => p.Active)
+		//		.ToList();
+		//	List<AnimatedItem> animatedItems = new List<AnimatedItem>();
+		//	foreach (var childEntry in relevantItems)
+		//	{
+		//		childEntry.AnimatedItem = GetAnimationElementFromCatalogEntry(childEntry);
+		//		animatedItems.Add(childEntry.AnimatedItem);
+		//	}
+		//	return animatedItems;
+		//}
+
+		private List<AnimationElement> GetAnimationElementsForPoseMorphs(CatalogEntry catalogEntry)
 		{
-			if (catalogEntry.Mutation == null) return new List<AnimatedItem>();
+			if (catalogEntry.Mutation == null) return new List<AnimationElement>();
 			var relevantPoseMorphs = catalogEntry.Mutation.PoseMorphs
 				.Where(p => p.Active)
 				.Where(p => p.PositionState != FreeControllerV3.PositionState.Off.ToString() || p.RotationState != FreeControllerV3.RotationState.Off.ToString())
 				.ToList();
-			List<AnimatedItem> animatedItems = new List<AnimatedItem>();
+			List<AnimationElement> animatedItems = new List<AnimationElement>();
 			foreach (var poseMorph in relevantPoseMorphs)
 			{
-				poseMorph.AnimatedItem = GetAnimatedItemsFromPoseMorph(poseMorph);
-				animatedItems.Add(poseMorph.AnimatedItem);
+				poseMorph.AnimationItem = GetAnimationElementFromPoseMorph(poseMorph);
+				animatedItems.Add(poseMorph.AnimationItem);
 			}
 			return animatedItems;
 		}
 
-		private UIDynamicButton CreateAnimationBar(AnimatedItem animatedItem, GameObject parentPanel, VerticalLayoutGroup vLayout)
+		private UIDynamicButton CreateAnimationBar(AnimationElement parentElement, GameObject parentPanel, VerticalLayoutGroup vLayout, CatalogEntry catalogEntry)
 		{
-			var innerPanel = CatalogUiHelper.CreatePanel(parentPanel, 0, 25, 0, 0, new Color(0.1f, 0.1f, 0.1f, 0.9f), Color.clear);
-
-			innerPanel.transform.SetParent(vLayout.transform, false);
+			var barContrainer = CatalogUiHelper.CreatePanel(parentPanel, 0, 25, 0, 0, new Color(0.1f, 0.1f, 0.1f, 0.9f), Color.clear);
+			barContrainer.transform.SetParent(vLayout.transform, false);
 
 			var handleButtonWidth = 25;
 			var handleButtonHeight = 25;
 			var leftLimit = 0 + (handleButtonWidth / 2);
 			var rightLimit = (int)CatalogEntryFrameSize.val - handleButtonWidth / 2;
 
-			var itemRow = _catalogUi.CreateButton(innerPanel, animatedItem.Name, (int)CatalogEntryFrameSize.val, 25, 0, 0, new Color(0.1f, 0.1f, 0.1f), new Color(0.1f, 0.1f, 0.1f), Color.white);
-			itemRow.buttonText.fontSize = 15;
-			itemRow.buttonText.fontStyle = FontStyle.Italic;
-			animatedItem.UiItemRow = itemRow;
+			var labelInitialText = (catalogEntry != null) ? $"{catalogEntry.TransitionTimeInSeconds}s {parentElement.Name}" : parentElement.Name;
+			var label = _catalogUi.CreateButton(barContrainer, labelInitialText, (int)CatalogEntryFrameSize.val, 25, 0, 0, new Color(0.1f, 0.1f, 0.1f), new Color(0.1f, 0.1f, 0.1f), Color.white);
+			label.buttonText.fontSize = 15;
+			label.buttonText.fontStyle = FontStyle.Italic;
+			parentElement.UiLabel = label;
+			
+			var itemBar = _catalogUi.CreateButton(barContrainer, "", (int)CatalogEntryFrameSize.val - (handleButtonWidth * 2), 25, 25, 0, new Color(0.3f, 0.3f, 0.3f, 0.5f), new Color(0.3f, 0.3f, 0.3f, 0.5f), Color.white);
+			parentElement.UiActiveAreaBar = itemBar;
+			Action<DragHelper> onBeforeLabelDrag = (dragHelper) =>
+			{
+				dragHelper.XStep = 1f;
+				dragHelper.YStep = 1f;
+				dragHelper.YMultiplier = 100f;
+				//dragHelper.LimitX = new Vector2(0, 100);
+				//dragHelper.LimitY = new Vector2(0.01f, 100);
+			};
+			var numberTracker = new GameObject();
+			Func<float, float, bool> whileDraggingUp = (newX, newY) => 
+			{
+				int yUpperLimit = 10000;
+				int yLowerLimit = 0;
+				if (numberTracker.transform.localPosition.y > yUpperLimit) numberTracker.transform.localPosition = new Vector3(numberTracker.transform.localPosition.x, yUpperLimit, numberTracker.transform.localPosition.z);
+				if (numberTracker.transform.localPosition.y < yLowerLimit) numberTracker.transform.localPosition = new Vector3(numberTracker.transform.localPosition.x, yLowerLimit, numberTracker.transform.localPosition.z);
+				float transitionTime = numberTracker.transform.localPosition.y / 10;
+				catalogEntry.TransitionTimeInSeconds = transitionTime;
+				parentElement.UiLabel.buttonText.text = $"{catalogEntry.TransitionTimeInSeconds}s {parentElement.Name}";
+				return true;
+			};
+			AddDragging(label.gameObject, numberTracker, onBeforeLabelDrag, null, whileDraggingUp, false, true);
+			AddDragging(itemBar.gameObject, numberTracker, onBeforeLabelDrag, null, whileDraggingUp, false, true);
 
-			var itemBar = _catalogUi.CreateButton(innerPanel, "", (int)CatalogEntryFrameSize.val - (handleButtonWidth * 2), 25, 25, 0, new Color(0.3f, 0.3f, 0.3f, 0.5f), new Color(0.3f, 0.3f, 0.3f, 0.5f), Color.white);
-			animatedItem.UiItemBar = itemBar;
-
-			Action<DragHelper> onBeforeDrag = (dragHelper) =>
+			Action<DragHelper> onBeforeHandleDrag = (dragHelper) =>
 			{
 				dragHelper.LimitX = new Vector2(leftLimit, rightLimit);
 				dragHelper.XStep = 1;
 			};
-			Func<float, float, bool> onLeftDrag = (newX, newY) =>
+			Func<float, float, bool> onLeftHandleDrag = (newX, newY) =>
 			{
 				// Update left bar...
-				if (animatedItem.UiLeftHandle.transform.localPosition.x > animatedItem.UiRightHandle.transform.localPosition.x)
+				if (parentElement.UiLeftHandle.transform.localPosition.x > parentElement.UiRightHandle.transform.localPosition.x)
 				{
-					animatedItem.UiRightHandle.transform.localPosition = new Vector3(animatedItem.UiLeftHandle.transform.localPosition.x, animatedItem.UiRightHandle.transform.localPosition.y, animatedItem.UiRightHandle.transform.localPosition.z);
+					parentElement.UiRightHandle.transform.localPosition = new Vector3(parentElement.UiLeftHandle.transform.localPosition.x, parentElement.UiRightHandle.transform.localPosition.y, parentElement.UiRightHandle.transform.localPosition.z);
 				}
 				// Update center bar...
-				UpdateAnimElementAndUiCenterBarWidth(animatedItem);
+				UpdateAnimElementAndUiCenterBarWidth(parentElement);
 				return true;
 			};
 
-			Func<float, float, bool> onRightDrag = (newX, newY) =>
+			Func<float, float, bool> onRightHandleDrag = (newX, newY) =>
 			{
 				// Update right bar...
-				if (animatedItem.UiRightHandle.transform.localPosition.x < animatedItem.UiLeftHandle.transform.localPosition.x)
+				if (parentElement.UiRightHandle.transform.localPosition.x < parentElement.UiLeftHandle.transform.localPosition.x)
 				{
-					animatedItem.UiLeftHandle.transform.localPosition = new Vector3(animatedItem.UiRightHandle.transform.localPosition.x, animatedItem.UiLeftHandle.transform.localPosition.y, animatedItem.UiLeftHandle.transform.localPosition.z);
+					parentElement.UiLeftHandle.transform.localPosition = new Vector3(parentElement.UiRightHandle.transform.localPosition.x, parentElement.UiLeftHandle.transform.localPosition.y, parentElement.UiLeftHandle.transform.localPosition.z);
 				}
 				// Update center bar...
-				UpdateAnimElementAndUiCenterBarWidth(animatedItem);
+				UpdateAnimElementAndUiCenterBarWidth(parentElement);
 				return true;
 			};
 
-			var leftHandle = _catalogUi.CreateButton(innerPanel, "", handleButtonWidth, handleButtonHeight, 0, 0, new Color(0.5f, 0.7f, 0.5f, 0.5f), new Color(0.5f, 0.7f, 0.3f, 0.5f), Color.white);
-			animatedItem.UiLeftHandle = leftHandle;
-			AddDragging(leftHandle.gameObject, leftHandle.gameObject, onBeforeDrag, null, onLeftDrag, true, false);
+			var leftHandle = _catalogUi.CreateButton(barContrainer, "", handleButtonWidth, handleButtonHeight, 0, 0, new Color(0.5f, 0.7f, 0.5f, 0.5f), new Color(0.5f, 0.7f, 0.3f, 0.5f), Color.white);
+			parentElement.UiLeftHandle = leftHandle;
+			AddDragging(leftHandle.gameObject, leftHandle.gameObject, onBeforeHandleDrag, null, onLeftHandleDrag, true, false);
 
-			var rightHandle = _catalogUi.CreateButton(innerPanel, "", handleButtonWidth, handleButtonHeight, (int)CatalogEntryFrameSize.val - handleButtonWidth, 0, new Color(0.7f, 0.5f, 0.5f), new Color(0.7f, 0.5f, 0.5f), Color.white);
-			animatedItem.UiRightHandle = rightHandle;
-			AddDragging(rightHandle.gameObject, rightHandle.gameObject, onBeforeDrag, null, onRightDrag, true, false);
+			var rightHandle = _catalogUi.CreateButton(barContrainer, "", handleButtonWidth, handleButtonHeight, (int)CatalogEntryFrameSize.val - handleButtonWidth, 0, new Color(0.7f, 0.5f, 0.5f), new Color(0.7f, 0.5f, 0.5f), Color.white);
+			parentElement.UiRightHandle = rightHandle;
+			AddDragging(rightHandle.gameObject, rightHandle.gameObject, onBeforeHandleDrag, null, onRightHandleDrag, true, false);
 
-			UpdateAnimElementAndUiCenterBarWidth(animatedItem);
-			return itemRow;
+			UnityAction<float, float> onAdjustAnimarionBar = (startPosRatio, endPosRatio) =>
+			{
+				parentElement.StartAtRatio = startPosRatio;
+				parentElement.EndAtRatio = endPosRatio;
+			};
+
+			UpdateAnimElementAndUiCenterBarWidth(parentElement, onAdjustAnimarionBar);
+			return label;
 		}
 
-		private void UpdateAnimElementAndUiCenterBarWidth(AnimatedItem animatedItem)
+		private void UpdateAnimElementAndUiCenterBarWidth(AnimationElement parentElement, UnityAction<float,float> onAdjustAnimationBarWithStartAndEndRatios = null)
 		{
-			var rect = animatedItem.UiItemBar.button.GetComponent<RectTransform>();
-			var newWidth = Mathf.Abs(Mathf.Abs(animatedItem.UiRightHandle.button.transform.localPosition.x) - Mathf.Abs(animatedItem.UiLeftHandle.button.transform.localPosition.x));
+			var rect = parentElement.UiActiveAreaBar.button.GetComponent<RectTransform>();
+			var newWidth = Mathf.Abs(Mathf.Abs(parentElement.UiRightHandle.button.transform.localPosition.x) - Mathf.Abs(parentElement.UiLeftHandle.button.transform.localPosition.x));
 			rect.sizeDelta = new Vector2(newWidth, rect.rect.height);
 
-			var barPos = animatedItem.UiItemBar.button.transform.localPosition;
-			var rowXPos = animatedItem.UiItemRow.button.transform.localPosition.x;
-			var leftButtonXPos = animatedItem.UiLeftHandle.button.transform.localPosition.x;
-			var rightButtonXPos = animatedItem.UiRightHandle.button.transform.localPosition.x;
+			var barPos = parentElement.UiActiveAreaBar.button.transform.localPosition;
+			var leftButtonXPos = parentElement.UiLeftHandle.button.transform.localPosition.x;
+			var rightButtonXPos = parentElement.UiRightHandle.button.transform.localPosition.x;
 
 			var newLeftPos = leftButtonXPos + newWidth / 2;
-			animatedItem.UiItemBar.button.transform.localPosition = new Vector3(newLeftPos, barPos.y, barPos.z);
-			var rowRect = animatedItem.UiItemRow.button.GetComponent<RectTransform>();
+			parentElement.UiActiveAreaBar.button.transform.localPosition = new Vector3(newLeftPos, barPos.y, barPos.z);
+			var rowRect = parentElement.UiLabel.button.GetComponent<RectTransform>();
 
 			var rowMoveableZone = rowRect.rect.width - 25; //...to compensate for the width of half the button
 			var startPosRatio = (leftButtonXPos - 12) / rowMoveableZone;
@@ -3898,40 +3958,48 @@ namespace juniperD.StatefullServices
 			if (endPosRatio > 1) endPosRatio = 1;
 			if (endPosRatio < 0) endPosRatio = 0;
 
-			animatedItem.MasterElement.StartAtRatio = startPosRatio;
-			animatedItem.MasterElement.EndAtRatio = endPosRatio;
+			if (onAdjustAnimationBarWithStartAndEndRatios != null) onAdjustAnimationBarWithStartAndEndRatios.Invoke(startPosRatio, endPosRatio);
 		}
 
-		private AnimatedItem GetAnimatedItemsFromChildCatalogEntry(CatalogEntry catalogEntry)
+		private AnimationElement GetAnimationElementFromCatalogEntry(CatalogEntry catalogEntry)
 		{
-			var newAnimationItem = new AnimatedItem()
+			var childElements = catalogEntry.ChildEntries.Select(GetAnimationElementFromCatalogEntry).ToList();
+			var subElements = GetAnimationElementsForPoseMorphs(catalogEntry);
+			var newAnimationItem = new AnimationElement()
 			{
-				Name = catalogEntry.UniqueName,
-				MasterElement = GetAnimatedElementsFromValues($"master", 1f),
+				Name = catalogEntry.UniqueName, 
+				Curve = AnimationCurveEnum.GAUSSIAN, 
+				DirectionFlipped = false, 
+				StartAtRatio = catalogEntry.StartTimeRatio,
+				EndAtRatio = catalogEntry.EndTimeRatio, 
+				TransitionTimeInSeconds = catalogEntry.TransitionTimeInSeconds,
+				ChildElements = childElements,
+				SubElements = subElements
 			};
 			return newAnimationItem;
 		}
 
-		private AnimatedItem GetAnimatedItemsFromPoseMorph(PoseMutation poseController)
+		private AnimationElement GetAnimationElementFromPoseMorph(PoseMutation poseController)
 		{
-			List<AnimatedElement> positionElements = GetAnimatedElementsFromVector("pos", poseController.Position);
-			List<AnimatedElement> rotationElements = GetAnimatedElementsFromVector("rot", poseController.Rotation);
-			var newAnimationItem = new AnimatedItem()
+			List<AnimationElement> positionElements = GetAnimatedElementsFromVector("pos", poseController.Position);
+			List<AnimationElement> rotationElements = GetAnimatedElementsFromVector("rot", poseController.Rotation);
+			var newAnimationElement = new AnimationElement()
 			{
-				Name = poseController.Id,
-				MasterElement = GetAnimatedElementsFromValues($"master", 1f),
-				AnimatedElements = positionElements.Concat(rotationElements).ToList()
+				Name = poseController.Id, 
+				StartAtRatio = poseController.StartAtTimeRatio, 
+				EndAtRatio = poseController.EndAtTimeRatio,
+				SubElements = positionElements.Concat(rotationElements).ToList()
 			};
-			return newAnimationItem;
+			return newAnimationElement;
 		}
 
-		private List<AnimatedElement> GetAnimatedElementsFromVector(string vectorName, Quaternion targetPosition)
+		private List<AnimationElement> GetAnimatedElementsFromVector(string vectorName, Quaternion targetPosition)
 		{
-			var newElementList = new List<AnimatedElement>();
-			var xComp = GetAnimatedElementsFromValues($"{vectorName}.x", targetPosition.x);
-			var yComp = GetAnimatedElementsFromValues($"{vectorName}.y", targetPosition.y);
-			var zComp = GetAnimatedElementsFromValues($"{vectorName}.z", targetPosition.z);
-			var wComp = GetAnimatedElementsFromValues($"{vectorName}.w", targetPosition.w);
+			var newElementList = new List<AnimationElement>();
+			var xComp = BuildAnimatedElementsFromValues($"{vectorName}.x", targetPosition.x);
+			var yComp = BuildAnimatedElementsFromValues($"{vectorName}.y", targetPosition.y);
+			var zComp = BuildAnimatedElementsFromValues($"{vectorName}.z", targetPosition.z);
+			var wComp = BuildAnimatedElementsFromValues($"{vectorName}.w", targetPosition.w);
 			newElementList.Add(xComp);
 			newElementList.Add(yComp);
 			newElementList.Add(zComp);
@@ -3939,26 +4007,27 @@ namespace juniperD.StatefullServices
 			return newElementList;
 		}
 
-		private List<AnimatedElement> GetAnimatedElementsFromVector(string vectorName, Vector3 targetPosition)
+		private List<AnimationElement> GetAnimatedElementsFromVector(string vectorName, Vector3 targetPosition)
 		{
-			var newElementList = new List<AnimatedElement>();
-			var xComp = GetAnimatedElementsFromValues($"{vectorName}.x", targetPosition.x);
-			var yComp = GetAnimatedElementsFromValues($"{vectorName}.y", targetPosition.y);
-			var zComp = GetAnimatedElementsFromValues($"{vectorName}.z", targetPosition.z);
+			var newElementList = new List<AnimationElement>();
+			var xComp = BuildAnimatedElementsFromValues($"{vectorName}.x", targetPosition.x);
+			var yComp = BuildAnimatedElementsFromValues($"{vectorName}.y", targetPosition.y);
+			var zComp = BuildAnimatedElementsFromValues($"{vectorName}.z", targetPosition.z);
 			newElementList.Add(xComp);
 			newElementList.Add(yComp);
 			newElementList.Add(zComp);
 			return newElementList;
 		}
 
-		private AnimatedElement GetAnimatedElementsFromValues(string name, float targetValue)
+		private AnimationElement BuildAnimatedElementsFromValues(string name, float targetValue)
 		{
-			return new AnimatedElement()
+			return new AnimationElement()
 			{
 				Name = name,
 				TargetValue = targetValue,
+				TransitionTimeInSeconds = 1,
 				StartAtRatio = 0,
-				EndAtRatio = 0,
+				EndAtRatio = 1,
 				DirectionFlipped = false
 			};
 		}

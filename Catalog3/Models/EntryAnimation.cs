@@ -18,33 +18,42 @@ namespace juniperD.Models
 	public class AnimatedItem
 	{
 
-		public string Name { get;set;}
-		public AnimatedElement MasterElement { get; set;}
 		// Serialized...
+		public string Name { get; set; }
+		public AnimationElement MasterElement { get; set; }
 		public List<AnimatedGroup> AnimatedState { get; set; } = new List<AnimatedGroup>();
-		public List<AnimatedElement> AnimatedElements { get; set; } = new List<AnimatedElement>();
-		public UIDynamicButton UiRightHandle { get; internal set; }
-		public UIDynamicButton UiLeftHandle { get; internal set; }
-		public UIDynamicButton UiItemBar { get; internal set; }
-		public UIDynamicButton UiItemRow { get; internal set; }
+		public List<AnimationElement> AnimatedElements { get; set; } = new List<AnimationElement>();
+
+
 	}
 
 	public class AnimatedGroup
 	{
 		// Serialized...
-		public List<AnimatedElement> AnimatedAxes { get; set; } = new List<AnimatedElement>();
+		public List<AnimationElement> AnimatedAxes { get; set; } = new List<AnimationElement>();
 	}
 
-	public class AnimatedElement
+	public class AnimationElement
 	{
 		// Serialized...
 		public string Name { get; set;}
+		public float TransitionTimeInSeconds { get; set; }
 		public string Curve { get; set;}
 		public bool DirectionFlipped { get; set;}
 		public float SourceValue { get; set; }
 		public float TargetValue { get; set; }
 		public float StartAtRatio { get; set;}
 		public float EndAtRatio { get; set; }
+
+		public List<AnimationElement> ChildElements { get;set; } = new List<AnimationElement>();
+		public List<AnimationElement> SubElements { get; set; } = new List<AnimationElement>();
+
+		// UI
+		public UIDynamicButton UiRightHandle { get; internal set; }
+		public UIDynamicButton UiLeftHandle { get; internal set; }
+		public UIDynamicButton UiActiveAreaBar { get; internal set; }
+		public UIDynamicButton UiLabel { get; internal set; }
+		public bool OnDisplay { get; internal set; }
 	}
 
 
