@@ -2,6 +2,7 @@ Contracts/CatalogModeEnum.cs
 Contracts/LinkTypeEnum.cs
 Contracts/PointAddOptionEnum.cs
 Contracts/AnimationCurveEnum.cs
+Contracts/AnchorPositionEnum.cs
 Contracts/Global.cs
 Contracts/Mappings.cs
 Utils/ImageLoader.cs

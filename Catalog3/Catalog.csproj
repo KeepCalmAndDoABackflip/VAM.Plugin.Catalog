@@ -89,6 +89,7 @@
   </ItemGroup>
   <ItemGroup>
     <Compile Include="Contracts\AnimationCurveEnum.cs" />
+    <Compile Include="Contracts\AnchorPositionEnum.cs" />
     <Compile Include="Contracts\PointAddOptionEnum.cs" />
     <Compile Include="Contracts\LinkTypeEnum.cs" />
     <Compile Include="Contracts\CatalogModeEnum.cs" />

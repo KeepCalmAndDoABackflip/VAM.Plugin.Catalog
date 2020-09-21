@@ -15,7 +15,7 @@ namespace juniperD.StatefullServices
 	public class MutationsService
 	{
 
-		private List<string> _nonObjectAtomTypes = new List<string>(){ "CoreControl" , "NavigationPanel", "None" };
+		private List<string> _nonObjectAtomTypes = new List<string>() { "CoreControl", "NavigationPanel", "None" };
 		private List<string> _nonObjectAtomNames = new List<string>() { "CoreControl", "NavigationPanel", "None" };
 
 		#region PluginInfo    
@@ -31,7 +31,8 @@ namespace juniperD.StatefullServices
 		public bool MustCaptureClothes { get; set; } = false;
 		public bool MustCaptureActiveMorphs { get; set; } = false;
 		public bool MustCaptureAnimations { get; set; } = false;
-		public bool MustCapturePoseMorphs { get; internal set; }
+		public bool MustCapturePoseMorphs { get; set; }
+		public bool _transitionInProgress { get; set; }
 
 		// Cache
 		//List<DAZMorph> _morphs;
@@ -63,6 +64,7 @@ namespace juniperD.StatefullServices
 		protected List<JSONStorableBool> _categoryMorphsSetToggles = new List<JSONStorableBool>();
 
 		protected List<PoseTransition> _transitioningAtomControllers = new List<PoseTransition>();
+		public Queue<IEnumerator> _transitionQueue1 = new Queue<IEnumerator>();
 
 		protected Dictionary<string, Stack<Mutation>> _mutationStacks = new Dictionary<string, Stack<Mutation>>();
 		protected Dictionary<string, List<MorphMutation>> _activeMorphStackForPerson = new Dictionary<string, List<MorphMutation>>();
@@ -82,7 +84,7 @@ namespace juniperD.StatefullServices
 			"hairTool2", "hairTool2UI",
 			"hairTool3", "hairTool3UI",
 			"hairTool4", "hairTool4UI",
-			"hairScalpMaskTool", "hairScalpMaskToolUI", 
+			"hairScalpMaskTool", "hairScalpMaskToolUI",
 			"eyeTargetControl"
 		};
 
@@ -734,7 +736,7 @@ namespace juniperD.StatefullServices
 			var items = character.hairItems;
 			return items.Where(h => h.active).Select(item => new HairMutation()
 			{
-				Id = GetHairId(item), 
+				Id = GetHairId(item),
 				Label = item.displayName,
 				DAZHairGroup = item
 			}).ToList();
@@ -1073,7 +1075,7 @@ namespace juniperD.StatefullServices
 
 		public bool IsValidObjectAtom(Atom atom)
 		{
-			return atom != null 
+			return atom != null
 				&& !_nonObjectAtomTypes.Contains(atom.type)
 				&& !_nonObjectAtomNames.Contains(atom.name);
 		}
@@ -1256,6 +1258,7 @@ namespace juniperD.StatefullServices
 		public void ApplyActiveMorphItem(MorphMutation mutationItem, float startDelay = 0, float duration = 0, UnityAction whenFinishedCallback = null)
 		{
 			var trackingKey = GetTrackinKeyForCurrentAtom();
+			SuperController.LogMessage("trackingKey: " + trackingKey);
 			if (!MorphBaseValuesHaveBeenSetForCurrentPerson(trackingKey)) _morphBaseValuesForTrackedPerson.Add(trackingKey, new List<MorphMutation>());
 			var morphs = GetMorphsForSelectedPersonOrDefault();
 			if (morphs == null) return;
@@ -1269,7 +1272,10 @@ namespace juniperD.StatefullServices
 			{
 				InitializeBaseMorphForPerson(trackingKey, morph);
 			}
-			_context.StartCoroutine(TransitionApplyMorph(morph, mutationItem.Value, startDelay, duration, whenFinishedCallback, true));
+
+			var transition = TransitionApplyMorph(morph, mutationItem.Value, 0, duration, whenFinishedCallback, true);
+			_transitionQueue1.Enqueue(transition);
+
 			//SetMorphValue(morph, mutationItem.Value);
 			if (!_activeMorphStackForPerson.ContainsKey(trackingKey)) _activeMorphStackForPerson.Add(trackingKey, new List<MorphMutation>());
 			_activeMorphStackForPerson[trackingKey].Add(mutationItem);
@@ -1292,7 +1298,9 @@ namespace juniperD.StatefullServices
 			startDelay += duration * mutationItem.StartAtTimeRatio;
 			duration = (mutationItem.EndAtTimeRatio - mutationItem.StartAtTimeRatio) * duration;
 
-			_context.StartCoroutine(TransitionApplyPose(controller, mutationItem, startDelay, duration, whenFinishedCallback));
+			var transition = TransitionApplyPose(controller, mutationItem, 0, duration, whenFinishedCallback);
+			_transitionQueue1.Enqueue(transition);
+			//_context.StartCoroutine(TransitionApplyPose(controller, mutationItem, startDelay, duration, whenFinishedCallback));
 		}
 
 		public IEnumerator TransitionApplyPose(FreeControllerV3 controller, PoseMutation poseMutation, float startDelay = 0, float transitionTimeInSeconds = 0, UnityAction whenFinishedCallback = null)
@@ -1300,7 +1308,8 @@ namespace juniperD.StatefullServices
 			float actualStartDelay = startDelay;
 			float speed = 150f;
 
-			if (transitionTimeInSeconds > 0) {
+			if (transitionTimeInSeconds > 0)
+			{
 				var startTime = transitionTimeInSeconds * poseMutation.StartAtTimeRatio;
 				var endTime = transitionTimeInSeconds * poseMutation.EndAtTimeRatio;
 				transitionTimeInSeconds = endTime - startTime;
@@ -1316,7 +1325,7 @@ namespace juniperD.StatefullServices
 			var transitionKey = _context.GetUniqueName();
 			var newTransition = new PoseTransition(transitionKey);
 
-			
+
 			if (transitionTimeInSeconds == 0)
 			{
 				controller.transform.localPosition = poseMutation.Position;
@@ -1351,7 +1360,8 @@ namespace juniperD.StatefullServices
 			controller.transform.localRotation = poseMutation.Rotation;
 			RemoveActiveTransition(newTransition);
 			if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
-			
+
+			_transitionInProgress = false;
 		}
 
 		private static Vector3 IncrementPositionAndRotation(FreeControllerV3 controller, PoseMutation poseMutation, Vector3 newPosition, Quaternion initialRotation, float numberOfIterations, Vector3 positionIterationDistance, int iteration)
@@ -1440,13 +1450,17 @@ namespace juniperD.StatefullServices
 			}
 			else
 			{
+				float amountOfIterations;
+				var otherManipulatorPresent = false;
+				//try
+				//{
 				float framesPerSecond = 25;
 				float morphValue = GetMorphValue(morph);
 				var totalToAdd = targetValue - morphValue;
-				var amountOfIterations = transitionTimeInSeconds * framesPerSecond;
+				amountOfIterations = transitionTimeInSeconds * framesPerSecond;
 				var iterationDistance = totalToAdd / amountOfIterations;
 				// if total to add is negative then targetvalue is less than morph value
-				var otherManipulatorPresent = false;
+
 				//while ((totalToAdd < 0 && morphValue > targetValue) || (totalToAdd > 0 && morphValue < targetValue))
 				for (var i = 0; i < amountOfIterations; i++)
 				{
@@ -1459,12 +1473,21 @@ namespace juniperD.StatefullServices
 					}
 					morphValue += iterationDistance * easeFactor;
 					SetMorphValue(morph, morphValue);
-					yield return new WaitForSeconds(1 / amountOfIterations);
+					yield return new WaitForSeconds(transitionTimeInSeconds / amountOfIterations);
 				}
+				//}
+				//catch (Exception e)
+				//{
+				//	SuperController.LogError(e.ToString());
+				//	_transitionInProgress = false;
+				//	yield break;
+				//}
+				
 				//SetMorphValue(morph, targetValue);
 				if (!otherManipulatorPresent) SetMorphValue(morph, targetValue);
 			}
 			if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
+			_transitionInProgress = false;
 		}
 
 		private void InitializeBaseMorphForPerson(string trackingKey, DAZMorph morph)

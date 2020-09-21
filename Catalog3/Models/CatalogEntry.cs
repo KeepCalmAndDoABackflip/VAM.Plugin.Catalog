@@ -54,6 +54,9 @@ namespace juniperD.Models
 		public VerticalLayoutGroup UiAnimationVLayout { get; internal set; }
 		public string OriginName { get; set; }
 		public DragHelper YPositionTracker { get; internal set; }
+		public GameObject UiParentCatalogColumnContainer { get; internal set; }
+		public GameObject UiTopButtonGroup { get; internal set; }
+		public UIDynamicButton UiCloseButton { get; internal set; }
 
 		public CatalogEntry Clone()
 		{

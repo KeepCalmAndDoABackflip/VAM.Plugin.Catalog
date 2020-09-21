@@ -426,6 +426,7 @@ namespace juniperD.StatefullServices
 				CreateDynamicButton_ScrollUp(window);
 				CreateDynamicButton_ScrollDown(window);
 				CreateDynamicButton_Sort(window);
+				CreateDynamicButton_RemoveAllFavorites(window);
 
 				// Scene helper buttons...
 				CreateDynamicButton_SelectSceneAtom(window);
@@ -1928,13 +1929,27 @@ namespace juniperD.StatefullServices
 					_mainWindow.ButtonPlayStop.buttonColor = Color.red;
 					_mainWindow.ButtonPlayStop.button.image.sprite = stopSprite;
 					SetTooltipForDynamicButton(_mainWindow.ButtonPlayStop, () => "Stop playing catalog");
+					_mainWindow.ButtonLoopFavorited.button.transform.localScale = Vector3.zero;
 				}
 				else
 				{
 					_mainWindow.ButtonPlayStop.buttonColor = Color.green;
 					_mainWindow.ButtonPlayStop.button.image.sprite = playSprite;
 					SetTooltipForDynamicButton(_mainWindow.ButtonPlayStop, () => "Play catalog");
+					_mainWindow.ButtonLoopFavorited.button.transform.localScale = Vector3.one;
 				}
+			});
+		}
+
+		private void CreateDynamicButton_LoopFavorited()
+		{
+			var pluginPath = GetPluginPath();
+			var playIcon = _imageLoaderService.GetFutureImageFromFileOrCached(pluginPath + "/Resources/Loop.png");
+			_mainWindow.ButtonLoopFavorited = _catalogUi.CreateButton(_mainWindow.SubPanelCapture, "", 60, 60, 0, 10, new Color(0.25f, 0.7f, 0.25f), new Color(0.5f, 1f, 0.5f), new Color(1, 1, 1), playIcon);
+			SetTooltipForDynamicButton(_mainWindow.ButtonLoopFavorited, () => "Loop Favorited");
+			_mainWindow.ButtonLoopFavorited.button.onClick.AddListener(() =>
+			{
+				_mainWindow.ButtonLoopFavorited.button.transform.localScale = Vector3.zero;
 			});
 		}
 
@@ -2274,6 +2289,19 @@ namespace juniperD.StatefullServices
 			_mainWindow.ButtonSort = _catalogUi.CreateButton(mainWindow.SubPanelManageCatalog, "", 35, 35, 0, 80, new Color(1f, 0.5f, 0.05f, 0.5f), new Color(1f, 0.5f, 0.05f, 1f), new Color(1f, 1f, 1f), texture);
 			_mainWindow.ButtonSort.button.onClick.AddListener(() => SortCatalog());
 			SetTooltipForDynamicButton(_mainWindow.ButtonSort, () => "Sort and discard");
+		}
+
+		private void CreateDynamicButton_RemoveAllFavorites(DynamicMainWindow mainWindow)
+		{
+			var texture = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/RemoveAllFavorites.png");
+			_mainWindow.ButtonRemoveAllFavorites = _catalogUi.CreateButton(mainWindow.SubPanelManageCatalog, "", 35, 35, 0, 80, new Color(1f, 0.5f, 0.05f, 0.5f), new Color(1f, 0.5f, 0.05f, 1f), new Color(1f, 1f, 1f), texture);
+			_mainWindow.ButtonRemoveAllFavorites.button.onClick.AddListener(() => {
+				foreach (var catalogEntry in _catalog.Entries)
+				{
+					ResetFavorite(catalogEntry);
+				}
+			});
+			SetTooltipForDynamicButton(_mainWindow.ButtonRemoveAllFavorites, () => "Remove all favorites");
 		}
 
 		private void CreateDynamicButton_ShowDebugButton(DynamicMainWindow mainWindow)
@@ -2767,7 +2795,6 @@ namespace juniperD.StatefullServices
 				//...put your custom actions here...
 				try
 				{
-					SetCatalogPositionToCatalogEntry(2);
 					//var selectedController = SuperController.singleton.GetSelectedController();
 					//selectedController.transform.localRotation = selectedController.transform.localRotation * new Quaternion(0f, 1f, 0, 1f);
 					//selectedController.transform.localRotation = Quaternion.Lerp(selectedController.transform.localRotation, new Quaternion(0f, 1f, 0, 1f), 0.1f);
@@ -2808,20 +2835,21 @@ namespace juniperD.StatefullServices
 		private IEnumerator SetCatalogPositionToCatalogEntry(CatalogEntry entry)
 		{
 			yield return new WaitForEndOfFrame();
+			//var catalogRowIndex = _mainWindow.CatalogColumnContainers.IndexOf(entry.UiParentCatalogColumn);
 			var catalogEntryIndex = _catalog.Entries.IndexOf(entry);
-			SetCatalogPositionToCatalogEntry(catalogEntryIndex);
+			SetCatalogPositionToCatalogEntry(catalogEntryIndex, 0);
 			SelectCatalogEntry(entry);
 		}
 
-		private void SetCatalogPositionToCatalogEntry(int catalogEntryIndex)
+		private void SetCatalogPositionToCatalogEntry(int catalogEntryIndex, int cataloRowIndex)
 		{
 			var scrollPosition = GetTotalFrameSize() * catalogEntryIndex * -1;
-			SetCatalogPositionToCatalogEntry(scrollPosition);
+			SetCatalogPositionToCatalogEntry(scrollPosition, cataloRowIndex);
 		}
 
-		private void SetCatalogPositionToCatalogEntry(float scrollPosition)
+		private void SetCatalogPositionToCatalogEntry(float scrollPosition, int cataloRowIndex)
 		{
-			_mainWindow.CatalogColumnContainers[0].transform.localPosition = new Vector3(scrollPosition, _mainWindow.CatalogColumnContainers[0].transform.localPosition.y, _mainWindow.CatalogColumnContainers[0].transform.localPosition.z);
+			_mainWindow.CatalogColumnContainers[cataloRowIndex].transform.localPosition = new Vector3(scrollPosition, _mainWindow.CatalogColumnContainers[0].transform.localPosition.y, _mainWindow.CatalogColumnContainers[0].transform.localPosition.z);
 			SetRowStateBasedOnScrollPosition(scrollPosition);
 		}
 
@@ -3184,6 +3212,14 @@ namespace juniperD.StatefullServices
 			{
 
 				if (_atomType == ATOM_TYPE_PERSON) _mutationsService.Update();
+
+				// Start next transition...
+				if (!_mutationsService._transitionInProgress && _mutationsService._transitionQueue1.Any())
+				{
+					_mutationsService._transitionInProgress = true;
+					var nextTransition = _mutationsService._transitionQueue1.Dequeue();
+					if (nextTransition != null) StartCoroutine(nextTransition);
+				}
 
 				ManageScreenshotCaptureSequence();
 
@@ -3846,6 +3882,9 @@ namespace juniperD.StatefullServices
 				AddEntrySelectionOverlay(catalogEntry, catalogEntryPanel);
 				//GameObject leftButtonGroup = CreateEntryLeftButtonGroup(catalogEntry, catalogEntryPanel, btnHeight);
 				GameObject botttomButtonGroup = CreateEntryBottomButtonGroup(catalogEntry, catalogEntryPanel, btnHeight);
+				GameObject topButtonGroup = CreateEntryTopButtonGroup(catalogEntry, catalogEntryPanel, btnHeight);
+
+				AddEntryCloseButton(catalogEntry, smallerBtnSize, smallerBtnSize, topButtonGroup);
 
 				AddEntryFavoriteButton(catalogEntry, smallerBtnSize, smallerBtnSize, botttomButtonGroup);
 				AddEntryDiscardButton(catalogEntry, smallerBtnSize, smallerBtnSize, botttomButtonGroup);
@@ -4116,8 +4155,33 @@ namespace juniperD.StatefullServices
 			GameObject buttonGroup = CreateButtonRow(catalogEntryPanel, btnHeight);
 			// Create container for sub-frame buttons...
 			catalogEntry.UiBottomButtonGroup = buttonGroup;
-			CatalogUiHelper.SetAnchors(catalogEntry.UiCatalogEntryPanel, catalogEntry.UiBottomButtonGroup, "bottom", 0, 0);
+			CatalogUiHelper.SetAnchors(catalogEntry.UiCatalogEntryPanel, catalogEntry.UiBottomButtonGroup, AnchorPositionEnum.BOTTOM , 0, 0);
 			return buttonGroup;
+		}
+
+		private GameObject CreateEntryTopButtonGroup(CatalogEntry catalogEntry, GameObject catalogEntryPanel, int btnHeight)
+		{
+			GameObject buttonGroup = CreateButtonRow(catalogEntryPanel, btnHeight);
+			// Create container for sub-frame buttons...
+			catalogEntry.UiTopButtonGroup = buttonGroup;
+			CatalogUiHelper.SetAnchors(catalogEntry.UiCatalogEntryPanel, catalogEntry.UiTopButtonGroup, AnchorPositionEnum.TOP_RIGHT, (int)(-_relativeBorderWidth * 1.5f), 0);
+			return buttonGroup;
+		}
+
+		private void AddEntryCloseButton(CatalogEntry catalogEntry, int btnHeight, int btnWidth, GameObject buttonGroup)
+		{
+			// Reject button
+			var baseButtonColor = new Color(0.7f, 0.7f, 0.7f, 0.5f);
+			var buttonHighlightedColor = new Color(0.5f, 0.0f, 0.0f, 1f);
+			var buttonIcon = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/Close.png");
+			UIDynamicButton closeButton = _catalogUi.CreateButton(buttonGroup, "", btnWidth, btnHeight, 0, 0, baseButtonColor, buttonHighlightedColor, Color.white, buttonIcon);
+			catalogEntry.UiCloseButton = closeButton;
+			closeButton.button.onClick.AddListener(() =>
+			{
+				ResetFavorite(catalogEntry);
+				RemoveEntryFromCatalog(catalogEntry);
+			});
+			SetTooltipForDynamicButton(closeButton, () => "Remove from catalog");
 		}
 
 		private void AddEntryDiscardButton(CatalogEntry catalogEntry, int btnHeight, int btnWidth, GameObject buttonGroup)
@@ -4132,13 +4196,18 @@ namespace juniperD.StatefullServices
 			{
 				catalogEntry.Discarded = !catalogEntry.Discarded;
 				//SetCatalogEntryOpacity(catalogEntry, 0.1f);
-				catalogEntry.Favorited = 0;
-				UpdateCatalogEntryBorderColorBasedOnState(catalogEntry);
+				ResetFavorite(catalogEntry);
 				UpdateCatalogEntryDiscardButtonBasedOnState(catalogEntry);
-				UpdateCatalogEntryFavoriteButtonBasedOnState(catalogEntry);
-				RemoveEntryFromCatalog(catalogEntry);
+				//RemoveEntryFromCatalog(catalogEntry);
 			});
 			SetTooltipForDynamicButton(discardButton, () => "Reject / Remove Likes (Use 'Sort' to remove)");
+		}
+
+		private void ResetFavorite(CatalogEntry catalogEntry)
+		{
+			catalogEntry.Favorited = 0;
+			UpdateCatalogEntryFavoriteButtonBasedOnState(catalogEntry);
+			UpdateCatalogEntryBorderColorBasedOnState(catalogEntry);
 		}
 
 		private static void UpdateCatalogEntryDiscardButtonBasedOnState(CatalogEntry catalogEntry)
@@ -4186,19 +4255,25 @@ namespace juniperD.StatefullServices
 			var baseButtonColor = new Color(0.7f, 0.7f, 0.7f, 0.5f);
 			var acceptButtonHighlightedColor = new Color(0.0f, 0.5f, 0.0f, 1f);
 			var acceptButtonTexture = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/Favorite.png");
-			UIDynamicButton keepButton = _catalogUi.CreateButton(buttonGroup, "", btnWidth, btnHeight, 0, 0, baseButtonColor, acceptButtonHighlightedColor, Color.white, acceptButtonTexture);
-			catalogEntry.UiKeepButton = keepButton;
+			//var closeIcon = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/Close.png");
+			UIDynamicButton favoriteButton = _catalogUi.CreateButton(buttonGroup, "", btnWidth, btnHeight, 0, 0, baseButtonColor, baseButtonColor, Color.white, acceptButtonTexture);
+			//UIDynamicButton resetButton = _catalogUi.CreateButton(buttonGroup, "", btnWidth, btnHeight, 0, -20, baseButtonColor, acceptButtonHighlightedColor, Color.white, acceptButtonTexture);
+			catalogEntry.UiKeepButton = favoriteButton;
 			catalogEntry.UiKeepButton.buttonText.fontSize = 15;
 			UpdateCatalogEntryFavoriteButtonBasedOnState(catalogEntry);
-			keepButton.button.onClick.AddListener(() =>
+			favoriteButton.button.onClick.AddListener(() =>
 			{
 				catalogEntry.Discarded = false;
 				catalogEntry.Favorited += 1;
+				if (catalogEntry.Favorited > 9) {
+					ResetFavorite(catalogEntry);
+					return;
+				}
 				UpdateCatalogEntryFavoriteButtonBasedOnState(catalogEntry);
 				UpdateCatalogEntryDiscardButtonBasedOnState(catalogEntry);
 				UpdateCatalogEntryBorderColorBasedOnState(catalogEntry);
 			});
-			SetTooltipForDynamicButton(keepButton, () => "Add Like (Use 'Sort' to reorder)");
+			SetTooltipForDynamicButton(favoriteButton, () => "Add Like (Use 'Sort' to reorder)");
 		}
 
 		//private void AddMenuButton(CatalogEntry catalogEntry, int btnHeight, int btnWidth, GameObject buttonGroup)
@@ -4668,7 +4743,9 @@ namespace juniperD.StatefullServices
 			//{
 			//int appropriateColIndex = (int)(entryIndex / _catalogRowsCountJSON.val);
 			//if (appropriateColIndex >= _mainWindow.CatalogColumns.Count - 1)
-			var catalogColumn = CreateCatalogColumn();
+			_mainWindow.ActiveCatalogContainer = _mainWindow.CatalogColumnContainers[0];
+			newCatalogEntry.UiParentCatalogColumnContainer = _mainWindow.ActiveCatalogContainer;
+			var catalogColumn = CreateCatalogColumn(newCatalogEntry.UiParentCatalogColumnContainer);
 			_mainWindow.CatalogColumns.Add(catalogColumn);
 			newCatalogEntry.UiParentCatalogColumn = catalogColumn;
 			newCatalogEntry.UiCatalogEntryPanel.transform.SetParent(catalogColumn.transform);
@@ -4709,9 +4786,9 @@ namespace juniperD.StatefullServices
 			_mainWindow.CatalogColumnContainers[0].transform.localPosition = new Vector3(newX, _mainWindow.CatalogRowContainer.transform.localPosition.y, _mainWindow.CatalogRowContainer.transform.localPosition.z);
 		}
 
-		GameObject CreateCatalogColumn()
+		GameObject CreateCatalogColumn(GameObject catalogContainer)
 		{
-			var col = _catalogUi.CreateUIPanel(_mainWindow.SubWindow, 400, 400, "left", 0, 0, Color.clear);
+			var col = _catalogUi.CreateUIPanel(catalogContainer, 400, 400, "left", 0, 0, Color.clear);
 			_catalogUi.CreateVerticalLayout(col, 100.0f, false, false, false, false);
 			col.transform.SetParent(_mainWindow.CatalogColumnsHLayout.transform, false);
 			return col;
