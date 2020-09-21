@@ -1258,7 +1258,6 @@ namespace juniperD.StatefullServices
 		public void ApplyActiveMorphItem(MorphMutation mutationItem, float startDelay = 0, float duration = 0, UnityAction whenFinishedCallback = null)
 		{
 			var trackingKey = GetTrackinKeyForCurrentAtom();
-			SuperController.LogMessage("trackingKey: " + trackingKey);
 			if (!MorphBaseValuesHaveBeenSetForCurrentPerson(trackingKey)) _morphBaseValuesForTrackedPerson.Add(trackingKey, new List<MorphMutation>());
 			var morphs = GetMorphsForSelectedPersonOrDefault();
 			if (morphs == null) return;
@@ -1272,10 +1271,7 @@ namespace juniperD.StatefullServices
 			{
 				InitializeBaseMorphForPerson(trackingKey, morph);
 			}
-
-			var transition = TransitionApplyMorph(morph, mutationItem.Value, 0, duration, whenFinishedCallback, true);
-			_transitionQueue1.Enqueue(transition);
-
+			_context.StartCoroutine(TransitionApplyMorph(morph, mutationItem.Value, startDelay, duration, whenFinishedCallback, true));
 			//SetMorphValue(morph, mutationItem.Value);
 			if (!_activeMorphStackForPerson.ContainsKey(trackingKey)) _activeMorphStackForPerson.Add(trackingKey, new List<MorphMutation>());
 			_activeMorphStackForPerson[trackingKey].Add(mutationItem);
@@ -1298,9 +1294,7 @@ namespace juniperD.StatefullServices
 			startDelay += duration * mutationItem.StartAtTimeRatio;
 			duration = (mutationItem.EndAtTimeRatio - mutationItem.StartAtTimeRatio) * duration;
 
-			var transition = TransitionApplyPose(controller, mutationItem, 0, duration, whenFinishedCallback);
-			_transitionQueue1.Enqueue(transition);
-			//_context.StartCoroutine(TransitionApplyPose(controller, mutationItem, startDelay, duration, whenFinishedCallback));
+			_context.StartCoroutine(TransitionApplyPose(controller, mutationItem, startDelay, duration, whenFinishedCallback));
 		}
 
 		public IEnumerator TransitionApplyPose(FreeControllerV3 controller, PoseMutation poseMutation, float startDelay = 0, float transitionTimeInSeconds = 0, UnityAction whenFinishedCallback = null)
@@ -1361,7 +1355,6 @@ namespace juniperD.StatefullServices
 			RemoveActiveTransition(newTransition);
 			if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
 
-			_transitionInProgress = false;
 		}
 
 		private static Vector3 IncrementPositionAndRotation(FreeControllerV3 controller, PoseMutation poseMutation, Vector3 newPosition, Quaternion initialRotation, float numberOfIterations, Vector3 positionIterationDistance, int iteration)
@@ -1450,17 +1443,13 @@ namespace juniperD.StatefullServices
 			}
 			else
 			{
-				float amountOfIterations;
-				var otherManipulatorPresent = false;
-				//try
-				//{
 				float framesPerSecond = 25;
 				float morphValue = GetMorphValue(morph);
 				var totalToAdd = targetValue - morphValue;
-				amountOfIterations = transitionTimeInSeconds * framesPerSecond;
+				var amountOfIterations = transitionTimeInSeconds * framesPerSecond;
 				var iterationDistance = totalToAdd / amountOfIterations;
 				// if total to add is negative then targetvalue is less than morph value
-
+				var otherManipulatorPresent = false;
 				//while ((totalToAdd < 0 && morphValue > targetValue) || (totalToAdd > 0 && morphValue < targetValue))
 				for (var i = 0; i < amountOfIterations; i++)
 				{
@@ -1475,19 +1464,10 @@ namespace juniperD.StatefullServices
 					SetMorphValue(morph, morphValue);
 					yield return new WaitForSeconds(transitionTimeInSeconds / amountOfIterations);
 				}
-				//}
-				//catch (Exception e)
-				//{
-				//	SuperController.LogError(e.ToString());
-				//	_transitionInProgress = false;
-				//	yield break;
-				//}
-				
 				//SetMorphValue(morph, targetValue);
 				if (!otherManipulatorPresent) SetMorphValue(morph, targetValue);
 			}
 			if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
-			_transitionInProgress = false;
 		}
 
 		private void InitializeBaseMorphForPerson(string trackingKey, DAZMorph morph)
