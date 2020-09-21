@@ -77,7 +77,7 @@ namespace juniperD.Models
 		public Sprite IconForCaptureNone { get; set; }
 
 		public GameObject CatalogRowContainer { get; set; }
-		public GameObject CatalogColumnContainer { get; set; }
+		public List<GameObject> CatalogColumnContainers { get; set; } = new List<GameObject>();
 		public VerticalLayoutGroup CatalogRowsVLayout { get; set; }
 		public HorizontalLayoutGroup CatalogColumnsHLayout { get; set; }
 		public List<GameObject> CatalogRows { get; set; } = new List<GameObject>();

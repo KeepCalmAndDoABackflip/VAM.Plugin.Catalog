@@ -41,7 +41,7 @@ namespace juniperD.Models
 		public UIDynamicButton UiSelectButton { get; set; }
 		public GameObject UiParentCatalogRow { get; set; }
 		public GameObject UiParentCatalogColumn { get; set; }
-		public DragHelper PositionTracker { get; set; }
+		public DragHelper XPositionTracker { get; set; }
 		public Action<CatalogEntry> ApplyAction { get; set; }
 		public Border UiCatalogBorder { get; set; }
 		public Color CurrentBorderColor { get; set; }
@@ -53,6 +53,7 @@ namespace juniperD.Models
 		public GameObject UiAnimationInnerPanel { get; internal set; }
 		public VerticalLayoutGroup UiAnimationVLayout { get; internal set; }
 		public string OriginName { get; set; }
+		public DragHelper YPositionTracker { get; internal set; }
 
 		public CatalogEntry Clone()
 		{

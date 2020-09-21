@@ -377,10 +377,10 @@ namespace juniperD.StatefullServices
 				_mainWindow.ParentWindowContainer = CatalogUiHelper.CreatePanel(_windowUi.canvas.gameObject, 0, 0, 0, 0, Color.clear, Color.clear); ;
 				_mainWindow.SubWindow = CatalogUiHelper.CreatePanel(_mainWindow.ParentWindowContainer, 0, 0, 0, 0, Color.clear, Color.clear);
 				_mainWindow.CatalogRowContainer = _catalogUi.CreateUIPanel(_mainWindow.SubWindow, 0, 0, "topleft", 1, 1, Color.clear);
-				_mainWindow.CatalogColumnContainer = _catalogUi.CreateUIPanel(_mainWindow.SubWindow, 0, 0, "topleft", 1, 1, Color.clear);
-
 				_mainWindow.CatalogRowsVLayout = _catalogUi.CreateVerticalLayout(_mainWindow.CatalogRowContainer.gameObject, _relativeBorderWidth);
-				_mainWindow.CatalogColumnsHLayout = _catalogUi.CreateHorizontalLayout(_mainWindow.CatalogColumnContainer.gameObject, _relativeBorderWidth);
+
+				_mainWindow.CatalogColumnContainers = new List<GameObject>() { CreateNewCatalogColumnContainer(0) };
+				
 
 				CreateDynamicUi(_mainWindow);
 
@@ -395,6 +395,14 @@ namespace juniperD.StatefullServices
 			{
 				SuperController.LogError(e.ToString());
 			}
+		}
+
+		private GameObject CreateNewCatalogColumnContainer(int rowIndex)
+		{
+			var totalFrameSize = (int)GetTotalFrameSize();
+			var columnContainer = _catalogUi.CreateUIPanel(_mainWindow.SubWindow, rowIndex * totalFrameSize, 0, "topleft", 1, 1, Color.clear);
+			_mainWindow.CatalogColumnsHLayout = _catalogUi.CreateHorizontalLayout(columnContainer, _relativeBorderWidth);
+			return columnContainer;
 		}
 
 		public void Start()
@@ -1712,12 +1720,18 @@ namespace juniperD.StatefullServices
 			//var texture = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/SubItemMenu.png");
 			_mainWindow.ButtonMinimizeSubItemPanel = _catalogUi.CreateButton(_mainWindow.SubWindow, "sub items", 100, 25, _mainWindow.WindowWidth + 50, -11, new Color(0f, 0f, 0f), new Color(0.7f, 0.2f, 0.2f), new Color(0.6f, 0.6f, 0.6f));
 			_mainWindow.ButtonMinimizeSubItemPanel.buttonText.fontSize = 15;
+			var checekdColor = new Color(0.7f, 0.2f, 0.2f);
+			var unchecekdColor = new Color(0f, 0f, 0f);
 			_mainWindow.ButtonMinimizeSubItemPanel.button.onClick.AddListener(() =>
 			{
 				_mainWindow.SubItemPanelMinimized = !_mainWindow.SubItemPanelMinimized;
 				if (_mainWindow.SubItemPanelMinimized)
 				{
 					RemoveItemToggles();
+					_mainWindow.ButtonMinimizeSubItemPanel.buttonText.text = "sub items";
+					SetButtonColor(_mainWindow.ButtonMinimizeSubItemPanel, unchecekdColor);
+					//_mainWindow.ButtonMinimizeSubItemPanel.buttonColor = _dynamicButtonUnCheckColor;
+					//_mainWindow.ButtonMinimizeSubItemPanel.buttonColor = new Color(0f, 0f, 0f);
 					_mainWindow.DynamicInfoPanel.transform.localScale = Vector3.zero;
 					var pos = _mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition;
 					_mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition = new Vector3((float)(_mainWindow.WindowWidth + 100), pos.y, pos.z);// _mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition - new Vector3(200, 0,0);
@@ -1725,6 +1739,8 @@ namespace juniperD.StatefullServices
 				}
 				else
 				{
+					SetButtonColor(_mainWindow.ButtonMinimizeSubItemPanel, checekdColor);
+					_mainWindow.ButtonMinimizeSubItemPanel.buttonText.text = "SUB ITEMS";
 					_mainWindow.DynamicInfoPanel.transform.localScale = Vector3.one;
 					var pos = _mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition;
 					_mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition = new Vector3((float)(_mainWindow.WindowWidth + 100 + 200), pos.y, pos.z); //_mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition + new Vector3(200, 0, 0);
@@ -1733,6 +1749,12 @@ namespace juniperD.StatefullServices
 				}
 			});
 			SetTooltipForDynamicButton(_mainWindow.ButtonMinimizeSubItemPanel, () => _mainWindow.SubItemPanelMinimized ? "Show sub-items": "Hide sub-items");
+		}
+
+		private void SetButtonColor(UIDynamicButton button, Color color)
+		{
+			var image = button.GetComponent<Image>();
+			image.color = color;
 		}
 
 		private void CreateDynamicButton_LoadShortcut()
@@ -2799,13 +2821,13 @@ namespace juniperD.StatefullServices
 
 		private void SetCatalogPositionToCatalogEntry(float scrollPosition)
 		{
-			_mainWindow.CatalogColumnContainer.transform.localPosition = new Vector3(scrollPosition, _mainWindow.CatalogColumnContainer.transform.localPosition.y, _mainWindow.CatalogColumnContainer.transform.localPosition.z);
+			_mainWindow.CatalogColumnContainers[0].transform.localPosition = new Vector3(scrollPosition, _mainWindow.CatalogColumnContainers[0].transform.localPosition.y, _mainWindow.CatalogColumnContainers[0].transform.localPosition.z);
 			SetRowStateBasedOnScrollPosition(scrollPosition);
 		}
 
 		private float GetCatalogCurrentScrollPosition()
 		{
-			return -_mainWindow.CatalogColumnContainer.transform.localPosition.x;
+			return -_mainWindow.CatalogColumnContainers[0].transform.localPosition.x;
 		}
 
 		public void DebugLog(string text, bool clean = false)
@@ -3176,7 +3198,8 @@ namespace juniperD.StatefullServices
 				}
 				foreach (var catalogEntry in _catalog.Entries)
 				{
-					catalogEntry.PositionTracker.Update();
+					catalogEntry.XPositionTracker.Update();
+					catalogEntry.YPositionTracker.Update();
 				}
 				if (_catalogUi != null) _catalogUi.Update();
 				if (_floatingControlsUi != null) _floatingControlsUi.Update();
@@ -4305,38 +4328,50 @@ namespace juniperD.StatefullServices
 
 		private void AddDraggingToCatalogEntryOverlay(CatalogEntry catalogEntry)
 		{
-			catalogEntry.PositionTracker = new DragHelper();
-			Action<DragHelper> onStartDraggingEvent = (helper) =>
-			{
-				//if (_expandDirection.val == EXPAND_WITH_MORE_ROWS) //...Vertical layout
-				//{
-				//	catalogEntry.PositionTracker.AllowDragX = false;
-				//	catalogEntry.PositionTracker.AllowDragY = true;
-				//	catalogEntry.PositionTracker.ObjectToDrag = _mainWindow.CatalogRowContainer;
-				//	catalogEntry.PositionTracker.LimitX = null;
-				//	float totalFrameWidth = GetTotalFrameSize();
-				//	catalogEntry.PositionTracker.LimitY = new Vector2((_mainWindow.CatalogRows.Count * totalFrameWidth) - totalFrameWidth, totalFrameWidth);
-				//}
-				//else  //...Horizontal layout
-				//{
-					catalogEntry.PositionTracker.AllowDragX = true;
-					catalogEntry.PositionTracker.AllowDragY = false;
-					catalogEntry.PositionTracker.ObjectToDrag = _mainWindow.CatalogColumnContainer;
-					var totalFrameWidth = GetTotalFrameSize();
+			catalogEntry.XPositionTracker = new DragHelper();
+			catalogEntry.YPositionTracker = new DragHelper();
 
-					catalogEntry.PositionTracker.LimitX = new Vector2(-_mainWindow.CatalogColumns.Count * totalFrameWidth + totalFrameWidth, 0);
-					catalogEntry.PositionTracker.LimitY = null;
-				//}
-				catalogEntry.PositionTracker.IsIn3DSpace = !IsAnchoredOnHUD();
-				catalogEntry.PositionTracker.XMultiplier = -1000f;
-				catalogEntry.PositionTracker.YMultiplier = 1000f;
+			Action<DragHelper> onStartDragLeftRight = (helper) =>
+			{
+				helper.AllowDragX = true;
+				helper.AllowDragY = false;
+				helper.ObjectToDrag = _mainWindow.CatalogColumnContainers[0];
+				var totalFrameWidth = GetTotalFrameSize();
+				helper.LimitX = new Vector2(-_mainWindow.CatalogColumns.Count * totalFrameWidth + totalFrameWidth, 0);
+				helper.IsIn3DSpace = !IsAnchoredOnHUD();
+				helper.XMultiplier = -1000f;
 			};
-			Func<float, float, bool> onWhileDraggingEvent = (newX, newY) =>
+			Action<DragHelper> onStartDragUpDown = (helper) =>
+			{
+				helper.AllowDragX = false;
+				helper.AllowDragY = true;
+				var totalFrameWidth = GetTotalFrameSize();
+				helper.YStep = totalFrameWidth;
+				helper.LimitY = new Vector2(totalFrameWidth, 0);
+				//catalogEntry.YPositionTracker.IsIn3DSpace = !IsAnchoredOnHUD();
+				//catalogEntry.YPositionTracker.XMultiplier = -1000f;
+				helper.YMultiplier = 1000f;
+			};
+			Func<float, float, bool> onDragLeftRight = (newX, newY) =>
 			{
 				SetRowStateBasedOnScrollPosition(newX);
 				return true;
 			};
-			catalogEntry.PositionTracker.AddMouseDraggingToObject(catalogEntry.UiSelectButton.gameObject, _mainWindow.CatalogColumnContainer, false, true, onStartDraggingEvent, null, onWhileDraggingEvent); // allow user to drag-scroll using this button aswell				
+
+			Func<float, float, bool> onDragUpDown = (newX, newY) =>
+			{
+				MoveIntoNextRow();
+				return true;
+			};
+
+			catalogEntry.XPositionTracker.AddMouseDraggingToObject(catalogEntry.UiSelectButton.gameObject, _mainWindow.CatalogColumnContainers[0], true, false, onStartDragLeftRight, null, onDragLeftRight); // allow user to drag-scroll using this button aswell				
+			catalogEntry.YPositionTracker.AddMouseDraggingToObject(catalogEntry.UiSelectButton.gameObject, catalogEntry.UiCatalogEntryPanel, false, true, onStartDragUpDown, null, onDragUpDown); // allow user to drag-scroll using this button aswell				
+
+		}
+
+		private void MoveIntoNextRow()
+		{
+			//if ()
 		}
 
 		private float GetTotalFrameSize()
@@ -4355,13 +4390,23 @@ namespace juniperD.StatefullServices
 				var rowRightOverflow = totalFrameWidth * (_catalogColumnsCountJSON.val);
 				if (entryPosition <= rowLeftOverflow && entryPosition + totalFrameWidth >= rowLeftOverflow)
 				{
-					SetCatalogEntryOpacity(_catalog.Entries[i], 1);// ...SetRowStateBasedOnScrollPosition
-					_catalog.Entries[i].UiCatalogEntryPanel.transform.localRotation = Quaternion.Euler(0, 0, 0);// ...Rotation
-					_catalog.Entries[i].UiParentCatalogColumn.transform.localScale = Vector3.one;// ...Scale
-					_catalog.Entries[i].UiCatalogEntryPanel.transform.localPosition = new Vector3(-entryPosition, _catalog.Entries[i].UiCatalogEntryPanel.transform.localPosition.y, _catalog.Entries[i].UiCatalogEntryPanel.transform.localPosition.z);
+					// Fading out on the left...
+					var remaining = entryPosition + totalFrameWidth;
+					var overflow = entryPosition;
+					var squashX = 1 - (remaining / totalFrameWidth);
+					var angle = 90 * squashX;
+					SetCatalogEntryOpacity(_catalog.Entries[i], 1 - squashX);// ...SetRowStateBasedOnScrollPosition
+					_catalog.Entries[i].UiCatalogEntryPanel.transform.localRotation = Quaternion.Euler(0, angle, 0);// ...Rotation
+					_catalog.Entries[i].UiParentCatalogColumn.transform.localScale = Vector3.one; // ...Scale
+					_catalog.Entries[i].UiCatalogEntryPanel.transform.localPosition = new Vector3(-overflow / 2, _catalog.Entries[i].UiCatalogEntryPanel.transform.localPosition.y, _catalog.Entries[i].UiCatalogEntryPanel.transform.localPosition.z);
+					//SetCatalogEntryOpacity(_catalog.Entries[i], 1);// ...SetRowStateBasedOnScrollPosition
+					//_catalog.Entries[i].UiCatalogEntryPanel.transform.localRotation = Quaternion.Euler(0, 0, 0);// ...Rotation
+					//_catalog.Entries[i].UiParentCatalogColumn.transform.localScale = Vector3.one;// ...Scale
+					//_catalog.Entries[i].UiCatalogEntryPanel.transform.localPosition = new Vector3(-entryPosition, _catalog.Entries[i].UiCatalogEntryPanel.transform.localPosition.y, _catalog.Entries[i].UiCatalogEntryPanel.transform.localPosition.z);
 				}
 				else if (entryPosition <= rowLeftOverflow && HackToPreventLastEntryFromDisapearing(i))
 				{
+					// Totally off the left...
 					SetCatalogEntryOpacity(_catalog.Entries[i], 1 - 1);// ...SetRowStateBasedOnScrollPosition
 					_catalog.Entries[i].UiCatalogEntryPanel.transform.localRotation = Quaternion.Euler(0, 0, 0); // ...Rotation
 					_catalog.Entries[i].UiParentCatalogColumn.transform.localScale = Vector3.zero;// ...Scale
@@ -4369,6 +4414,7 @@ namespace juniperD.StatefullServices
 				}
 				else if (entryPosition + totalFrameWidth >= rowRightOverflow && entryPosition <= rowRightOverflow)
 				{
+					// Fading out on the right...
 					var remaining = entryPosition + totalFrameWidth - rowRightOverflow;
 					var overflow = entryPosition + totalFrameWidth - rowRightOverflow;
 					var squashX = remaining / totalFrameWidth;
@@ -4380,6 +4426,7 @@ namespace juniperD.StatefullServices
 				}
 				else if (entryPosition >= rowRightOverflow)
 				{
+					// Totally off the right...
 					SetCatalogEntryOpacity(_catalog.Entries[i], 1 - 1);// ...SetRowStateBasedOnScrollPosition
 					_catalog.Entries[i].UiCatalogEntryPanel.transform.localRotation = Quaternion.Euler(0, 0, 0); // ...Rotation
 					_catalog.Entries[i].UiParentCatalogColumn.transform.localScale = Vector3.zero;// ...Scale
@@ -4387,6 +4434,7 @@ namespace juniperD.StatefullServices
 				}
 				else
 				{
+					// Somewhere in the middle...
 					SetCatalogEntryOpacity(_catalog.Entries[i], 1); // ...SetRowStateBasedOnScrollPosition
 					_catalog.Entries[i].UiCatalogEntryPanel.transform.localRotation = Quaternion.Euler(0, 0, 0); // ...Rotation
 					_catalog.Entries[i].UiParentCatalogColumn.transform.localScale = Vector3.one; // ...Scale
@@ -4658,7 +4706,7 @@ namespace juniperD.StatefullServices
 			var rowHeight = CatalogEntryFrameSize.val * rowCount;
 			var newX = 0; //-500;
 			_mainWindow.CatalogRowContainer.transform.localPosition = new Vector3(_mainWindow.CatalogRowContainer.transform.localPosition.x, rowHeight + (_relativeBorderWidth * 2) + 10, _mainWindow.CatalogRowContainer.transform.localPosition.z);
-			_mainWindow.CatalogColumnContainer.transform.localPosition = new Vector3(newX, _mainWindow.CatalogRowContainer.transform.localPosition.y, _mainWindow.CatalogRowContainer.transform.localPosition.z);
+			_mainWindow.CatalogColumnContainers[0].transform.localPosition = new Vector3(newX, _mainWindow.CatalogRowContainer.transform.localPosition.y, _mainWindow.CatalogRowContainer.transform.localPosition.z);
 		}
 
 		GameObject CreateCatalogColumn()
