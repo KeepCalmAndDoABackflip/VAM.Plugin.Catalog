@@ -32,7 +32,7 @@ namespace juniperD.StatefullServices
 		public bool MustCaptureActiveMorphs { get; set; } = false;
 		public bool MustCaptureAnimations { get; set; } = false;
 		public bool MustCapturePoseMorphs { get; set; }
-		public bool _transitionInProgress { get; set; }
+		
 
 		// Cache
 		//List<DAZMorph> _morphs;
@@ -63,8 +63,10 @@ namespace juniperD.StatefullServices
 		protected List<JSONStorableBool> _predefinedMorphsSetToggles = new List<JSONStorableBool>();
 		protected List<JSONStorableBool> _categoryMorphsSetToggles = new List<JSONStorableBool>();
 
+		
 		protected List<PoseTransition> _transitioningAtomControllers = new List<PoseTransition>();
-		public Queue<IEnumerator> _transitionQueue1 = new Queue<IEnumerator>();
+		public Queue<TransitionInProgress> _transitionsWaiting = new Queue<TransitionInProgress>();
+		public List<TransitionInProgress> _transitionsInProgress = new List<TransitionInProgress>();
 
 		protected Dictionary<string, Stack<Mutation>> _mutationStacks = new Dictionary<string, Stack<Mutation>>();
 		protected Dictionary<string, List<MorphMutation>> _activeMorphStackForPerson = new Dictionary<string, List<MorphMutation>>();
@@ -87,6 +89,7 @@ namespace juniperD.StatefullServices
 			"hairScalpMaskTool", "hairScalpMaskToolUI",
 			"eyeTargetControl"
 		};
+		
 
 		public void Init(CatalogPlugin context)
 		{
@@ -142,7 +145,7 @@ namespace juniperD.StatefullServices
 				_context.CreateButton("Keep mutation").button.onClick.AddListener(() =>
 				{
 					var emptyDelta = CreateBufferMutation();
-					ApplyMutation(ref emptyDelta);
+					ApplyMutation(ref emptyDelta, _context.GetUniqueName());
 				});
 
 				_context.CreateButton("Retry Hair").button.onClick.AddListener(() =>
@@ -913,7 +916,7 @@ namespace juniperD.StatefullServices
 			throw new Exception("Unknown execution path");
 		}
 
-		public void ApplyMutation(ref Mutation mutation, float startDelay = 0, float animatedDurationInSeconds = 0, bool excludeUi = false, UnityAction whenFinishedCallback = null)
+		public void ApplyMutation(ref Mutation mutation, string transitionGroupKey, float startDelay = 0, float animatedDurationInSeconds = 0, bool excludeUi = false, UnityAction whenFinishedCallback = null)
 		{
 			try
 			{
@@ -962,7 +965,7 @@ namespace juniperD.StatefullServices
 					newActiveMorphItems.Add(item);
 					AddActiveMorphToggle(ref item);
 					if (!item.Active) continue;
-					ApplyActiveMorphItem(item, startDelay, animatedDurationInSeconds, whenFinishedCallback);
+					ApplyActiveMorphItem(item, transitionGroupKey, startDelay, animatedDurationInSeconds, whenFinishedCallback);
 				}
 				mutation.ActiveMorphs = newActiveMorphItems;
 				////--------------------------------------------
@@ -973,7 +976,7 @@ namespace juniperD.StatefullServices
 					newPoseItems.Add(item);
 					if (!excludeUi) AddPoseMorphToggle(ref item);
 					if (!item.Active) continue;
-					ApplyActivePoseItem(item, startDelay, animatedDurationInSeconds);
+					ApplyActivePoseItem(item, transitionGroupKey, startDelay, animatedDurationInSeconds);
 				}
 				mutation.PoseMorphs = newPoseItems;
 				//--------------------------------------------
@@ -1255,7 +1258,7 @@ namespace juniperD.StatefullServices
 			return _morphBaseValuesForTrackedPerson.ContainsKey(trackingKey);
 		}
 
-		public void ApplyActiveMorphItem(MorphMutation mutationItem, float startDelay = 0, float duration = 0, UnityAction whenFinishedCallback = null)
+		public void ApplyActiveMorphItem(MorphMutation mutationItem, string transitionGroupKey, float startDelay = 0, float duration = 0, UnityAction whenFinishedCallback = null)
 		{
 			var trackingKey = GetTrackinKeyForCurrentAtom();
 			if (!MorphBaseValuesHaveBeenSetForCurrentPerson(trackingKey)) _morphBaseValuesForTrackedPerson.Add(trackingKey, new List<MorphMutation>());
@@ -1277,7 +1280,7 @@ namespace juniperD.StatefullServices
 			_activeMorphStackForPerson[trackingKey].Add(mutationItem);
 		}
 
-		public void ApplyActivePoseItem(PoseMutation mutationItem, float startDelay = 0, float duration = 0, UnityAction whenFinishedCallback = null)
+		public void ApplyActivePoseItem(PoseMutation mutationItem, string transitionGroupKey, float startDelay = 0, float duration = 0, UnityAction whenFinishedCallback = null)
 		{
 			var trackingKey = GetTrackinKeyForCurrentAtom();
 			//if (!MorphBaseValuesHaveBeenSetForCurrentPerson(trackingKey)) _morphBaseValuesForTrackedPerson.Add(trackingKey, new List<MorphMutation>());
@@ -1293,8 +1296,23 @@ namespace juniperD.StatefullServices
 
 			startDelay += duration * mutationItem.StartAtTimeRatio;
 			duration = (mutationItem.EndAtTimeRatio - mutationItem.StartAtTimeRatio) * duration;
+			IEnumerator transition = TransitionApplyPose(controller, mutationItem, startDelay, duration, whenFinishedCallback);
 
-			_context.StartCoroutine(TransitionApplyPose(controller, mutationItem, startDelay, duration, whenFinishedCallback));
+			if (_context._useTransitionManager) 
+			{
+				var transitionId = Guid.NewGuid().ToString();
+				UnityAction whenFinishedManagedTransitionCallback = () => {
+					if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
+					_transitionsInProgress.Remove(_transitionsInProgress.Single(t => t.UniqueKey == transitionGroupKey));
+				};
+				transition = TransitionApplyPose(controller, mutationItem, startDelay, duration, whenFinishedManagedTransitionCallback);
+				var newTransitionAndTimeout = new TransitionInProgress(transitionId, transitionGroupKey, transition, duration * 2);
+				_transitionsWaiting.Enqueue(newTransitionAndTimeout);
+			}
+			else 
+			{ 
+				_context.StartCoroutine(transition);
+			}
 		}
 
 		public IEnumerator TransitionApplyPose(FreeControllerV3 controller, PoseMutation poseMutation, float startDelay = 0, float transitionTimeInSeconds = 0, UnityAction whenFinishedCallback = null)
@@ -1324,6 +1342,7 @@ namespace juniperD.StatefullServices
 			{
 				controller.transform.localPosition = poseMutation.Position;
 				controller.transform.localRotation = poseMutation.Rotation;
+				if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
 				yield break;
 			}
 
@@ -1354,7 +1373,6 @@ namespace juniperD.StatefullServices
 			controller.transform.localRotation = poseMutation.Rotation;
 			RemoveActiveTransition(newTransition);
 			if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
-
 		}
 
 		private static Vector3 IncrementPositionAndRotation(FreeControllerV3 controller, PoseMutation poseMutation, Vector3 newPosition, Quaternion initialRotation, float numberOfIterations, Vector3 positionIterationDistance, int iteration)
@@ -1772,7 +1790,7 @@ namespace juniperD.StatefullServices
 		public void NextLook()
 		{
 			var mutation = CreateMorphMutation();
-			ApplyMutation(ref mutation);
+			ApplyMutation(ref mutation, _context.GetUniqueName());
 			NextHair();
 			MutateClothing();
 		}
@@ -1783,7 +1801,7 @@ namespace juniperD.StatefullServices
 			if (mutationStack == null) return;
 			if (mutationStack.Count > 0) UndoPreviousMutation();
 			var mutation = CreateMorphMutation();
-			ApplyMutation(ref mutation);
+			ApplyMutation(ref mutation, _context.GetUniqueName());
 			return;
 		}
 
@@ -1976,7 +1994,7 @@ namespace juniperD.StatefullServices
 				UnityAction<bool> toggleAction = (isChecked) =>
 				{
 					mutation.Active = isChecked;
-					if (isChecked) ApplyActiveMorphItem(mutation);
+					if (isChecked) ApplyActiveMorphItem(mutation, _context.GetUniqueName());
 					else RemoveActiveMorphItem(mutation);
 				};
 				//UnityAction<string> stopTracking = (name) =>
@@ -2006,7 +2024,7 @@ namespace juniperD.StatefullServices
 				UnityAction<bool> toggleAction = (isChecked) =>
 				{
 					mutation.Active = isChecked;
-					if (isChecked) ApplyActivePoseItem(mutation);
+					if (isChecked) ApplyActivePoseItem(mutation, _context.GetUniqueName());
 					else RemoveActivePoseItem(mutation);
 				};
 				newToggle.toggle.onValueChanged.AddListener(toggleAction);

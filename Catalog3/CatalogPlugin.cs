@@ -45,6 +45,7 @@ namespace juniperD.StatefullServices
 		#endregion
 		// Config...
 		protected bool _debugMode = false;
+		public bool _useTransitionManager = false;
 
 		protected float _defaultNumberOfCatalogColumns = 10;
 		protected float _defaultNumberOfCatalogRows = 1;
@@ -188,7 +189,7 @@ namespace juniperD.StatefullServices
 					_catalog = LoadCatalogFromFile(filePath, false);
 					if (containingAtom.type == "Person")
 					{
-						ApplyPreviouslyActiveMutation();
+						//ApplyPreviouslyActiveMutation();
 					}
 				}
 
@@ -221,7 +222,7 @@ namespace juniperD.StatefullServices
 				if (_catalog.Entries[i].Mutation.IsActive)
 				{
 					var mutation = _catalog.Entries[i].Mutation;
-					_mutationsService.ApplyMutation(ref mutation);
+					_mutationsService.ApplyMutation(ref mutation, _catalog.Entries[i].UniqueName);
 					_mainWindow.CurrentCatalogEntry = _catalog.Entries[i];
 				}
 			}
@@ -1694,7 +1695,7 @@ namespace juniperD.StatefullServices
 				var catalogEntry = _catalog.Entries[i];
 				if (catalogEntry.CatalogEntryMode == CatalogModeEnum.CATALOG_MODE_SCENE) continue;
 				var mutation = _catalog.Entries[i].Mutation;
-				_mutationsService.ApplyMutation(ref mutation);
+				_mutationsService.ApplyMutation(ref mutation, catalogEntry.UniqueName);
 				yield return new WaitForEndOfFrame();
 				yield return new WaitForSeconds(1);
 			}
@@ -3214,11 +3215,12 @@ namespace juniperD.StatefullServices
 				if (_atomType == ATOM_TYPE_PERSON) _mutationsService.Update();
 
 				// Start next transition...
-				if (!_mutationsService._transitionInProgress && _mutationsService._transitionQueue1.Any())
+				if (_useTransitionManager && !_mutationsService._transitionsInProgress.Any() && _mutationsService._transitionsWaiting.Any())
 				{
-					_mutationsService._transitionInProgress = true;
-					var nextTransition = _mutationsService._transitionQueue1.Dequeue();
-					if (nextTransition != null) StartCoroutine(nextTransition);
+					var transition = _mutationsService._transitionsWaiting.Dequeue();
+					_mutationsService._transitionsInProgress.Add(transition);
+					StartCoroutine(TransitionTimeoutFallback(transition));
+					StartCoroutine(transition.Transition);
 				}
 
 				ManageScreenshotCaptureSequence();
@@ -3245,6 +3247,16 @@ namespace juniperD.StatefullServices
 				SuperController.LogError(e.ToString());
 				SuperController.LogError("Catalog Update-loop disabled to prevent continuous stream of errors. Can be re-enabled in settings.");
 				_updateLoopEnabled = false;
+			}
+		}
+
+		IEnumerator TransitionTimeoutFallback(TransitionInProgress transition)
+		{
+			yield return new WaitForSeconds(transition.Timeout);
+			if (_mutationsService._transitionsInProgress.Contains(transition))
+			{
+				SuperController.LogError("Forcefully stopped transition");
+				_mutationsService._transitionsInProgress.Remove(transition);
 			}
 		}
 
@@ -3394,13 +3406,13 @@ namespace juniperD.StatefullServices
 			{
 				_mutationsService.UndoPreviousMutation();
 				mutation = IsCatalogFirstEntry() & _firstEntryIsCurrentLook.val ? _mutationsService.CreateBufferMutation() : _mutationsService.CreateMorphMutation();
-				_mutationsService.ApplyMutation(ref mutation);
+				_mutationsService.ApplyMutation(ref mutation, GetUniqueName());
 			}
 			else if (_currentCaptureRequest.RequestModeEnum == CaptureRequest.MUTATION_AQUISITION_MODE_CAPTURE)
 			{
 				mutation = _mutationsService.CaptureCurrentMutation();
 				_mutationsService.UndoPreviousMutation();
-				_mutationsService.ApplyMutation(ref mutation);
+				_mutationsService.ApplyMutation(ref mutation, GetUniqueName());
 			}
 			else if (_currentCaptureRequest.RequestModeEnum == CaptureRequest.MUTATION_AQUISITION_MODE_CAPTURE_OBJECT)
 			{
@@ -3478,7 +3490,7 @@ namespace juniperD.StatefullServices
 			{
 				var excludeUi = false;
 				if (isChildEntry == true) excludeUi = true;
-				_mutationsService.ApplyMutation(ref mutation, startDelay, durationInSeconds, excludeUi);
+				_mutationsService.ApplyMutation(ref mutation, catalogEntry.UniqueName, startDelay, durationInSeconds, excludeUi);
 			}
 
 			return mutation;
@@ -3626,7 +3638,7 @@ namespace juniperD.StatefullServices
 				UnityAction<bool> toggleAction = (isChecked) =>
 				{
 					activeMorphItem.Active = isChecked;
-					if (isChecked) _mutationsService.ApplyActiveMorphItem(activeMorphItem);
+					if (isChecked) _mutationsService.ApplyActiveMorphItem(activeMorphItem, catalogEntry.UniqueName);
 					else _mutationsService.RemoveActiveMorphItem(activeMorphItem);
 				};
 				UnityAction<string> stopTracking = (name) =>
@@ -3651,7 +3663,7 @@ namespace juniperD.StatefullServices
 				UnityAction<bool> toggleAction = (isChecked) =>
 				{
 					activeMorphItem.Active = isChecked;
-					if (isChecked) _mutationsService.ApplyActivePoseItem(activeMorphItem);
+					if (isChecked) _mutationsService.ApplyActivePoseItem(activeMorphItem, catalogEntry.UniqueName);
 					else _mutationsService.RemoveActivePoseItem(activeMorphItem);
 				};
 				UnityAction<string> stopTracking = (name) =>

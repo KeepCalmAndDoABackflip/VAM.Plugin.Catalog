@@ -120,6 +120,7 @@
     <Compile Include="Models\StoredAtom.cs" />
     <Compile Include="Models\EntrySubItem.cs" />
     <Compile Include="Models\PoseTransition.cs" />
+    <Compile Include="Models\TransitionInProgress.cs" />
     <Compile Include="Models\TriggerForController.cs" />
     <Compile Include="Models\VersionMessage.cs" />
     <Compile Include="CatalogPlugin.cs" />
