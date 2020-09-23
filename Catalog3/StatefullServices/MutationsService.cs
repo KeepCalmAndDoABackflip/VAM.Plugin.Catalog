@@ -65,7 +65,7 @@ namespace juniperD.StatefullServices
 
 		
 		protected List<PoseTransition> _transitioningAtomControllers = new List<PoseTransition>();
-		public Queue<TransitionInProgress> _transitionsWaiting = new Queue<TransitionInProgress>();
+		public List<TransitionInProgress> _transitionsWaiting = new List<TransitionInProgress>();
 		public List<TransitionInProgress> _transitionsInProgress = new List<TransitionInProgress>();
 
 		protected Dictionary<string, Stack<Mutation>> _mutationStacks = new Dictionary<string, Stack<Mutation>>();
@@ -1307,7 +1307,7 @@ namespace juniperD.StatefullServices
 				};
 				transition = TransitionApplyPose(controller, mutationItem, startDelay, duration, whenFinishedManagedTransitionCallback);
 				var newTransitionAndTimeout = new TransitionInProgress(transitionId, transitionGroupKey, transition, duration * 2);
-				_transitionsWaiting.Enqueue(newTransitionAndTimeout);
+				_transitionsWaiting.Add(newTransitionAndTimeout);
 			}
 			else 
 			{ 

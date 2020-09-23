@@ -1,4 +1,4 @@
-﻿
+
 using Leap.Unity;
 using SimpleJSON;
 using System;
@@ -2009,22 +2009,36 @@ namespace juniperD.StatefullServices
 			try
 			{
 				List<CatalogEntry> favoritedEntries = _catalog.Entries.Where(e => e.Favorited > 0).ToList();
-				CatalogEntry masterCatalogEntry = CreateMasterCatalogEntry();
-				masterCatalogEntry.TransitionTimeInSeconds = 0;
-				foreach (var entry in favoritedEntries)
+				if (favoritedEntries.Count == 1)
 				{
-					for (var i = 0; i < entry.Favorited; i++)
-					{
-						var duplicateEntry = asReferencedEntries ? entry : entry.Clone();
-						AddEntryToEntry(duplicateEntry, masterCatalogEntry);
-						masterCatalogEntry.TransitionTimeInSeconds += entry.TransitionTimeInSeconds;
-					}
-					entry.Favorited = 0;
+					CreateCloneEntry(favoritedEntries.First());
 				}
-				GenerateNewMasterCatalogEntryImage(masterCatalogEntry);
+				else 
+				{ 
+					CatalogEntry masterCatalogEntry = CreateMasterCatalogEntry();
+					masterCatalogEntry.TransitionTimeInSeconds = 0;
+					foreach (var entry in favoritedEntries)
+					{
+						for (var i = 0; i < entry.Favorited; i++)
+						{
+							var duplicateEntry = asReferencedEntries ? entry : entry.Clone();
+							AddEntryToEntry(duplicateEntry, masterCatalogEntry);
+							masterCatalogEntry.TransitionTimeInSeconds += entry.TransitionTimeInSeconds;
+						}
+						entry.Favorited = 0;
+						//UpdateCatalogEntryFavoriteButtonBasedOnState(entry);
+					}
+					GenerateNewMasterCatalogEntryImage(masterCatalogEntry);
+				}
 				RefreshCatalogPosition();
 			}
 			catch (Exception e) { SuperController.LogError(e.ToString()); }
+		}
+
+		private void CreateCloneEntry(CatalogEntry catalogEntry)
+		{
+			var cloneEntry = catalogEntry.Clone();
+			MakeCatalogEntry(cloneEntry);
 		}
 
 		private void CreateDynamicButton_ToggleAnimFeatures()
@@ -3217,10 +3231,16 @@ namespace juniperD.StatefullServices
 				// Start next transition...
 				if (_useTransitionManager && !_mutationsService._transitionsInProgress.Any() && _mutationsService._transitionsWaiting.Any())
 				{
-					var transition = _mutationsService._transitionsWaiting.Dequeue();
-					_mutationsService._transitionsInProgress.Add(transition);
-					StartCoroutine(TransitionTimeoutFallback(transition));
-					StartCoroutine(transition.Transition);
+					var nextTransitionGroup = _mutationsService._transitionsWaiting.First()?.GroupKey;
+					var allRelatedTransitions = _mutationsService._transitionsWaiting.Where(t => t.GroupKey == nextTransitionGroup);
+					// Remove all transitions in the next transition group
+					foreach (var transition in allRelatedTransitions)
+					{
+						_mutationsService._transitionsWaiting.Remove(transition); // ...Remove from waiting queue
+						_mutationsService._transitionsInProgress.Add(transition); // ...Add to in-progress list
+						StartCoroutine(transition.Transition); //...start transition
+						StartCoroutine(TransitionTimeoutFallback(transition)); //... start transition timeout (in case an exception prevents the transition from removed naturally)
+					}
 				}
 
 				ManageScreenshotCaptureSequence();
@@ -4305,7 +4325,7 @@ namespace juniperD.StatefullServices
 		//	SetTooltipForDynamicButton(keepButton, () => "Add Like (Use 'Sort' to reorder)");
 		//}
 
-		private static void UpdateCatalogEntryFavoriteButtonBasedOnState(CatalogEntry catalogEntry)
+		public void UpdateCatalogEntryFavoriteButtonBasedOnState(CatalogEntry catalogEntry)
 		{
 			var baseButtonColor = new Color(0.7f, 0.7f, 0.7f, 0.5f);
 			var acceptButtonHighlightedColor = new Color(0.0f, 0.5f, 0.0f, 1f);
@@ -4741,7 +4761,7 @@ namespace juniperD.StatefullServices
 			return subPanel;
 		}
 
-		private void AddEntryToCatalog(CatalogEntry newCatalogEntry, int entryIndex)
+		private void AddEntryToCatalog(CatalogEntry newCatalogEntry, int entryIndex = -1)
 		{
 			//if (_expandDirection.val == EXPAND_WITH_MORE_ROWS)
 			//{
