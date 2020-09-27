@@ -45,7 +45,7 @@ namespace juniperD.StatefullServices
 		#endregion
 		// Config...
 		protected bool _debugMode = false;
-		public bool _useTransitionManager = false;
+		public bool _useTransitionManager = true;
 
 		protected float _defaultNumberOfCatalogColumns = 10;
 		protected float _defaultNumberOfCatalogRows = 1;
@@ -3228,20 +3228,7 @@ namespace juniperD.StatefullServices
 
 				if (_atomType == ATOM_TYPE_PERSON) _mutationsService.Update();
 
-				// Start next transition...
-				if (_useTransitionManager && !_mutationsService._transitionsInProgress.Any() && _mutationsService._transitionsWaiting.Any())
-				{
-					var nextTransitionGroup = _mutationsService._transitionsWaiting.First()?.GroupKey;
-					var allRelatedTransitions = _mutationsService._transitionsWaiting.Where(t => t.GroupKey == nextTransitionGroup);
-					// Remove all transitions in the next transition group
-					foreach (var transition in allRelatedTransitions)
-					{
-						_mutationsService._transitionsWaiting.Remove(transition); // ...Remove from waiting queue
-						_mutationsService._transitionsInProgress.Add(transition); // ...Add to in-progress list
-						StartCoroutine(transition.Transition); //...start transition
-						StartCoroutine(TransitionTimeoutFallback(transition)); //... start transition timeout (in case an exception prevents the transition from removed naturally)
-					}
-				}
+				ManageTransitions();
 
 				ManageScreenshotCaptureSequence();
 
@@ -3268,6 +3255,25 @@ namespace juniperD.StatefullServices
 				SuperController.LogError("Catalog Update-loop disabled to prevent continuous stream of errors. Can be re-enabled in settings.");
 				_updateLoopEnabled = false;
 			}
+		}
+
+		private void ManageTransitions()
+		{
+			if (!_useTransitionManager) return;
+			if (_mutationsService._transitionsInProgress.Any()) return;
+			if (!_mutationsService._transitionsWaiting.Any()) return;
+			
+			var nextTransitionGroup = _mutationsService._transitionsWaiting.First()?.GroupKey;
+			var allRelatedTransitions = _mutationsService._transitionsWaiting.Where(t => t.GroupKey == nextTransitionGroup).ToList();
+			// Remove all transitions in the next transition group
+			foreach (var transition in allRelatedTransitions)
+			{
+				_mutationsService._transitionsWaiting.Remove(transition); // ...Remove from waiting queue
+				_mutationsService._transitionsInProgress.Add(transition); // ...Add to in-progress list
+				StartCoroutine(transition.Transition); //...start transition
+				StartCoroutine(TransitionTimeoutFallback(transition)); //... start transition timeout (in case an exception prevents the transition from removed naturally)
+			}
+			
 		}
 
 		IEnumerator TransitionTimeoutFallback(TransitionInProgress transition)
@@ -3510,7 +3516,8 @@ namespace juniperD.StatefullServices
 			{
 				var excludeUi = false;
 				if (isChildEntry == true) excludeUi = true;
-				_mutationsService.ApplyMutation(ref mutation, catalogEntry.UniqueName, startDelay, durationInSeconds, excludeUi);
+				var transitionGroupId = Guid.NewGuid().ToString();
+				_mutationsService.ApplyMutation(ref mutation, transitionGroupId, startDelay, durationInSeconds, excludeUi);
 			}
 
 			return mutation;

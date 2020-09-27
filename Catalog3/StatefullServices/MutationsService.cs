@@ -1296,21 +1296,21 @@ namespace juniperD.StatefullServices
 
 			startDelay += duration * mutationItem.StartAtTimeRatio;
 			duration = (mutationItem.EndAtTimeRatio - mutationItem.StartAtTimeRatio) * duration;
-			IEnumerator transition = TransitionApplyPose(controller, mutationItem, startDelay, duration, whenFinishedCallback);
 
 			if (_context._useTransitionManager) 
 			{
 				var transitionId = Guid.NewGuid().ToString();
 				UnityAction whenFinishedManagedTransitionCallback = () => {
 					if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
-					_transitionsInProgress.Remove(_transitionsInProgress.Single(t => t.UniqueKey == transitionGroupKey));
+					_transitionsInProgress.Remove(_transitionsInProgress.Single(t => t.UniqueKey == transitionId));
 				};
-				transition = TransitionApplyPose(controller, mutationItem, startDelay, duration, whenFinishedManagedTransitionCallback);
+				IEnumerator transition = TransitionApplyPose(controller, mutationItem, startDelay, duration, whenFinishedManagedTransitionCallback);
 				var newTransitionAndTimeout = new TransitionInProgress(transitionId, transitionGroupKey, transition, duration * 2);
 				_transitionsWaiting.Add(newTransitionAndTimeout);
 			}
 			else 
-			{ 
+			{
+				IEnumerator transition = TransitionApplyPose(controller, mutationItem, startDelay, duration, whenFinishedCallback);
 				_context.StartCoroutine(transition);
 			}
 		}
