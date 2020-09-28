@@ -916,15 +916,38 @@ namespace juniperD.StatefullServices
 			throw new Exception("Unknown execution path");
 		}
 
-		public void ApplyMutation(ref Mutation mutation, string transitionGroupKey, float startDelay = 0, float animatedDurationInSeconds = 0, bool excludeUi = false, UnityAction whenFinishedCallback = null)
+		public int GetMutationComponentsCount(Mutation mutation)
 		{
+			return mutation.ClothingItems.Where(i => i.Active).Count()
+			+ mutation.HairItems.Where(i => i.Active).Count()
+			+ mutation.FaceGenMorphSet.Where(i => i.Active).Count()
+			+ mutation.PoseMorphs.Where(i => i.Active).Count()
+			+ mutation.ActiveMorphs.Where(i => i.Active).Count()
+			+ (mutation.StoredAtoms.Count == 0 ? 0 : 1)
+			+ (string.IsNullOrEmpty(mutation.ScenePathToOpen) ? 0 : 1);
+		}
+
+		public void ApplyMutation(ref Mutation mutation, string transitionGroupKey, float startDelay = 0, float animatedDurationInSeconds = 0, bool excludeUi = false, UnityAction finalComplete = null)
+		{
+			var componentsToCompleteSemaphore = 1 
+				+ GetMutationComponentsCount(mutation);
+
+			UnityAction componentCompletedCallback = () =>
+			{
+				componentsToCompleteSemaphore = componentsToCompleteSemaphore - 1;
+				if (componentsToCompleteSemaphore <= 0) {
+					//SuperController.LogMessage("ApplyMutation final invoke");
+					finalComplete.Invoke();
+				}
+			};
+
 			try
 			{
 				var mutationStack = GetMutationStackForSelectedAtomOrDefault();
 				if (mutationStack == null) return;
 
 				mutation.IsActive = true;
-				//--------------------------------------------
+				///---Apply Face Morphs-----------------------------------------
 				var newMorphSet = new List<MorphMutation>();
 				for (var i = 0; i < mutation.FaceGenMorphSet.Count(); i++)
 				{
@@ -933,9 +956,10 @@ namespace juniperD.StatefullServices
 					if (!excludeUi) AddFaceGenMorphToggle(ref morphMutation);
 					if (!morphMutation.Active) continue;
 					ApplyMutationMorphItem(morphMutation);
+					componentCompletedCallback.Invoke(); // ...TODO: Push this into the method
 				}
 				mutation.FaceGenMorphSet = newMorphSet;
-				//--------------------------------------------
+				///---Apply Clothing Items-----------------------------------------
 				var newClothingItems = new List<ClothingMutation>();
 				for (var i = 0; i < mutation.ClothingItems.Count(); i++)
 				{
@@ -944,9 +968,10 @@ namespace juniperD.StatefullServices
 					if (!excludeUi) AddClothingToggle(ref clothingItem);
 					if (!clothingItem.Active) continue;
 					ApplyClothingItem(clothingItem);
+					componentCompletedCallback.Invoke(); // ...TODO: Push this into the method
 				}
 				mutation.ClothingItems = newClothingItems;
-				//--------------------------------------------
+				///---Apply Hair Items---------------------------------------
 				var newHairItems = new List<HairMutation>();
 				for (var i = 0; i < mutation.HairItems.Count(); i++)
 				{
@@ -955,9 +980,10 @@ namespace juniperD.StatefullServices
 					if (!excludeUi) AddHairToggle(ref hairItem);
 					if (!hairItem.Active) continue;
 					ApplyHairItem(hairItem);
+					componentCompletedCallback.Invoke(); // ...TODO: Push this into the method
 				}
 				mutation.HairItems = newHairItems;
-				////--------------------------------------------
+				///---Apply Morph Transitions-----------------------------------------
 				var newActiveMorphItems = new List<MorphMutation>();
 				for (var i = 0; i < mutation.ActiveMorphs.Count(); i++)
 				{
@@ -965,10 +991,10 @@ namespace juniperD.StatefullServices
 					newActiveMorphItems.Add(item);
 					if (!excludeUi) AddActiveMorphToggle(ref item);
 					if (!item.Active) continue;
-					ApplyActiveMorphItem(item, transitionGroupKey, startDelay, animatedDurationInSeconds, whenFinishedCallback);
+					ApplyActiveMorphItem(item, transitionGroupKey, startDelay, animatedDurationInSeconds, componentCompletedCallback);
 				}
 				mutation.ActiveMorphs = newActiveMorphItems;
-				////--------------------------------------------
+				///---Apply Pose Transitions-----------------------------------------
 				var newPoseItems = new List<PoseMutation>();
 				for (var i = 0; i < mutation.PoseMorphs.Count(); i++)
 				{
@@ -976,13 +1002,22 @@ namespace juniperD.StatefullServices
 					newPoseItems.Add(item);
 					if (!excludeUi) AddPoseMorphToggle(ref item);
 					if (!item.Active) continue;
-					ApplyActivePoseItem(item, transitionGroupKey, startDelay, animatedDurationInSeconds, whenFinishedCallback);
+					ApplyActivePoseItem(item, transitionGroupKey, startDelay, animatedDurationInSeconds, componentCompletedCallback);
 				}
 				mutation.PoseMorphs = newPoseItems;
-				//--------------------------------------------
-
-
+				///---Create Captured Atoms-----------------------------------------
+				if (mutation.StoredAtoms.Count > 0) { 
+					_context.CreateAtomsForCatalogEntry(mutation);
+					componentCompletedCallback.Invoke(); // ...TODO: Push this into the method
+				}
+				///---Open Scene-----------------------------------------
+				if (!string.IsNullOrEmpty(mutation?.ScenePathToOpen)) { 
+					SuperController.singleton.Load(mutation.ScenePathToOpen);
+					componentCompletedCallback.Invoke(); // ...TODO: Push this into the method
+				}
+				///--------------------------------------------
 				mutationStack.Push(mutation);
+				componentCompletedCallback.Invoke();
 			}
 			catch (Exception e)
 			{
@@ -1282,43 +1317,71 @@ namespace juniperD.StatefullServices
 
 		public void ApplyActivePoseItem(PoseMutation mutationItem, string transitionGroupKey, float startDelay = 0, float duration = 0, UnityAction whenFinishedCallback = null)
 		{
-			var trackingKey = GetTrackinKeyForCurrentAtom();
-			//if (!MorphBaseValuesHaveBeenSetForCurrentPerson(trackingKey)) _morphBaseValuesForTrackedPerson.Add(trackingKey, new List<MorphMutation>());
+			if (!mutationItem.Active) {
+				whenFinishedCallback.Invoke();
+				return;
+			}
 			var controllers = GetControllersForContainingOrSelectedAtomOrDefault();
-			if (controllers == null) return;
+			if (controllers == null) {
+				whenFinishedCallback.Invoke();
+				return;
+			}
 			var controller = controllers.FirstOrDefault(c => c.name == mutationItem.Id);
 			if (controller == null)
 			{
 				SuperController.LogMessage("WARNING: could not find controller: " + controller.name);
+				whenFinishedCallback.Invoke();
 				return;
 			}
-			// Start transitioning to next pose...
 
+			// Start transitioning to next pose...
+			var trackingKey = GetTrackinKeyForCurrentAtom();
 			startDelay += duration * mutationItem.StartAtTimeRatio;
 			duration = (mutationItem.EndAtTimeRatio - mutationItem.StartAtTimeRatio) * duration;
 
-			if (_context._useTransitionManager) 
-			{
-				var transitionId = Guid.NewGuid().ToString();
-				UnityAction whenFinishedManagedTransitionCallback = () => {
-					if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
-					_transitionsInProgress.Remove(_transitionsInProgress.Single(t => t.UniqueKey == transitionId));
-				};
+			//if (_context._useTransitionManager) 
+			//{
+			var transitionId = Guid.NewGuid().ToString();
+			UnityAction whenFinishedManagedTransitionCallback = () => {
+				try
+				{
+					TransitionInProgress transitionToRemove = null;
+					transitionToRemove = GetTransitionInProgress(transitionId);
+					if (transitionToRemove == null) SuperController.LogError("cant find transition: " + transitionId);
+					//SuperController.LogMessage("Removing transition: " + transitionToRemove.Description);
+					else RemoveTransitionInProgress(transitionToRemove);
+				}
+				catch (Exception e) { SuperController.LogError(e.ToString());	 }
+				if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
+			};
+			try
+			{ 
 				IEnumerator transition = TransitionApplyPose(controller, mutationItem, startDelay, duration, whenFinishedManagedTransitionCallback);
-				var newTransitionAndTimeout = new TransitionInProgress(transitionId, transitionGroupKey, transition, duration * 2);
+				var newTransitionAndTimeout = new TransitionInProgress(transitionId, transitionGroupKey,  transition, startDelay, duration);
+				newTransitionAndTimeout.Description = $"{controller.name}: GrpId: {transitionGroupKey}, Id: {transitionId}";
 				_transitionsWaiting.Add(newTransitionAndTimeout);
+				//SuperController.LogMessage("Added transition: " + newTransitionAndTimeout.Description);
 			}
-			else 
+			catch (Exception e)
 			{
-				IEnumerator transition = TransitionApplyPose(controller, mutationItem, startDelay, duration, whenFinishedCallback);
-				_context.StartCoroutine(transition);
+				SuperController.LogError(e.ToString());
+				whenFinishedCallback.Invoke();
 			}
+		}
+
+		private void RemoveTransitionInProgress(TransitionInProgress transitionToRemove)
+		{
+			_transitionsInProgress.Remove(transitionToRemove);
+		}
+
+		private TransitionInProgress GetTransitionInProgress(string transitionId)
+		{
+			return _transitionsInProgress.SingleOrDefault(t => t.UniqueKey == transitionId);
 		}
 
 		public IEnumerator TransitionApplyPose(FreeControllerV3 controller, PoseMutation poseMutation, float startDelay = 0, float transitionTimeInSeconds = 0, UnityAction whenFinishedCallback = null)
 		{
 			float actualStartDelay = startDelay;
-			float speed = 150f;
 
 			if (transitionTimeInSeconds > 0)
 			{
@@ -1329,28 +1392,40 @@ namespace juniperD.StatefullServices
 			}
 			if (actualStartDelay > 0) yield return new WaitForSeconds(startDelay);
 
-			// Set the rotation and position states for the controller...
-			controller.SetPositionStateFromString(poseMutation.PositionState);
-			controller.SetRotationStateFromString(poseMutation.RotationState);
-			if (controller.currentPositionState == FreeControllerV3.PositionState.Off && controller.currentRotationState == FreeControllerV3.RotationState.Off) yield break;
+			try 
+			{ 
+				// Set the rotation and position states for the controller...
+				controller.SetPositionStateFromString(poseMutation.PositionState);
+				controller.SetRotationStateFromString(poseMutation.RotationState);
+			}
+			catch(Exception e) 
+			{ 
+				SuperController.LogError(e.ToString());
+				if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
+				throw e;
+			}
+
+			if (controller.currentPositionState == FreeControllerV3.PositionState.Off && controller.currentRotationState == FreeControllerV3.RotationState.Off) {
+				if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
+				yield break;
+			}
 
 			var transitionKey = _context.GetUniqueName();
 			var newTransition = new PoseTransition(transitionKey);
 
-
 			if (transitionTimeInSeconds == 0)
 			{
-				controller.transform.localPosition = poseMutation.Position;
-				controller.transform.localRotation = poseMutation.Rotation;
+				SetControllerPosition(controller, poseMutation.Position, whenFinishedCallback);
+				SetControllerRotation(controller, poseMutation.Rotation, whenFinishedCallback);
 				if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
 				yield break;
 			}
 
 			float framesPerSecond = 25;
 
-			Vector3 newPosition = controller.transform.localPosition;
+			Vector3 newPosition = GetControllerPosition(controller, whenFinishedCallback);
+			Quaternion initialRotation = GetControllerRotation(controller, whenFinishedCallback);
 			Vector3 positionDelta = poseMutation.Position - newPosition;
-			var initialRotation = controller.transform.localRotation;
 
 			var numberOfIterations = transitionTimeInSeconds * framesPerSecond;
 			var positionIterationDistance = positionDelta / numberOfIterations;
@@ -1361,21 +1436,77 @@ namespace juniperD.StatefullServices
 
 			RegisterAndMergeTransitionIntoActiveTransitions(newTransition);
 
-			//TimeSinceLastCheckpoint();
 			for (int i = 0; i < numberOfIterations; i++)
 			{
 				newPosition = IncrementPositionAndRotation(controller, poseMutation, newPosition, initialRotation, numberOfIterations, positionIterationDistance, i);
 				yield return new WaitForSeconds(transitionTimeInSeconds / numberOfIterations);
 			}
-			//SuperController.LogMessage("TimeSinceLastCheckpoint():" + TimeSinceLastCheckpoint());
 			// Set final position and rotation...
-			controller.transform.localPosition = poseMutation.Position;
-			controller.transform.localRotation = poseMutation.Rotation;
+			SetControllerPosition(controller, poseMutation.Position, whenFinishedCallback);
+			SetControllerRotation(controller, poseMutation.Rotation, whenFinishedCallback);
 			RemoveActiveTransition(newTransition);
 			if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
 		}
 
-		private static Vector3 IncrementPositionAndRotation(FreeControllerV3 controller, PoseMutation poseMutation, Vector3 newPosition, Quaternion initialRotation, float numberOfIterations, Vector3 positionIterationDistance, int iteration)
+		private Quaternion GetControllerRotation(FreeControllerV3 controller, UnityAction onFailureCallback = null)
+		{
+			try
+			{
+				return controller.transform.localRotation;
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+				if (onFailureCallback != null) onFailureCallback.Invoke();
+				throw e;
+			}
+		}
+
+		private Vector3 GetControllerPosition(FreeControllerV3 controller, UnityAction onFailureCallback = null)
+		{
+			try
+			{
+				return controller.transform.localPosition;
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+				if (onFailureCallback != null) onFailureCallback.Invoke();
+				throw e;
+			}
+		}
+
+		private bool SetControllerPosition(FreeControllerV3 controller, Vector3 position, UnityAction onFailureCallback = null)
+		{
+			try
+			{
+				controller.transform.localPosition = position;
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+				if (onFailureCallback != null) onFailureCallback.Invoke();
+				throw e;
+			}
+			return true;
+		}
+
+		private bool SetControllerRotation(FreeControllerV3 controller, Quaternion rotation, UnityAction onFailureCallback = null)
+		{
+			try
+			{
+				controller.transform.localRotation = rotation;
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+				if (onFailureCallback != null) onFailureCallback.Invoke();
+				throw e;
+			}
+			return true;
+		}
+
+		private Vector3 IncrementPositionAndRotation(FreeControllerV3 controller, PoseMutation poseMutation, Vector3 newPosition, Quaternion initialRotation, float numberOfIterations, Vector3 positionIterationDistance, int iteration)
 		{
 			try
 			{
@@ -1387,8 +1518,10 @@ namespace juniperD.StatefullServices
 				// Determine new points and angles...
 				newPosition += positionNudgeDistance;
 				// Perform nudges...
-				controller.transform.localPosition = new Vector3(newPosition.x, newPosition.y, newPosition.z);
-				controller.transform.localRotation = Quaternion.Lerp(initialRotation, poseMutation.Rotation, stepRatio + shiftingReducer);
+				var nextPosition = new Vector3(newPosition.x, newPosition.y, newPosition.z);
+				var nextRotation = Quaternion.Lerp(initialRotation, poseMutation.Rotation, stepRatio + shiftingReducer);
+				SetControllerPosition(controller, nextPosition);
+				SetControllerRotation(controller, nextRotation);
 			}
 			catch (Exception e)
 			{
@@ -2067,5 +2200,6 @@ namespace juniperD.StatefullServices
 				throw exc;
 			}
 		}
+
 	}
 }

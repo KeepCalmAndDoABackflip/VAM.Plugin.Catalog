@@ -90,25 +90,38 @@ namespace juniperD.Models
 
 		public GameObject DynamicInfoPanel { get; set; }
 		public UIDynamicTextField InfoLabel { get; set; }
-		public VerticalLayoutGroup InfoVLayout { get; set; }
-		public UIDynamicButton ButtonRemoveAllClothing { get; internal set; }
-		public UIDynamicButton ButtonRemoveAllHair { get; internal set; }
-		public GameObject DebugPanel { get; internal set; }
-		public UIDynamicButton DebugDynamicButton1 { get; internal set; }
-		public UIDynamicButton DebugDynamicButton2 { get; internal set; }
-		public UIDynamicButton DebugDynamicButton3 { get; internal set; }
-		public UIDynamicButton DebugDynamicButton4 { get; internal set; }
+		public VerticalLayoutGroup UiSubItemsPanelLayout { get; set; }
+		public UIDynamicButton ButtonRemoveAllClothing { get; set; }
+		public UIDynamicButton ButtonRemoveAllHair { get; set; }
+		public GameObject DebugPanel { get; set; }
+		public UIDynamicButton DebugDynamicButton1 { get; set; }
+		public UIDynamicButton DebugDynamicButton2 { get; set; }
+		public UIDynamicButton DebugDynamicButton3 { get; set; }
+		public UIDynamicButton DebugDynamicButton4 { get; set; }
 
-		public UIDynamicButton ButtonClean { get; internal set; }
-		public UIDynamicButton ToggleButtonCapturePose { get; internal set; }
-		public UIDynamicButton ButtonHideCatalogShortcut { get; internal set; }
-		public UIDynamicButton ButtonPlayStop { get; internal set; }
-		public UIDynamicButton ButtonMinimizeSubItemPanel { get; internal set; }
-		public UIDynamicButton ButtonCreateMergedEntryGroup { get; internal set; }
-		public UIDynamicButton ButtonToggleAnimFeatures { get; internal set; }
-		public GameObject ActiveCatalogContainer { get; internal set; }
-		public UIDynamicButton ButtonRemoveAllFavorites { get; internal set; }
-		public UIDynamicButton ButtonLoopFavorited { get; internal set; }
+		public UIDynamicButton ButtonClean { get; set; }
+		public UIDynamicButton ToggleButtonCapturePose { get; set; }
+		public UIDynamicButton ButtonHideCatalogShortcut { get; set; }
+		public UIDynamicButton ButtonPlayStop { get; set; }
+		public UIDynamicButton ButtonShowSubItemsPanel { get; set; }
+		public UIDynamicButton ButtonCreateMergedEntryGroup { get; set; }
+		public UIDynamicButton ButtonToggleAnimFeatures { get; set; }
+		public GameObject ActiveCatalogContainer { get; set; }
+		public UIDynamicButton ButtonRemoveAllFavorites { get; set; }
+		public UIDynamicButton ButtonLoopFavorited { get; set; }
+		public VerticalLayoutGroup InfoTogglesVLayout { get; set; }
+		public UIDynamicButton ButtonShowAnimationsPanel { get; set; }
+		public UIDynamicButton ButtonShowOptionsPanel { get; set; }
+		public GameObject DynamicInfoTogglesPanel { get; set; }
+		public GameObject UiAnimationPanel { get; set; }
+		//public GameObject UiAnimationInnerPanel { get; set; }
+		public VerticalLayoutGroup UiAnimationPanelLayout { get; set; }
+		public List<GameObject> UiAnimationItems { get; set; } = new List<GameObject>();
+
+		public string SelectedInfoPanel { get; set; }
+		public GameObject UiSubItemsPanel { get; internal set; }
+		public GameObject UiFrameOptionsPanel { get; internal set; }
+		public VerticalLayoutGroup UiFrameOptionsPanelLayout { get; internal set; }
 
 		public DynamicMainWindow(CatalogUiHelper uiHelper)
 		{
