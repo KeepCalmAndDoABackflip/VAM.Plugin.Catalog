@@ -930,7 +930,7 @@ namespace juniperD.StatefullServices
 				{
 					var morphMutation = mutation.FaceGenMorphSet.ElementAt(i);
 					newMorphSet.Add(morphMutation);
-					AddFaceGenMorphToggle(ref morphMutation);
+					if (!excludeUi) AddFaceGenMorphToggle(ref morphMutation);
 					if (!morphMutation.Active) continue;
 					ApplyMutationMorphItem(morphMutation);
 				}
@@ -941,7 +941,7 @@ namespace juniperD.StatefullServices
 				{
 					var clothingItem = mutation.ClothingItems.ElementAt(i);
 					newClothingItems.Add(clothingItem);
-					AddClothingToggle(ref clothingItem);
+					if (!excludeUi) AddClothingToggle(ref clothingItem);
 					if (!clothingItem.Active) continue;
 					ApplyClothingItem(clothingItem);
 				}
@@ -952,7 +952,7 @@ namespace juniperD.StatefullServices
 				{
 					var hairItem = mutation.HairItems.ElementAt(i);
 					newHairItems.Add(hairItem);
-					AddHairToggle(ref hairItem);
+					if (!excludeUi) AddHairToggle(ref hairItem);
 					if (!hairItem.Active) continue;
 					ApplyHairItem(hairItem);
 				}
@@ -963,7 +963,7 @@ namespace juniperD.StatefullServices
 				{
 					var item = mutation.ActiveMorphs.ElementAt(i);
 					newActiveMorphItems.Add(item);
-					AddActiveMorphToggle(ref item);
+					if (!excludeUi) AddActiveMorphToggle(ref item);
 					if (!item.Active) continue;
 					ApplyActiveMorphItem(item, transitionGroupKey, startDelay, animatedDurationInSeconds, whenFinishedCallback);
 				}
@@ -976,7 +976,7 @@ namespace juniperD.StatefullServices
 					newPoseItems.Add(item);
 					if (!excludeUi) AddPoseMorphToggle(ref item);
 					if (!item.Active) continue;
-					ApplyActivePoseItem(item, transitionGroupKey, startDelay, animatedDurationInSeconds);
+					ApplyActivePoseItem(item, transitionGroupKey, startDelay, animatedDurationInSeconds, whenFinishedCallback);
 				}
 				mutation.PoseMorphs = newPoseItems;
 				//--------------------------------------------

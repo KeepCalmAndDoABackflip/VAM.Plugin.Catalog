@@ -811,7 +811,7 @@ namespace juniperD.StatefullServices
 				ApplyEntryAt((int)newVal); //...changing column count
 			});
 
-			_defaultMorphTransitionTimeSeconds = new JSONStorableFloat("Morph transition time (seconds)", 1f, 0, 10);
+			_defaultMorphTransitionTimeSeconds = new JSONStorableFloat("Default morph transition time (seconds)", 1f, 0, 10);
 			RegisterFloat(_defaultMorphTransitionTimeSeconds);
 			var morphTransitionTime = CreateSlider(_defaultMorphTransitionTimeSeconds);
 			morphTransitionTime.valueFormat = "F1";
@@ -2314,9 +2314,10 @@ namespace juniperD.StatefullServices
 				foreach (var catalogEntry in _catalog.Entries)
 				{
 					ResetFavorite(catalogEntry);
+					ResetDiscard(catalogEntry);
 				}
 			});
-			SetTooltipForDynamicButton(_mainWindow.ButtonRemoveAllFavorites, () => "Remove all favorites");
+			SetTooltipForDynamicButton(_mainWindow.ButtonRemoveAllFavorites, () => "Remove all favorites and discarded");
 		}
 
 		private void CreateDynamicButton_ShowDebugButton(DynamicMainWindow mainWindow)
@@ -3459,44 +3460,62 @@ namespace juniperD.StatefullServices
 			_nextMutation = mutation;
 		}
 
-		void ApplyMasterCatalogEntry(CatalogEntry catalogEntry)
+		void ApplyMasterCatalogEntry(CatalogEntry catalogEntry, bool withSelect = true, UnityAction onComplete = null)
 		{
-			SelectCatalogEntry(catalogEntry);
-			ApplyCatalogEntryItem(catalogEntry);
+			if (withSelect) SelectCatalogEntry(catalogEntry);
+			ApplyCatalogEntryItem(catalogEntry, 0, false, onComplete);
 		}
 
-		private void ApplyCatalogEntryItem(CatalogEntry catalogEntry, float startDelay = 0, bool isChildEntry = false)
+		private void ApplyCatalogEntryItem(CatalogEntry catalogEntry, float startDelay = 0, bool isChildEntry = false, UnityAction onComplete = null)
 		{
+			var completedChildren = new List<int>();
+			UnityAction masterCompletedCallback = () =>
+			{
+				
+				if (completedChildren.Count == catalogEntry.ChildEntries.Count) {
+					SuperController.LogMessage("Invoking master complete");
+					onComplete.Invoke();
+				}
+			};
+			UnityAction childCompletedCallback = () => 
+			{
+				completedChildren.Add(1);
+				SuperController.LogMessage("Invoking child complete");
+				masterCompletedCallback.Invoke();
+			};
 
 			// Apply appropriate catalog entry action instead...
 			if (catalogEntry.CatalogEntryMode == CatalogModeEnum.CATALOG_MODE_OBJECT)
 			{
 				CreateAtomsForCatalogEntry(catalogEntry);
+				onComplete.Invoke(); //...TODO: Push this into the CreateAtoms Method
 			}
 			else if (catalogEntry.CatalogEntryMode == CatalogModeEnum.CATALOG_MODE_SESSION)
 			{
 				CreateAtomsForCatalogEntry(catalogEntry);
+				onComplete.Invoke(); //...TODO: Push this into the CreateAtoms Method
 			}
 			else if (catalogEntry.Mutation?.ScenePathToOpen != null)
 			{
 				SuperController.singleton.Load(catalogEntry.Mutation.ScenePathToOpen);
+				onComplete.Invoke(); //...TODO: Push this into the Method
 			}
 			else
 			{
-				ApplyCatalogEntryMutation(catalogEntry, startDelay, isChildEntry);
+				ApplyCatalogEntryMutation(catalogEntry, startDelay, isChildEntry, masterCompletedCallback);
 			}
 
-			ApplyCatalogEntryChildEntries(catalogEntry, startDelay);
+			float delayStartTime = startDelay;
+			foreach (var childEntry in catalogEntry.ChildEntries)
+			{
+				ApplyCatalogEntryItem(childEntry, delayStartTime, true, childCompletedCallback);
+				delayStartTime += GetCompositeDuration(childEntry);
+			}
 		}
 
 		private void ApplyCatalogEntryChildEntries(CatalogEntry catalogEntry, float startDelay = 0)
 		{
-			float delayStartTime = startDelay;
-			foreach (var childEntry in catalogEntry.ChildEntries)
-			{
-				ApplyCatalogEntryItem(childEntry, delayStartTime, true);
-				delayStartTime += GetCompositeDuration(childEntry);
-			}
+
 		}
 
 		private float GetCompositeDuration(CatalogEntry entry)
@@ -3505,7 +3524,7 @@ namespace juniperD.StatefullServices
 			return entry.ChildEntries.Select(e => e.TransitionTimeInSeconds).Aggregate((a,b) => a + b);
 		}
 
-		private Mutation ApplyCatalogEntryMutation(CatalogEntry catalogEntry, float startDelay = 0, bool isChildEntry = false)
+		private Mutation ApplyCatalogEntryMutation(CatalogEntry catalogEntry, float startDelay = 0, bool isChildEntry = false, UnityAction onComplete = null)
 		{
 			float durationInSeconds = catalogEntry.TransitionTimeInSeconds;
 			var mutation = catalogEntry.Mutation;
@@ -3517,7 +3536,7 @@ namespace juniperD.StatefullServices
 				var excludeUi = false;
 				if (isChildEntry == true) excludeUi = true;
 				var transitionGroupId = Guid.NewGuid().ToString();
-				_mutationsService.ApplyMutation(ref mutation, transitionGroupId, startDelay, durationInSeconds, excludeUi);
+				_mutationsService.ApplyMutation(ref mutation, transitionGroupId, startDelay, durationInSeconds, excludeUi, onComplete);
 			}
 
 			return mutation;
@@ -4244,8 +4263,17 @@ namespace juniperD.StatefullServices
 
 		private void ResetFavorite(CatalogEntry catalogEntry)
 		{
+			if (catalogEntry.Favorited == 0) return;
 			catalogEntry.Favorited = 0;
 			UpdateCatalogEntryFavoriteButtonBasedOnState(catalogEntry);
+			UpdateCatalogEntryBorderColorBasedOnState(catalogEntry);
+		}
+
+		private void ResetDiscard(CatalogEntry catalogEntry)
+		{
+			if (catalogEntry.Discarded == false) return;
+			catalogEntry.Discarded = false;
+			UpdateCatalogEntryDiscardButtonBasedOnState(catalogEntry);
 			UpdateCatalogEntryBorderColorBasedOnState(catalogEntry);
 		}
 
@@ -5540,7 +5568,7 @@ namespace juniperD.StatefullServices
 			return pathToScriptFolder;
 		}
 
-		public void ApplyEntryMoveNext()
+		public void ApplyEntryMoveNext(UnityAction onComplete = null)
 		{
 			if (_catalog.Entries.Count == 0) return;
 			var selectedEntry = _catalog.Entries.FirstOrDefault(e => e.Selected) ?? _catalog.Entries.FirstOrDefault();
@@ -5560,42 +5588,49 @@ namespace juniperD.StatefullServices
 				_cycleEntriesOnInterval.val = false;
 				return;
 			}
-			ApplyMasterCatalogEntry(selectedEntry);
+
+			ApplyMasterCatalogEntry(selectedEntry, false, onComplete);
 			SelectCatalogEntry(nextEntry);
 		}
 
-		public void ApplyRandomEntry()
+		public void ApplyRandomEntry(UnityAction onComplete = null)
 		{
 			if (_catalog.Entries.Count == 0) return;
 			var randomIndex = UnityEngine.Random.Range(0, _catalog.Entries.Count - 1);
 			var catalogEntry = _catalog.Entries.ElementAt(randomIndex);
-			ApplyMasterCatalogEntry(catalogEntry);
+			ApplyMasterCatalogEntry(catalogEntry, false, onComplete);
 			SelectCatalogEntry(catalogEntry);
 		}
 
-		public void ApplyEntryAt(int entryIndex)
+		public void ApplyEntryAt(int entryIndex, UnityAction onComplete = null)
 		{
 			if (entryIndex >= _catalog.Entries.Count) return;
 			var catalogEntry = _catalog.Entries.ElementAt(entryIndex);
-			ApplyMasterCatalogEntry(catalogEntry);
+			ApplyMasterCatalogEntry(catalogEntry, false, onComplete);
 			SelectCatalogEntry(catalogEntry);
 		}
 
 		IEnumerator ApplyNextEntryAfterInterval()
 		{
-			while (_cycleEntriesOnInterval.val)
+			//while (_cycleEntriesOnInterval.val)
+			//{
+			yield return new WaitForSeconds(_cycleEntriesInterval.val);
+			
+			UnityAction onCompleted = () => { 
+				if (!_cycleEntriesOnInterval.val) return;
+				StartCoroutine(ApplyNextEntryAfterInterval());
+			};
+
+			switch (_entrySelectionMethod.val)
 			{
-				switch (_entrySelectionMethod.val)
-				{
-					case SELECTION_METHOD_RANDOM:
-						ApplyRandomEntry();
-						break;
-					case SELECTION_METHOD_SEQUENCE:
-						ApplyEntryMoveNext();
-						break;
-				}
-				yield return new WaitForSeconds(_cycleEntriesInterval.val);
+				case SELECTION_METHOD_RANDOM:
+					ApplyRandomEntry(onCompleted);
+					break;
+				case SELECTION_METHOD_SEQUENCE:
+					ApplyEntryMoveNext(onCompleted);
+					break;
 			}
+			//}
 		}
 
 		public FreeControllerV3 GetControllerOrDefault(string atomName, string controllerName, bool withValidation = true)
