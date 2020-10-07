@@ -47,13 +47,25 @@ namespace juniperD.StatefullServices
 			dynamicDropdown.backpanel = null;
 		}
 
-		public static void MinimizeDynamicDropdown(this DynamicDropdownField dropdown, MVRScript context, bool minimize = true)
+		public static void HideDynamicDropdown(this DynamicDropdownField dropdown, MVRScript context, bool minimize = true)
 		{
 			dropdown.ClearDropdownList(context);
 			if (dropdown.backpanel != null) dropdown.backpanel.transform.localScale = minimize ? Vector3.zero: Vector3.one;
 			if (dropdown.infoBox != null) dropdown.infoBox.transform.localScale = minimize ? Vector3.zero : Vector3.one;
 			if (dropdown.label != null) dropdown.label.transform.localScale = minimize ? Vector3.zero : Vector3.one;
 			if (dropdown.selectedOption != null) dropdown.selectedOption.transform.localScale = minimize ? Vector3.zero : Vector3.one;
+		}
+
+		public static void MinimizeDynamicDropdown(this DynamicDropdownField dropdown, MVRScript context, bool minimize = true)
+		{
+			if (minimize)
+			{
+				dropdown.ClearDropdownList(context);
+			}
+			if (dropdown.backpanel != null) dropdown.backpanel.transform.localScale = minimize ? Vector3.zero : Vector3.one;
+			if (dropdown.infoBox != null) dropdown.infoBox.transform.localScale = minimize ? Vector3.zero : Vector3.one;
+			if (dropdown.selectedOption != null) dropdown.selectedOption.transform.localScale = minimize ? Vector3.zero : Vector3.one;
+			dropdown.Minimized = minimize;
 		}
 
 	}

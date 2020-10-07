@@ -3533,10 +3533,41 @@ namespace juniperD.StatefullServices
 			_nextMutation = mutation;
 		}
 
+		private void AddItemState(string propertyName, Atom atom, string value = null)
+		{
+
+
+
+			switch (propertyName)
+			{
+				case "Play Animation": StartAnimation(atom); break;
+			}
+		}
+
+		private void RemoveItemState(string propertyName, Atom atom, string value = null)
+		{
+			switch (propertyName)
+			{
+				case "Play Animation": StopAnimation(atom); break;
+			}
+		}
+
+		private void StopAnimation(Atom atom)
+		{
+			atom.CallAction("Play");
+		}
+
+		private void StartAnimation(Atom atom)
+		{
+			atom.CallAction("Stop");
+		}
+
 		void ApplyMasterCatalogEntry(CatalogEntry catalogEntry, bool withSelect = true, bool excludeUi = false, UnityAction onComplete = null)
 		{
+			_mutationsService.TimeSinceLastCheckpoint("ApplyMasterCatalogEntry");
 			if (withSelect) SelectCatalogEntry(catalogEntry);
-			ApplyCatalogEntryItem(catalogEntry, 0, false, onComplete);
+			ApplyCatalogEntryItem(catalogEntry, 0, excludeUi, onComplete);
+			SuperController.LogMessage($"ApplyMasterCatalogEntry: {_mutationsService.TimeSinceLastCheckpoint("ApplyMasterCatalogEntry")}");
 		}
 
 		private void ApplyCatalogEntryItem(CatalogEntry catalogEntry, float startDelay = 0, bool excludeUi = false, UnityAction finalComplete = null)
@@ -3544,6 +3575,7 @@ namespace juniperD.StatefullServices
 			var completedComponents = new List<int>();
 			var allComponentsToCompleteSemaphore = 1 //...1 for this entry's mutation, 
 				+ catalogEntry.ChildEntries.Where(e => e.Active).Count();//...and 1 for each child entry
+			
 			UnityAction componentCompletedCallback = () =>
 			{
 				allComponentsToCompleteSemaphore = allComponentsToCompleteSemaphore - 1;

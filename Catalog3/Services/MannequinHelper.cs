@@ -88,8 +88,9 @@ namespace juniperD.Services
 				MannequinSelectAtom(atomName, newMannequinPicker); //...On atom select.
 			};
 			newMannequinPicker.AtomSelector = _parentWindow.CreateDynamicDropdown(newMannequinPicker.Window, "Atom", personAtomNames, 250, 30, 250, -360, new Color(0.2f, 0.2f, 0.2f, 1f), new Color(0.4f, 0.1f, 0.1f, 1f), new Color(0.8f, 0.8f, 0.8f, 1f), 17, 0, onPersonSelectorSelect);
+			newMannequinPicker.AtomSelector.MinimizeDynamicDropdown(_context);
 
-			// Add mini compoinents for minimized state...
+			// Add mini components for minimized state...
 			//------------------------------------
 			newMannequinPicker.MiniOverlay = _parentWindow.CreateButton(newMannequinPicker.Window, "", _context.CatalogEntryFrameSize.val, _context.CatalogEntryFrameSize.val, 0, -250, new Color(0.4f, 0.7f, 0.7f), new Color(0.6f, 0.9f, 0.9f), Color.clear);
 			newMannequinPicker.MiniOverlay.transform.localScale = Vector3.zero;
@@ -118,6 +119,7 @@ namespace juniperD.Services
 			};
 			if (newMannequinPicker.PointSelector != null) newMannequinPicker.PointSelector.ClearDropdownList(_context);
 			newMannequinPicker.PointSelector = _parentWindow.CreateDynamicDropdown(newMannequinPicker.Window, "Point", controllerNames, 250, 30, 250, -310, new Color(0.2f, 0.2f, 0.2f, 1f), new Color(0.4f, 0.1f, 0.1f, 1f), new Color(0.8f, 0.8f, 0.8f, 1f), 17, 0, onPointSelectorSelect);
+			newMannequinPicker.PointSelector.MinimizeDynamicDropdown(_context);
 			//=================================
 
 			// "When Point select" combo box...
@@ -161,6 +163,7 @@ namespace juniperD.Services
 			};
 			newMannequinPicker.AddFeatureSelector = _parentWindow.CreateDynamicDropdown(newMannequinPicker.Window, "Add Feature To Point", selectorFeatures, 250, 30, 250, -210, new Color(0.2f, 0.2f, 0.2f, 1f), new Color(0.4f, 0.1f, 0.1f, 1f), new Color(0.8f, 0.8f, 0.8f, 1f), 17, 0, onAddAction);
 			newMannequinPicker.AddFeatureSelector.selectedOption.buttonText.text = "(select feature)";
+			newMannequinPicker.AddFeatureSelector.MinimizeDynamicDropdown(_context);
 			//=================================
 
 			// "Slave", "Master" list boxes...
@@ -176,8 +179,10 @@ namespace juniperD.Services
 			};
 			newMannequinPicker.MasterLinkedAtomSelector = _parentWindow.CreateDynamicDropdown(newMannequinPicker.Window, "Master Points", new List<string>(), 250, 30, 250, -160, new Color(0.2f, 0.2f, 0.2f, 1f), new Color(0.4f, 0.1f, 0.1f, 1f), new Color(0.8f, 0.8f, 0.8f, 1f), 17, 70, onLinkedItemSelect);
 			newMannequinPicker.MasterLinkedAtomSelector.selectedOption.buttonText.text = "(select master)";
+			newMannequinPicker.MasterLinkedAtomSelector.MinimizeDynamicDropdown(_context);
 			newMannequinPicker.SlaveLinkedAtomSelector = _parentWindow.CreateDynamicDropdown(newMannequinPicker.Window, "Slave Points", new List<string>(), 250, 30, 250, -40, new Color(0.2f, 0.2f, 0.2f, 1f), new Color(0.4f, 0.1f, 0.1f, 1f), new Color(0.8f, 0.8f, 0.8f, 1f), 17, 70, onLinkedItemSelect);
 			newMannequinPicker.SlaveLinkedAtomSelector.selectedOption.buttonText.text = "(select slave)";
+			newMannequinPicker.SlaveLinkedAtomSelector.MinimizeDynamicDropdown(_context);
 			//=================================
 
 			MannequinSelectAtom(defaultAtom?.name, newMannequinPicker); //...On create mannequin window
@@ -211,12 +216,12 @@ namespace juniperD.Services
 				
 				picker.ButtonSelectionHalo.transform.localScale = minimize ? Vector3.zero : Vector3.one;
 
-				if (picker.AtomSelector != null) picker.AtomSelector.MinimizeDynamicDropdown(_context, minimize);
-				if (picker.PointSelector != null) picker.PointSelector.MinimizeDynamicDropdown(_context, minimize);
-				if (picker.PointActionSelector != null) picker.PointActionSelector.MinimizeDynamicDropdown(_context, minimize);
-				if (picker.AddFeatureSelector != null) picker.AddFeatureSelector.MinimizeDynamicDropdown(_context, minimize);
-				if (picker.SlaveLinkedAtomSelector != null) picker.SlaveLinkedAtomSelector.MinimizeDynamicDropdown(_context, minimize);
-				if (picker.MasterLinkedAtomSelector != null) picker.MasterLinkedAtomSelector.MinimizeDynamicDropdown(_context, minimize);
+				if (picker.AtomSelector != null) picker.AtomSelector.HideDynamicDropdown(_context, minimize);
+				if (picker.PointSelector != null) picker.PointSelector.HideDynamicDropdown(_context, minimize);
+				if (picker.PointActionSelector != null) picker.PointActionSelector.HideDynamicDropdown(_context, minimize);
+				if (picker.AddFeatureSelector != null) picker.AddFeatureSelector.HideDynamicDropdown(_context, minimize);
+				if (picker.SlaveLinkedAtomSelector != null) picker.SlaveLinkedAtomSelector.HideDynamicDropdown(_context, minimize);
+				if (picker.MasterLinkedAtomSelector != null) picker.MasterLinkedAtomSelector.HideDynamicDropdown(_context, minimize);
 
 				foreach (var jointPoint in picker.JointPoints)
 				{
@@ -650,19 +655,21 @@ namespace juniperD.Services
 				picker.PointSelector.selectedOption.buttonText.text = joint.controllerName;
 				ExecuteAppropriateActionBasedOnSelectedPointAction(picker.SelectedPointAction, picker, joint.controllerName, selectedAtom);
 
-				var links = GetLinkForController(joint.controllerName, selectedAtom);
-				List<string> slaveLinks = new List<string>();
-				List<string> masterLinks = new List<string>();
-				foreach (var link in links)
-				{
-					bool isMaster = (link.SlaveAtom == joint.atomName && link.SlaveController == joint.controllerName);
-					var finalLink = isMaster
-						? link.MasterAtom + ":" + link.MasterController
-						: link.SlaveAtom + ":" + link.SlaveController;
-					if (isMaster) masterLinks.Add(finalLink); else slaveLinks.Add(finalLink);
+				if (!picker.SlaveLinkedAtomSelector.Minimized || !picker.MasterLinkedAtomSelector.Minimized) { 
+					var links = GetLinkForController(joint.controllerName, selectedAtom);
+					List<string> slaveLinks = new List<string>();
+					List<string> masterLinks = new List<string>();
+					foreach (var link in links)
+					{
+						bool isMaster = (link.SlaveAtom == joint.atomName && link.SlaveController == joint.controllerName);
+						var finalLink = isMaster
+							? link.MasterAtom + ":" + link.MasterController
+							: link.SlaveAtom + ":" + link.SlaveController;
+						if (isMaster) masterLinks.Add(finalLink); else slaveLinks.Add(finalLink);
+					}
+					picker.SlaveLinkedAtomSelector.SetItems(slaveLinks);
+					picker.MasterLinkedAtomSelector.SetItems(masterLinks);
 				}
-				picker.SlaveLinkedAtomSelector.SetItems(slaveLinks);
-				picker.MasterLinkedAtomSelector.SetItems(masterLinks);
 			}
 			catch (Exception e)
 			{

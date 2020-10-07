@@ -18,6 +18,7 @@ namespace juniperD.Models
 		public UnityAction<string> onSelectedOption {get;set; }
 		public UnityAction onRefresh { get; set; }
 		public List<string> items { get; set; }
+		public bool Minimized {get;set;}
 
 	}
 }

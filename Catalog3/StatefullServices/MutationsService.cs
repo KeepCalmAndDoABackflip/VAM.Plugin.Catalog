@@ -530,7 +530,7 @@ namespace juniperD.StatefullServices
 		private Stack<Mutation> GetMutationStackForSelectedAtomOrDefault()
 		{
 			var trackingKey = GetTrackinKeyForCurrentAtom();
-			if (trackingKey == null) return new Stack<Mutation>();
+			if (trackingKey == null) return null;
 			if (!_mutationStacks.ContainsKey(trackingKey))
 			{
 				_mutationStacks.Add(trackingKey, new Stack<Mutation>());
@@ -541,8 +541,8 @@ namespace juniperD.StatefullServices
 		public string GetTrackinKeyForCurrentAtom()
 		{
 			var personName = GetContainingOrSelectedAtomOrDefault()?.name;
-			var catalogName = _context._catalogName.val;
 			if (personName == null) return null;
+			var catalogName = _context._catalogName.val;
 			var trackingKey = personName + ":" + catalogName;
 			return trackingKey;
 		}
@@ -929,6 +929,8 @@ namespace juniperD.StatefullServices
 
 		public void ApplyMutation(ref Mutation mutation, string transitionGroupKey, float startDelay = 0, float animatedDurationInSeconds = 0, bool excludeUi = false, UnityAction finalComplete = null)
 		{
+			TimeSinceLastCheckpoint("ApplyMutation");
+			
 			var componentsToCompleteSemaphore = 1 
 				+ GetMutationComponentsCount(mutation);
 
@@ -943,10 +945,29 @@ namespace juniperD.StatefullServices
 
 			try
 			{
-				var mutationStack = GetMutationStackForSelectedAtomOrDefault();
-				if (mutationStack == null) return;
+				var mutationStack = new Stack<Mutation>();
+				
+				if (NeedsSelectedAtom(mutation)) { 
+					mutationStack = GetMutationStackForSelectedAtomOrDefault();
+					if (mutationStack == null) {
+						finalComplete.Invoke();
+						return;
+					}
+				}
 
 				mutation.IsActive = true;
+				///---Create Captured Atoms-----------------------------------------
+				if (mutation.StoredAtoms.Count > 0)
+				{
+					_context.CreateAtomsForCatalogEntry(mutation);
+					componentCompletedCallback.Invoke(); // ...TODO: Push this into the method
+				}
+				///---Open Scene-----------------------------------------
+				if (!string.IsNullOrEmpty(mutation?.ScenePathToOpen))
+				{
+					SuperController.singleton.Load(mutation.ScenePathToOpen);
+					componentCompletedCallback.Invoke(); // ...TODO: Push this into the method
+				}
 				///---Apply Face Morphs-----------------------------------------
 				var newMorphSet = new List<MorphMutation>();
 				for (var i = 0; i < mutation.FaceGenMorphSet.Count(); i++)
@@ -1005,16 +1026,7 @@ namespace juniperD.StatefullServices
 					ApplyActivePoseItem(item, transitionGroupKey, startDelay, animatedDurationInSeconds, componentCompletedCallback);
 				}
 				mutation.PoseMorphs = newPoseItems;
-				///---Create Captured Atoms-----------------------------------------
-				if (mutation.StoredAtoms.Count > 0) { 
-					_context.CreateAtomsForCatalogEntry(mutation);
-					componentCompletedCallback.Invoke(); // ...TODO: Push this into the method
-				}
-				///---Open Scene-----------------------------------------
-				if (!string.IsNullOrEmpty(mutation?.ScenePathToOpen)) { 
-					SuperController.singleton.Load(mutation.ScenePathToOpen);
-					componentCompletedCallback.Invoke(); // ...TODO: Push this into the method
-				}
+
 				///--------------------------------------------
 				mutationStack.Push(mutation);
 				componentCompletedCallback.Invoke();
@@ -1023,6 +1035,16 @@ namespace juniperD.StatefullServices
 			{
 				SuperController.LogError(e.ToString());
 			}
+			SuperController.LogMessage($"ApplyMutation: {TimeSinceLastCheckpoint("ApplyMutation")}");
+		}
+
+		private bool NeedsSelectedAtom(Mutation mutation)
+		{
+			return (mutation.HairItems.Any() 
+				|| mutation.ClothingItems.Any()
+				|| mutation.FaceGenMorphSet.Any()
+				|| mutation.PoseMorphs.Any()
+				|| mutation.ActiveMorphs.Any());
 		}
 
 		public void ApplyMutationMorphItem(MorphMutation morphMutation)
@@ -1098,6 +1120,7 @@ namespace juniperD.StatefullServices
 			if (personAtoms.Count == 1) return personAtoms.Single();
 			//...else there are either no Person atoms, or more than one Person atom.
 			SuperController.LogMessage("REQUEST: Please select a Person in the scene");
+			_context.ShowPopupMessage("Please select a person in the scene", 2);
 			return null;
 		}
 
@@ -1108,6 +1131,7 @@ namespace juniperD.StatefullServices
 			if (IsValidObjectAtom(selectedAtom)) return selectedAtom;
 			//...else there are either no Person atoms, or more than one Person atom.
 			SuperController.LogMessage("REQUEST: Please select an Object in the scene");
+			_context.ShowPopupMessage("Please select an object in the scene", 2);
 			return null;
 		}
 

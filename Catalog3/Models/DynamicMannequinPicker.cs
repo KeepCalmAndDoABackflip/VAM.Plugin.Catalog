@@ -28,7 +28,8 @@ namespace juniperD.Models
 		public DynamicDropdownField PointActionSelector { get;set; }
 		public DynamicDropdownField AddFeatureSelector { get; set; }
 		public DynamicDropdownField MasterLinkedAtomSelector { get;set; }
-		public DynamicDropdownField SlaveLinkedAtomSelector{ get;set; }
-		
+		public DynamicDropdownField SlaveLinkedAtomSelector{ get; set; }
+
+
 	}
 }

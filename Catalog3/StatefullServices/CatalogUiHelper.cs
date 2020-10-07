@@ -264,16 +264,16 @@ namespace juniperD.StatefullServices
 		{
 			var dynamicDropdown = new DynamicDropdownField();
 
-			dynamicDropdown.label = CreateButton(parent, name, width, height, left, top, Color.clear, Color.clear, textColor * 0.7f);
+			dynamicDropdown.label = CreateButton(parent, name, width, 20, left, top, Color.clear, new Color(0.1f,0.1f,0.1f), textColor * 0.7f);
 			dynamicDropdown.label.buttonText.fontSize = (int)((fontSize ?? 20) * 0.9);
 			dynamicDropdown.label.buttonText.alignment = TextAnchor.LowerLeft;
 
-			dynamicDropdown.selectedOption = CreateButton(parent, "", width, height, left, (int)(top + height), color, hoverColor, textColor);
+			dynamicDropdown.selectedOption = CreateButton(parent, "", width, height, left, (int)(top + 20), color, hoverColor, textColor);
 			dynamicDropdown.selectedOption.buttonText.fontSize = fontSize ?? 20;
 			dynamicDropdown.items = items;
 
 			if (infoBoxHeight > 0) { 
-				dynamicDropdown.infoBox = CreateTextField(parent, "", width, infoBoxHeight, left, top + (int)(height * 2), color + new Color(0.1f,0.1f,0.1f), textColor);
+				dynamicDropdown.infoBox = CreateTextField(parent, "", width, infoBoxHeight, left, top + (int)(height) + 20, color + new Color(0.1f,0.1f,0.1f), textColor);
 				dynamicDropdown.infoBox.UItext.fontSize = (int)(fontSize * 0.9);
 				dynamicDropdown.infoBox.UItext.fontStyle = FontStyle.Italic;
 				dynamicDropdown.infoBox.UItext.alignment = TextAnchor.UpperLeft;	
@@ -282,6 +282,11 @@ namespace juniperD.StatefullServices
 			dynamicDropdown.selectedOption.button.onClick.AddListener(() =>
 			{
 				ShowDropDownItems(parent, dynamicDropdown, width, height, left, top, color, hoverColor,textColor,onOptionSelect);
+			});
+
+			dynamicDropdown.label.button.onClick.AddListener(() =>
+			{
+				dynamicDropdown.MinimizeDynamicDropdown(_context, !dynamicDropdown.Minimized);
 			});
 
 			dynamicDropdown.onRefresh = () =>
