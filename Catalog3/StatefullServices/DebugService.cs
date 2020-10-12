@@ -26,7 +26,27 @@ namespace juniperD.StatefullServices
 		{
 			_context = context;
 
-			_context.CreateButton("DEBUG: rotate Atom using Matices").button.onClick.AddListener(() =>
+			_context.CreateButton("DEBUG: Show all actions").button.onClick.AddListener(() =>
+			{
+				try
+				{
+					var atom = SuperController.singleton.GetSelectedAtom();
+					foreach (var item in atom.GetStorableIDs())
+					{
+						var storable = atom.GetStorableByID(item);
+						foreach  (var action in storable.GetActionNames()) { 
+							SuperController.LogMessage(storable.name + ":" + action);
+						}
+					}
+				}
+				catch (Exception e)
+				{
+					SuperController.LogError(e.ToString());
+					throw (e);
+				}
+			});
+
+			_context.CreateButton("DEBUG: rotate Atom using Matrices").button.onClick.AddListener(() =>
 			{
 				try
 				{

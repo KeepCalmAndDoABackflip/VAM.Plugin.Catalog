@@ -7,6 +7,7 @@
 
 		public bool Active { get; set; } = true;
 		public string AtomName { get;set;}
+		public string StorableId { get; set; }
 		public string ActionName { get;set; }
 		public string ActionValue { get; set; }
 		public string InitiatorEnum { get; set; }

@@ -603,6 +603,7 @@ namespace juniperD.Services.CatalogSerializers
 		{
 			var newJson = new JSONClass();
 			newJson.Add("Active", new JSONData(storedAction.Active));
+			newJson.Add("StorableId", new JSONData(storedAction.StorableId));
 			newJson.Add("AtomName", new JSONData(storedAction.AtomName));
 			newJson.Add("InitiatorEnum", new JSONData(storedAction.InitiatorEnum));
 			newJson.Add("ActionValue", new JSONData(storedAction.ActionValue));
@@ -611,14 +612,14 @@ namespace juniperD.Services.CatalogSerializers
 
 		public static StoredAction DeserializeIntoStoredAction(JSONClass inputObject)
 		{
-			var keys = inputObject.Keys.ToList();
 			var mutationComponent = new StoredAction()
 			{
-				Active = bool.Parse(inputObject["Active"].Value),
-				AtomName = inputObject["AtomName"].Value,
-				ActionName = inputObject["ActionName"].Value, 
-				InitiatorEnum = inputObject["InitiatorEnum"].Value, 
-				ActionValue = inputObject["ActionValue"].Value
+				Active = bool.Parse(inputObject["Active"]?.Value),
+				AtomName = inputObject["AtomName"]?.Value,
+				StorableId = inputObject["StorableId"]?.Value,
+				ActionName = inputObject["ActionName"]?.Value, 
+				InitiatorEnum = inputObject["InitiatorEnum"]?.Value, 
+				ActionValue = inputObject["ActionValue"]?.Value
 			};
 			return mutationComponent;
 		}

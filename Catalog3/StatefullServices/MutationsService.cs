@@ -305,7 +305,7 @@ namespace juniperD.StatefullServices
 			}
 		}
 
-		public void CaptureAtomAction(string atomUid, string atomActionName, string initiatorEnum, CatalogEntry catalogEntry)
+		public void CaptureAtomAction(string atomUid, string storableId, string atomActionName, string initiatorEnum, CatalogEntry catalogEntry)
 		{
 			try
 			{
@@ -315,6 +315,7 @@ namespace juniperD.StatefullServices
 				{
 					Active = true,
 					AtomName = atomUid,
+					StorableId = storableId,
 					InitiatorEnum = initiatorEnum,
 					ActionName = atomActionName
 				};
@@ -1020,7 +1021,6 @@ namespace juniperD.StatefullServices
 					subComponentIsCompletedCallback.Invoke(); // ...TODO: Push this into the method
 				}
 				mutation.ClothingItems = newClothingItems;
-				SuperController.LogMessage("8");
 				///---Apply Hair Items---------------------------------------
 				var newHairItems = new List<HairMutation>();
 				for (var i = 0; i < mutation.HairItems.Count(); i++)
@@ -1080,7 +1080,8 @@ namespace juniperD.StatefullServices
 		private void ApplyStoredAction(StoredAction item)
 		{
 			var atom = SuperController.singleton.GetAtomByUid(item.AtomName);
-			atom.CallAction(item.ActionName);
+			var storable = atom.GetStorableByID(item.StorableId);
+			storable.CallAction(item.ActionName);
 		}
 
 		private bool NeedsSelectedAtom(Mutation mutation)
@@ -1271,14 +1272,21 @@ namespace juniperD.StatefullServices
 				foreach (var item in mutation.StoredActions)
 				{
 					if (item.UiToggle != null) _context.RemoveToggle(item.UiToggle);
-					if (!item.Active) continue;
-					if (item.InitiatorEnum == StoredAction.ENUM_INITIATOR_FRAME_OUT) ApplyStoredAction(item);
 				}
 
 			}
 			catch (Exception e)
 			{
 				SuperController.LogError(e.ToString());
+			}
+		}
+
+		public void RunExitFrameRoutines(Mutation mutation)
+		{
+			foreach (var item in mutation.StoredActions)
+			{
+				if (!item.Active) continue;
+				if (item.InitiatorEnum == StoredAction.ENUM_INITIATOR_FRAME_OUT) ApplyStoredAction(item);
 			}
 		}
 

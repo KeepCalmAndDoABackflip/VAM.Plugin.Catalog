@@ -2012,7 +2012,7 @@ namespace juniperD.StatefullServices
 				_mainWindow.ButtonCaptureEmpty = _catalogUi.CreateButton(_mainWindow.SubPanelCapture, "", 60, 60, 0, 0, new Color(1, 0.25f, 0.25f), new Color(1, 0.5f, 0.5f), new Color(1, 1, 1), texture);
 				_mainWindow.ButtonCaptureEmpty.button.onClick.AddListener(() =>
 				{
-					RequestNextCaptureSet(1, CaptureRequest.MUTATION_AQUISITION_MODE_CAPTURE);
+					RequestNextCaptureSet(1, CaptureRequest.MUTATION_AQUISITION_MODE_CAPTURE_EMPTY);
 				});
 				SetTooltipForDynamicButton(_mainWindow.ButtonCaptureEmpty, () => "Create blank catalog entry");
 			}
@@ -2094,32 +2094,90 @@ namespace juniperD.StatefullServices
 			{
 				UnityAction onSelectFrameOption = () =>
 				{
-					var atomSelectList = SuperController.singleton.GetAtomUIDs();
-					var selectAtomCallbacks = new List<SelectListItem>();
-					foreach (var atomUid in atomSelectList)
-					{
-						UnityAction onSelectAtom = () =>
-						{
-							var selectedAtom = SuperController.singleton.GetAtomByUid(atomUid);
-							var actionSelectList = selectedAtom.GetActionNames();
-							var selectActionCallbacks = new List<SelectListItem>();
-							foreach (var atomActionName in actionSelectList)
-							{
-								UnityAction onSelectAction = () =>
-								{
-									_mutationsService.CaptureAtomAction(atomUid, atomActionName, frameInitiator, _mainWindow.CurrentCatalogEntry);
-								};
-								selectActionCallbacks.Add(new SelectListItem(atomActionName, onSelectAction));
-							}
-							ShowSelectList(selectActionCallbacks, _dynamicSelectList.transform.position);
-						};
-						selectAtomCallbacks.Add(new SelectListItem(atomUid, onSelectAtom));
-					}
+					List<SelectListItem> selectAtomCallbacks = GetAtomActionSelectList(frameInitiator);
 					ShowSelectList(selectAtomCallbacks, _dynamicSelectList.transform.position);
 				};
 				selectFrameInitiatorCallbacks.Add(new SelectListItem(frameInitiator, onSelectFrameOption));
 			}
 			ShowSelectList(selectFrameInitiatorCallbacks, _dynamicSelectList.transform.position);
+		}
+
+		private List<SelectListItem> GetAtomActionSelectList(string frameInitiator)
+		{
+			var atomSelectList = SuperController.singleton.GetAtomUIDs();
+			var selectAtomCallbacks = new List<SelectListItem>();
+			foreach (var atomUid in atomSelectList)
+			{
+				UnityAction onSelectAtom = () =>
+				{
+					List<SelectListItem> selectStorableCallbacks = GetStorableActionSelectListForAtom(frameInitiator, atomUid);
+					ShowSelectList(selectStorableCallbacks, _dynamicSelectList.transform.position);
+				};
+				selectAtomCallbacks.Add(new SelectListItem(atomUid, onSelectAtom));
+			}
+
+			return selectAtomCallbacks;
+		}
+
+		private List<SelectListItem> GetStorableActionSelectListForAtom(string frameInitiator, string atomUid)
+		{
+			var selectedAtom = SuperController.singleton.GetAtomByUid(atomUid);
+			var selectStorableCallbacks = new List<SelectListItem>();
+			List<string> storableSelectList = selectedAtom.GetStorableIDs(); //GetActions(selectedAtom);
+			foreach (var storableName in storableSelectList)
+			{
+				UnityAction onSelectStorable = () =>
+				{
+					List<SelectListItem> selectActionCallbacks = GetActionSelectListForStorable(atomUid, storableName, frameInitiator);
+					ShowSelectList(selectActionCallbacks, _dynamicSelectList.transform.position);
+				};
+				selectStorableCallbacks.Add(new SelectListItem(storableName, onSelectStorable));
+			}
+
+			return selectStorableCallbacks;
+		}
+
+		private List<SelectListItem> GetActionSelectListForStorable(string atomUid, string storableId, string frameInitiator)
+		{
+			var selectedAtom = SuperController.singleton.GetAtomByUid(atomUid);
+			var storable = selectedAtom.GetStorableByID(storableId);
+			var selectActionCallbacks = new List<SelectListItem>();
+			List<string> actionSelectList = storable.GetActionNames();
+			foreach (var actionName in actionSelectList)
+			{
+				UnityAction onSelectAction = () =>
+				{
+					_mutationsService.CaptureAtomAction(atomUid, storableId, actionName, frameInitiator, _mainWindow.CurrentCatalogEntry);
+				};
+				selectActionCallbacks.Add(new SelectListItem(actionName, onSelectAction));
+			}
+			return selectActionCallbacks;
+		}
+
+		private static List<string> GetActions(Atom selectedAtom)
+		{
+
+			List<string> allActions = new List<string>();
+			var sceneJson = SuperController.singleton.GetSaveJSON();
+			JSONArray atomsArray = sceneJson["atoms"].AsArray;
+			//var atomsArray = GetSceneAtoms();
+			for (int a = 0; a < atomsArray.Count; a++)
+			{
+				//JSONClass atomJson = atomsArray[a].GetJSON();
+				JSONClass atomJson = atomsArray[a].AsObject;
+				JSONArray atomStorables = atomJson["storables"]?.AsArray;
+				if (atomStorables == null) continue;
+				for (int s = 0; s < atomStorables.Count; s++)
+				{
+					JSONClass storable = atomStorables[s].AsObject;
+					//var mannequinAtom = atomName;
+					//var mannequinController = searchingForController;
+					//var scanningAtom = atomJson["id"].Value;
+					//var scanningController = storable["id"].Value;
+				}
+			}
+
+			return selectedAtom.GetAllParamAndActionNames();//selectedAtom.GetActionNames();
 		}
 
 		//private void CreateNestedList(List<Dictionary<string,UnityAction>> tree)
@@ -3424,32 +3482,32 @@ namespace juniperD.StatefullServices
 			if (!_updateLoopEnabled) return;
 
 			//####### TEMP #################################################################
-			if (_debugMode == true)
-			{
-				var selectedController = SuperController.singleton.GetSelectedController();
-				if (selectedController != null)
-				{
-					_mainWindow.TextDebugPanelText.UItext.text =
-						$"{selectedController.name} " +
-						$"\nrotation" +
-						$"\n  x:{selectedController.transform.rotation.x}" +
-						$"\n  y:{selectedController.transform.rotation.y}" +
-						$"\n  z:{selectedController.transform.rotation.z}" +
-						$"\n  w:{selectedController.transform.rotation.w}" +
-						$"\nrotation.eulerAngles" +
-						$"\n  x:{selectedController.transform.rotation.eulerAngles.x}" +
-						$"\n  y:{selectedController.transform.rotation.eulerAngles.y}" +
-						$"\n  z:{selectedController.transform.rotation.eulerAngles.z}" +
-						$"\nlocalRotation" +
-						$"\n  x:{selectedController.transform.localRotation.x}" +
-						$"\n  y:{selectedController.transform.localRotation.y}" +
-						$"\n  z:{selectedController.transform.localRotation.z}" +
-						$"\nlocalRotation.eulerAngles" +
-						$"\n  x:{selectedController.transform.localRotation.eulerAngles.x}" +
-						$"\n  y:{selectedController.transform.localRotation.eulerAngles.y}" +
-						$"\n  z:{selectedController.transform.localRotation.eulerAngles.z}";
-				}
-			}
+			//if (_debugMode == true)
+			//{
+			//	var selectedController = SuperController.singleton.GetSelectedController();
+			//	if (selectedController != null)
+			//	{
+			//		_mainWindow.TextDebugPanelText.UItext.text =
+			//			$"{selectedController.name} " +
+			//			$"\nrotation" +
+			//			$"\n  x:{selectedController.transform.rotation.x}" +
+			//			$"\n  y:{selectedController.transform.rotation.y}" +
+			//			$"\n  z:{selectedController.transform.rotation.z}" +
+			//			$"\n  w:{selectedController.transform.rotation.w}" +
+			//			$"\nrotation.eulerAngles" +
+			//			$"\n  x:{selectedController.transform.rotation.eulerAngles.x}" +
+			//			$"\n  y:{selectedController.transform.rotation.eulerAngles.y}" +
+			//			$"\n  z:{selectedController.transform.rotation.eulerAngles.z}" +
+			//			$"\nlocalRotation" +
+			//			$"\n  x:{selectedController.transform.localRotation.x}" +
+			//			$"\n  y:{selectedController.transform.localRotation.y}" +
+			//			$"\n  z:{selectedController.transform.localRotation.z}" +
+			//			$"\nlocalRotation.eulerAngles" +
+			//			$"\n  x:{selectedController.transform.localRotation.eulerAngles.x}" +
+			//			$"\n  y:{selectedController.transform.localRotation.eulerAngles.y}" +
+			//			$"\n  z:{selectedController.transform.localRotation.eulerAngles.z}";
+			//	}
+			//}
 			//##############################################################################
 
 			try
@@ -3668,6 +3726,10 @@ namespace juniperD.StatefullServices
 				_mutationsService.UndoPreviousMutation();
 				_mutationsService.ApplyMutation(ref mutation, GetUniqueName());
 			}
+			else if (_currentCaptureRequest.RequestModeEnum == CaptureRequest.MUTATION_AQUISITION_MODE_CAPTURE_EMPTY)
+			{
+				mutation = new Mutation(); //_mutationsService.CaptureCurrentMutation();
+			}
 			else if (_currentCaptureRequest.RequestModeEnum == CaptureRequest.MUTATION_AQUISITION_MODE_CAPTURE_OBJECT)
 			{
 				mutation = _mutationsService.CaptureAtomVerbose(containingAtom);
@@ -3725,6 +3787,9 @@ namespace juniperD.StatefullServices
 
 		private void ApplyCatalogEntryItem(CatalogEntry catalogEntry, float startDelay = 0, bool excludeUi = false, UnityAction finalComplete = null)
 		{
+
+			RunExitFrameRoutinesForPrevioslyAppliedCatalogEntry();
+
 			var completedComponents = new List<int>();
 			var allComponentsToCompleteSemaphore = 1 //...1 for this entry's mutation, 
 				+ catalogEntry.ChildEntries.Where(e => e.Active).Count();//...and 1 for each child entry
@@ -3746,7 +3811,7 @@ namespace juniperD.StatefullServices
 				ApplyCatalogEntryItem(childEntry, 0, excludeUi, componentCompletedCallback);
 				//delayStartTime += GetCompositeDuration(childEntry);
 			}
-
+			_catalog.PrevioslyAppliedEntry = catalogEntry;
 			//componentCompletedCallback.Invoke();
 
 			// Apply appropriate catalog entry action instead...
@@ -3770,6 +3835,15 @@ namespace juniperD.StatefullServices
 			//ApplyCatalogEntryMutation(catalogEntry, startDelay, excludeUi, componentCompletedCallback);
 			//}
 
+		}
+
+		private void RunExitFrameRoutinesForPrevioslyAppliedCatalogEntry()
+		{
+			if (_catalog.PrevioslyAppliedEntry != null)
+			{
+				_mutationsService.RunExitFrameRoutines(_catalog.PrevioslyAppliedEntry.Mutation);
+				//_catalog.PrevioslyAppliedEntry.Mutation.Remo
+			}
 		}
 
 		private float GetCompositeDuration(CatalogEntry entry)
@@ -3848,7 +3922,6 @@ namespace juniperD.StatefullServices
 
 		private void RemoveSubItemUi(CatalogEntry entry)
 		{
-			SuperController.LogMessage("Removing SubItems " + entry.EntrySubItemToggles.Count + " from " + entry.UniqueName);
 			if (_mainWindow.UiSubItemsPanel == null) return;
 			_mainWindow.UiSubItemsPanel.transform.localScale = Vector3.zero;
 			foreach (var infoToggle in entry.EntrySubItemToggles)
@@ -4040,7 +4113,6 @@ namespace juniperD.StatefullServices
 
 					var extraActionButtons = new List<EntrySubItemAction>();
 
-					SuperController.LogMessage("Adding Action subitem toggle...");
 					AddEntrySubItemToggle(catalogEntry, entrySubItem, onToggleAction, onStopTracking);
 				}
 			}
