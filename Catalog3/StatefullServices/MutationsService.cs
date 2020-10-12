@@ -32,7 +32,7 @@ namespace juniperD.StatefullServices
 		public bool MustCaptureActiveMorphs { get; set; } = false;
 		public bool MustCaptureAnimations { get; set; } = false;
 		public bool MustCapturePoseMorphs { get; set; }
-		
+
 
 		// Cache
 		//List<DAZMorph> _morphs;
@@ -63,7 +63,7 @@ namespace juniperD.StatefullServices
 		protected List<JSONStorableBool> _predefinedMorphsSetToggles = new List<JSONStorableBool>();
 		protected List<JSONStorableBool> _categoryMorphsSetToggles = new List<JSONStorableBool>();
 
-		
+
 		protected List<PoseTransition> _transitioningAtomControllers = new List<PoseTransition>();
 		public List<TransitionInProgress> _transitionsWaiting = new List<TransitionInProgress>();
 		public List<TransitionInProgress> _transitionsInProgress = new List<TransitionInProgress>();
@@ -89,7 +89,7 @@ namespace juniperD.StatefullServices
 			"hairScalpMaskTool", "hairScalpMaskToolUI",
 			"eyeTargetControl"
 		};
-		
+
 
 		public void Init(CatalogPlugin context)
 		{
@@ -281,7 +281,7 @@ namespace juniperD.StatefullServices
 				if (MustCaptureFaceGenMorphs) newMutation.FaceGenMorphSet = GetCurrentMutationMorphs();
 				if (MustCaptureActiveMorphs) newMutation.ActiveMorphs = CaptureActiveMorphsForCurrentPerson();
 				if (MustCapturePoseMorphs) newMutation.PoseMorphs = CapturePoseMorphsForCurrentAtom();
-				if (MustCaptureAnimations) newMutation.Animations = CaptureAnimationsForCurrentPerson();
+				//if (MustCaptureAnimations) newMutation.Animations = CaptureAnimationsForCurrentPerson();
 				return newMutation;
 			}
 			catch (Exception exc)
@@ -297,6 +297,28 @@ namespace juniperD.StatefullServices
 			{
 				var additionalAtom = CaptureAtom(atom);
 				catalogEntry.Mutation.StoredAtoms.Add(additionalAtom);
+			}
+			catch (Exception exc)
+			{
+				SuperController.LogError(exc.Message + ": " + exc.StackTrace);
+				throw exc;
+			}
+		}
+
+		public void CaptureAtomAction(string atomUid, string atomActionName, string initiatorEnum, CatalogEntry catalogEntry)
+		{
+			try
+			{
+				var atom = SuperController.singleton.GetAtomByUid(atomUid);
+				var atomAction = atom.GetAction(atomActionName);
+				StoredAction newStoredAction = new StoredAction
+				{
+					Active = true,
+					AtomName = atomUid,
+					InitiatorEnum = initiatorEnum,
+					ActionName = atomActionName
+				};
+				catalogEntry.Mutation.StoredActions.Add(newStoredAction);
 			}
 			catch (Exception exc)
 			{
@@ -541,7 +563,11 @@ namespace juniperD.StatefullServices
 		public string GetTrackinKeyForCurrentAtom()
 		{
 			var personName = GetContainingOrSelectedAtomOrDefault()?.name;
-			if (personName == null) return null;
+			if (personName == null) {
+				SuperController.LogMessage("REQUEST: Please select an Object in the scene");
+				_context.ShowPopupMessage("Please select an object in the scene", 2);
+				return null;
+			}
 			var catalogName = _context._catalogName.val;
 			var trackingKey = personName + ":" + catalogName;
 			return trackingKey;
@@ -916,57 +942,59 @@ namespace juniperD.StatefullServices
 			throw new Exception("Unknown execution path");
 		}
 
-		public int GetMutationComponentsCount(Mutation mutation)
+		public void ApplyMutation(ref Mutation mutation, string transitionGroupKey, float startDelay = 0, float animatedDurationInSeconds = 0, bool excludeUi = false, UnityAction finalComplete = null)
 		{
-			return mutation.ClothingItems.Where(i => i.Active).Count()
+
+			if (mutation == null) return;
+			// Create component completion register (so that each component can register when its completed)...
+			var componentsToCompleteSemaphore = 1
+			+	mutation.ClothingItems.Where(i => i.Active).Count()
 			+ mutation.HairItems.Where(i => i.Active).Count()
 			+ mutation.FaceGenMorphSet.Where(i => i.Active).Count()
 			+ mutation.PoseMorphs.Where(i => i.Active).Count()
 			+ mutation.ActiveMorphs.Where(i => i.Active).Count()
 			+ (mutation.StoredAtoms.Count == 0 ? 0 : 1)
+			+ (mutation.StoredActions.Count == 0 ? 0 : 1)
 			+ (string.IsNullOrEmpty(mutation.ScenePathToOpen) ? 0 : 1);
-		}
-
-		public void ApplyMutation(ref Mutation mutation, string transitionGroupKey, float startDelay = 0, float animatedDurationInSeconds = 0, bool excludeUi = false, UnityAction finalComplete = null)
-		{
-			TimeSinceLastCheckpoint("ApplyMutation");
-			
-			var componentsToCompleteSemaphore = 1 
-				+ GetMutationComponentsCount(mutation);
-
-			UnityAction componentCompletedCallback = () =>
+			UnityAction subComponentIsCompletedCallback = () =>
 			{
-				componentsToCompleteSemaphore = componentsToCompleteSemaphore - 1;
-				if (componentsToCompleteSemaphore <= 0) {
-					//SuperController.LogMessage("ApplyMutation final invoke");
-					finalComplete.Invoke();
-				}
+				try 
+				{
+					componentsToCompleteSemaphore = componentsToCompleteSemaphore - 1;
+					if (componentsToCompleteSemaphore <= 0)
+					{
+						if (finalComplete != null) finalComplete.Invoke();
+					}
+				} catch (Exception e) { SuperController.LogError(e.ToString()); }
 			};
 
 			try
 			{
 				var mutationStack = new Stack<Mutation>();
-				
-				if (NeedsSelectedAtom(mutation)) { 
+				if (NeedsSelectedAtom(mutation))
+				{
 					mutationStack = GetMutationStackForSelectedAtomOrDefault();
-					if (mutationStack == null) {
-						finalComplete.Invoke();
+					if (mutationStack == null) // ...Is null if no atom is selected 
+					{
+						// Exit if no atom is selected...
+						if (finalComplete != null) finalComplete.Invoke();
 						return;
 					}
 				}
 
 				mutation.IsActive = true;
+
 				///---Create Captured Atoms-----------------------------------------
 				if (mutation.StoredAtoms.Count > 0)
 				{
 					_context.CreateAtomsForCatalogEntry(mutation);
-					componentCompletedCallback.Invoke(); // ...TODO: Push this into the method
+					subComponentIsCompletedCallback.Invoke(); // ...TODO: Push this into the method
 				}
 				///---Open Scene-----------------------------------------
 				if (!string.IsNullOrEmpty(mutation?.ScenePathToOpen))
 				{
 					SuperController.singleton.Load(mutation.ScenePathToOpen);
-					componentCompletedCallback.Invoke(); // ...TODO: Push this into the method
+					subComponentIsCompletedCallback.Invoke(); // ...TODO: Push this into the method
 				}
 				///---Apply Face Morphs-----------------------------------------
 				var newMorphSet = new List<MorphMutation>();
@@ -977,7 +1005,7 @@ namespace juniperD.StatefullServices
 					if (!excludeUi) AddFaceGenMorphToggle(ref morphMutation);
 					if (!morphMutation.Active) continue;
 					ApplyMutationMorphItem(morphMutation);
-					componentCompletedCallback.Invoke(); // ...TODO: Push this into the method
+					subComponentIsCompletedCallback.Invoke(); // ...TODO: Push this into the method
 				}
 				mutation.FaceGenMorphSet = newMorphSet;
 				///---Apply Clothing Items-----------------------------------------
@@ -989,9 +1017,10 @@ namespace juniperD.StatefullServices
 					if (!excludeUi) AddClothingToggle(ref clothingItem);
 					if (!clothingItem.Active) continue;
 					ApplyClothingItem(clothingItem);
-					componentCompletedCallback.Invoke(); // ...TODO: Push this into the method
+					subComponentIsCompletedCallback.Invoke(); // ...TODO: Push this into the method
 				}
 				mutation.ClothingItems = newClothingItems;
+				SuperController.LogMessage("8");
 				///---Apply Hair Items---------------------------------------
 				var newHairItems = new List<HairMutation>();
 				for (var i = 0; i < mutation.HairItems.Count(); i++)
@@ -1001,7 +1030,7 @@ namespace juniperD.StatefullServices
 					if (!excludeUi) AddHairToggle(ref hairItem);
 					if (!hairItem.Active) continue;
 					ApplyHairItem(hairItem);
-					componentCompletedCallback.Invoke(); // ...TODO: Push this into the method
+					subComponentIsCompletedCallback.Invoke(); // ...TODO: Push this into the method
 				}
 				mutation.HairItems = newHairItems;
 				///---Apply Morph Transitions-----------------------------------------
@@ -1012,7 +1041,7 @@ namespace juniperD.StatefullServices
 					newActiveMorphItems.Add(item);
 					if (!excludeUi) AddActiveMorphToggle(ref item);
 					if (!item.Active) continue;
-					ApplyActiveMorphItem(item, transitionGroupKey, startDelay, animatedDurationInSeconds, componentCompletedCallback);
+					ApplyActiveMorphItem(item, transitionGroupKey, startDelay, animatedDurationInSeconds, subComponentIsCompletedCallback);
 				}
 				mutation.ActiveMorphs = newActiveMorphItems;
 				///---Apply Pose Transitions-----------------------------------------
@@ -1023,24 +1052,40 @@ namespace juniperD.StatefullServices
 					newPoseItems.Add(item);
 					if (!excludeUi) AddPoseMorphToggle(ref item);
 					if (!item.Active) continue;
-					ApplyActivePoseItem(item, transitionGroupKey, startDelay, animatedDurationInSeconds, componentCompletedCallback);
+					ApplyActivePoseItem(item, transitionGroupKey, startDelay, animatedDurationInSeconds, subComponentIsCompletedCallback);
 				}
 				mutation.PoseMorphs = newPoseItems;
-
+				///---Apply In-Actions-----------------------------------------
+				var newActions = new List<StoredAction>();
+				for (var i = 0; i < mutation.StoredActions.Count(); i++)
+				{
+					var item = mutation.StoredActions.ElementAt(i);
+					newActions.Add(item);
+					if (!excludeUi) AddStoredActionToggle(ref item);
+					if (!item.Active) continue;
+					if (item.InitiatorEnum == StoredAction.ENUM_INITIATOR_FRAME_IN) ApplyStoredAction(item);
+				}
+				mutation.StoredActions = newActions;
 				///--------------------------------------------
 				mutationStack.Push(mutation);
-				componentCompletedCallback.Invoke();
+				subComponentIsCompletedCallback.Invoke();
+
 			}
 			catch (Exception e)
 			{
 				SuperController.LogError(e.ToString());
 			}
-			SuperController.LogMessage($"ApplyMutation: {TimeSinceLastCheckpoint("ApplyMutation")}");
+		}
+
+		private void ApplyStoredAction(StoredAction item)
+		{
+			var atom = SuperController.singleton.GetAtomByUid(item.AtomName);
+			atom.CallAction(item.ActionName);
 		}
 
 		private bool NeedsSelectedAtom(Mutation mutation)
 		{
-			return (mutation.HairItems.Any() 
+			return (mutation.HairItems.Any()
 				|| mutation.ClothingItems.Any()
 				|| mutation.FaceGenMorphSet.Any()
 				|| mutation.PoseMorphs.Any()
@@ -1075,7 +1120,11 @@ namespace juniperD.StatefullServices
 		public List<FreeControllerV3> GetControllersForContainingOrSelectedAtomOrDefault()
 		{
 			var selectedAtom = GetContainingOrSelectedAtomOrDefault();
-			if (!IsValidObjectAtom(selectedAtom)) return null;
+			if (!IsValidObjectAtom(selectedAtom)) {
+				SuperController.LogMessage("REQUEST: Please select an Object in the scene");
+				_context.ShowPopupMessage("Please select an object in the scene", 2);
+				return null;
+			}
 			var controllers = selectedAtom.GetComponentsInChildren<FreeControllerV3>(true).ToList();
 			return controllers;
 		}
@@ -1130,8 +1179,6 @@ namespace juniperD.StatefullServices
 			var selectedAtom = SuperController.singleton.GetSelectedAtom();
 			if (IsValidObjectAtom(selectedAtom)) return selectedAtom;
 			//...else there are either no Person atoms, or more than one Person atom.
-			SuperController.LogMessage("REQUEST: Please select an Object in the scene");
-			_context.ShowPopupMessage("Please select an object in the scene", 2);
 			return null;
 		}
 
@@ -1219,6 +1266,13 @@ namespace juniperD.StatefullServices
 					if (item.UiToggle != null) _context.RemoveToggle(item.UiToggle);
 					if (!item.Active) continue;
 					RemoveActivePoseItem(item, animatedDurationInSeconds);
+				}
+
+				foreach (var item in mutation.StoredActions)
+				{
+					if (item.UiToggle != null) _context.RemoveToggle(item.UiToggle);
+					if (!item.Active) continue;
+					if (item.InitiatorEnum == StoredAction.ENUM_INITIATOR_FRAME_OUT) ApplyStoredAction(item);
 				}
 
 			}
@@ -1341,12 +1395,14 @@ namespace juniperD.StatefullServices
 
 		public void ApplyActivePoseItem(PoseMutation mutationItem, string transitionGroupKey, float startDelay = 0, float duration = 0, UnityAction whenFinishedCallback = null)
 		{
-			if (!mutationItem.Active) {
+			if (!mutationItem.Active)
+			{
 				whenFinishedCallback.Invoke();
 				return;
 			}
 			var controllers = GetControllersForContainingOrSelectedAtomOrDefault();
-			if (controllers == null) {
+			if (controllers == null)
+			{
 				whenFinishedCallback.Invoke();
 				return;
 			}
@@ -1366,25 +1422,24 @@ namespace juniperD.StatefullServices
 			//if (_context._useTransitionManager) 
 			//{
 			var transitionId = Guid.NewGuid().ToString();
-			UnityAction whenFinishedManagedTransitionCallback = () => {
+			UnityAction whenFinishedManagedTransitionCallback = () =>
+			{
 				try
 				{
 					TransitionInProgress transitionToRemove = null;
 					transitionToRemove = GetTransitionInProgress(transitionId);
 					if (transitionToRemove == null) SuperController.LogError("cant find transition: " + transitionId);
-					//SuperController.LogMessage("Removing transition: " + transitionToRemove.Description);
 					else RemoveTransitionInProgress(transitionToRemove);
 				}
-				catch (Exception e) { SuperController.LogError(e.ToString());	 }
+				catch (Exception e) { SuperController.LogError(e.ToString()); }
 				if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
 			};
 			try
-			{ 
+			{
 				IEnumerator transition = TransitionApplyPose(controller, mutationItem, startDelay, duration, whenFinishedManagedTransitionCallback);
-				var newTransitionAndTimeout = new TransitionInProgress(transitionId, transitionGroupKey,  transition, startDelay, duration);
+				var newTransitionAndTimeout = new TransitionInProgress(transitionId, transitionGroupKey, transition, startDelay, duration);
 				newTransitionAndTimeout.Description = $"{controller.name}: GrpId: {transitionGroupKey}, Id: {transitionId}";
 				_transitionsWaiting.Add(newTransitionAndTimeout);
-				//SuperController.LogMessage("Added transition: " + newTransitionAndTimeout.Description);
 			}
 			catch (Exception e)
 			{
@@ -1405,6 +1460,8 @@ namespace juniperD.StatefullServices
 
 		public IEnumerator TransitionApplyPose(FreeControllerV3 controller, PoseMutation poseMutation, float startDelay = 0, float transitionTimeInSeconds = 0, UnityAction whenFinishedCallback = null)
 		{
+
+
 			float actualStartDelay = startDelay;
 
 			if (transitionTimeInSeconds > 0)
@@ -1416,20 +1473,21 @@ namespace juniperD.StatefullServices
 			}
 			if (actualStartDelay > 0) yield return new WaitForSeconds(startDelay);
 
-			try 
-			{ 
+			try
+			{
 				// Set the rotation and position states for the controller...
 				controller.SetPositionStateFromString(poseMutation.PositionState);
 				controller.SetRotationStateFromString(poseMutation.RotationState);
 			}
-			catch(Exception e) 
-			{ 
+			catch (Exception e)
+			{
 				SuperController.LogError(e.ToString());
 				if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
 				throw e;
 			}
 
-			if (controller.currentPositionState == FreeControllerV3.PositionState.Off && controller.currentRotationState == FreeControllerV3.RotationState.Off) {
+			if (controller.currentPositionState == FreeControllerV3.PositionState.Off && controller.currentRotationState == FreeControllerV3.RotationState.Off)
+			{
 				if (whenFinishedCallback != null) whenFinishedCallback.Invoke();
 				yield break;
 			}
@@ -1465,6 +1523,7 @@ namespace juniperD.StatefullServices
 				newPosition = IncrementPositionAndRotation(controller, poseMutation, newPosition, initialRotation, numberOfIterations, positionIterationDistance, i);
 				yield return new WaitForSeconds(transitionTimeInSeconds / numberOfIterations);
 			}
+
 			// Set final position and rotation...
 			SetControllerPosition(controller, poseMutation.Position, whenFinishedCallback);
 			SetControllerRotation(controller, poseMutation.Rotation, whenFinishedCallback);
@@ -1681,6 +1740,11 @@ namespace juniperD.StatefullServices
 			//		return;
 			//	}
 			//}
+		}
+
+		public void RemoveStoredAction(StoredAction mutationItemToRemove)
+		{
+			
 		}
 
 		public void RemoveActivePoseItem(PoseMutation mutationItemToRemove, float animatedDurationInSeconds = 0)
@@ -2183,6 +2247,30 @@ namespace juniperD.StatefullServices
 					mutation.Active = isChecked;
 					if (isChecked) ApplyActivePoseItem(mutation, _context.GetUniqueName());
 					else RemoveActivePoseItem(mutation);
+				};
+				newToggle.toggle.onValueChanged.AddListener(toggleAction);
+				mutationComponent.UiToggle = newToggle;
+			}
+			catch (Exception exc)
+			{
+				SuperController.LogError(exc.ToString());
+				throw exc;
+			}
+		}
+
+		private void AddStoredActionToggle(ref StoredAction mutationComponent)
+		{
+			try
+			{
+				var itemName =$"{mutationComponent.AtomName}:{mutationComponent.ActionName}";
+				var toggleData = new JSONStorableBool(itemName, mutationComponent.Active);
+				var newToggle = _context.CreateToggle(toggleData, true);
+				var mutation = mutationComponent;
+				UnityAction<bool> toggleAction = (isChecked) =>
+				{
+					mutation.Active = isChecked;
+					if (isChecked) ApplyStoredAction(mutation);
+					else RemoveStoredAction(mutation);
 				};
 				newToggle.toggle.onValueChanged.AddListener(toggleAction);
 				mutationComponent.UiToggle = newToggle;

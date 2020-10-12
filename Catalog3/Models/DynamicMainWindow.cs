@@ -62,6 +62,7 @@ namespace juniperD.Models
 		// Capture Buttons...
 		public UIDynamicButton ButtonCapture { get; set; }
 		public UIDynamicButton ButtonAddAtomToCapture { get; set; }
+		public UIDynamicButton ButtonAddActionToCapture { get; set; }
 		public UIDynamicButton ButtonSelectScenesFolder { get; set; }
 		public UIDynamicButton ToggleButtonCaptureMorphs { get; set; }
 		public UIDynamicButton ToggleButtonCaptureClothes { get; set; }
@@ -104,7 +105,7 @@ namespace juniperD.Models
 		public UIDynamicButton ButtonHideCatalogShortcut { get; set; }
 		public UIDynamicButton ButtonPlayStop { get; set; }
 		public UIDynamicButton ButtonShowSubItemsPanel { get; set; }
-		public UIDynamicButton ButtonCreateMergedEntryGroup { get; set; }
+		public UIDynamicButton ButtonCreateMergedEntrySequenceGroup { get; set; }
 		public UIDynamicButton ButtonToggleAnimFeatures { get; set; }
 		public GameObject ActiveCatalogContainer { get; set; }
 		public UIDynamicButton ButtonRemoveAllFavorites { get; set; }
@@ -119,9 +120,11 @@ namespace juniperD.Models
 		public List<GameObject> UiAnimationItems { get; set; } = new List<GameObject>();
 
 		public string SelectedInfoPanel { get; set; }
-		public GameObject UiSubItemsPanel { get; internal set; }
-		public GameObject UiFrameOptionsPanel { get; internal set; }
-		public VerticalLayoutGroup UiFrameOptionsPanelLayout { get; internal set; }
+		public GameObject UiSubItemsPanel { get;  set; }
+		public GameObject UiFrameOptionsPanel { get;  set; }
+		public VerticalLayoutGroup UiFrameOptionsPanelLayout { get; set; }
+		public UIDynamicButton ButtonMergeEntries { get;  set; }
+		public UIDynamicButton ButtonCaptureEmpty { get;  set; }
 
 		public DynamicMainWindow(CatalogUiHelper uiHelper)
 		{

@@ -300,7 +300,6 @@ namespace juniperD.Services.CatalogSerializers
 			newJson.Add("AtomType", new JSONData(mutation.AtomType));
 			newJson.Add("ScenePathToOpen", SerializeString(mutation.ScenePathToOpen));
 
-
 			JSONArray morphSet = new JSONArray();
 			mutation.FaceGenMorphSet.Select(i => SerializeMorphSet(i)).ToList().ForEach(morphSet.Add);
 			newJson.Add("MorphSet", morphSet);
@@ -328,6 +327,10 @@ namespace juniperD.Services.CatalogSerializers
 			JSONArray storedAtoms = new JSONArray();
 			mutation.StoredAtoms.ForEach(i => storedAtoms.Add(SerializeStoredAtom(i)));
 			newJson.Add("StoredAtoms", storedAtoms);
+
+			JSONArray storedActions = new JSONArray();
+			mutation.StoredActions.ForEach(i => storedActions.Add(SerializeStoredAction(i)));
+			newJson.Add("StoredActions", storedActions);
 
 			//newJson.Add("Img_RGB24_W1000H1000_64bEncoded", new JSONData(mutation.Img_RGB24_W1000H1000_64bEncoded));
 			return newJson;
@@ -365,6 +368,10 @@ namespace juniperD.Services.CatalogSerializers
 					?.Childs
 					?.Select(i => DeserializeIntoPoseMorphMutation(i.AsObject))
 					?.ToList() ?? new List<PoseMutation>(),
+				StoredActions = inputObject["StoredActions"]?.AsArray
+					?.Childs
+					?.Select(i => DeserializeIntoStoredAction(i.AsObject))
+					?.ToList() ?? new List<StoredAction>(),
 			};
 			if (keys.Contains("Storables"))
 			{
@@ -588,6 +595,30 @@ namespace juniperD.Services.CatalogSerializers
 					.Childs
 					.Select(i => i.AsObject)
 					.ToList(),
+			};
+			return mutationComponent;
+		}
+
+		public static JSONNode SerializeStoredAction(StoredAction storedAction)
+		{
+			var newJson = new JSONClass();
+			newJson.Add("Active", new JSONData(storedAction.Active));
+			newJson.Add("AtomName", new JSONData(storedAction.AtomName));
+			newJson.Add("InitiatorEnum", new JSONData(storedAction.InitiatorEnum));
+			newJson.Add("ActionValue", new JSONData(storedAction.ActionValue));
+			return newJson;
+		}
+
+		public static StoredAction DeserializeIntoStoredAction(JSONClass inputObject)
+		{
+			var keys = inputObject.Keys.ToList();
+			var mutationComponent = new StoredAction()
+			{
+				Active = bool.Parse(inputObject["Active"].Value),
+				AtomName = inputObject["AtomName"].Value,
+				ActionName = inputObject["ActionName"].Value, 
+				InitiatorEnum = inputObject["InitiatorEnum"].Value, 
+				ActionValue = inputObject["ActionValue"].Value
 			};
 			return mutationComponent;
 		}

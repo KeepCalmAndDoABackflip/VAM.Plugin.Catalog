@@ -382,7 +382,7 @@ namespace juniperD.StatefullServices
 				_mainWindow.CatalogRowsVLayout = _catalogUi.CreateVerticalLayout(_mainWindow.CatalogRowContainer.gameObject, _relativeBorderWidth);
 
 				_mainWindow.CatalogColumnContainers = new List<GameObject>() { CreateNewCatalogColumnContainer(0) };
-				
+
 
 				CreateDynamicUi(_mainWindow);
 
@@ -453,8 +453,11 @@ namespace juniperD.StatefullServices
 				// Capture buttons...
 				CreateDynamicButton_Play();
 				CreateDynamicButton_Capture();
+				CreateDynamicButton_CreateEmptyCapture();
 				CreateDynamicButton_CaptureAdditionalAtom();
-				CreateDynamicButton_MergeFavoritedEntries();
+				CreateDynamicButton_CaptureAdditionalAction();
+				CreateDynamicButton_MergeFavoritedEntriesAsSequence();
+				CreateDynamicButton_MergeFavoritedEntriesAsOne();
 				//CreateDynamicButton_ToggleAnimFeatures();
 				CreateDynamicButton_Capture_Clothes();
 				CreateDynamicButton_Capture_Morphs();
@@ -469,7 +472,7 @@ namespace juniperD.StatefullServices
 				CreateDynamicPanel_RightInfoPanel();
 				CreateDynamicButton_ShowSubItemPanel();
 				CreateDynamicButton_ShowAnimationItemPanel();
-				CreateDynamicButton_ShowFrameOptionsItemPanel();
+				//CreateDynamicButton_ShowFrameOptionsItemPanel();
 				CreateDynamicPanel_LeftInfo();
 				CreateDynamicButton_LeftSideLabel();
 				CreateDynamicButton_Tooltip();
@@ -827,7 +830,8 @@ namespace juniperD.StatefullServices
 			cycleEntriesButton.buttonColor = _cycleEntriesOnInterval.val ? Color.red : new Color(0.8f, 1f, 0.8f);
 			cycleEntriesButton.button.onClick.AddListener(() =>
 			{
-				UnityAction sequenceCompleted = () => {
+				UnityAction sequenceCompleted = () =>
+				{
 					cycleEntriesButton.buttonText.text = "Play >";
 					cycleEntriesButton.buttonColor = new Color(0.8f, 1f, 0.8f);
 				};
@@ -1082,7 +1086,10 @@ namespace juniperD.StatefullServices
 			HideButtonInGroup(_mainWindow.ButtonRemoveAllHair, _mainWindow.SubWindow);
 			HideButtonInGroup(_mainWindow.ButtonCapture, _mainWindow.SubWindow);
 			HideButtonInGroup(_mainWindow.ButtonAddAtomToCapture, _mainWindow.SubWindow);
-			HideButtonInGroup(_mainWindow.ButtonCreateMergedEntryGroup, _mainWindow.SubWindow);
+			HideButtonInGroup(_mainWindow.ButtonCaptureEmpty, _mainWindow.SubWindow);
+			HideButtonInGroup(_mainWindow.ButtonAddActionToCapture, _mainWindow.SubWindow);
+			HideButtonInGroup(_mainWindow.ButtonCreateMergedEntrySequenceGroup, _mainWindow.SubWindow);
+			HideButtonInGroup(_mainWindow.ButtonMergeEntries, _mainWindow.SubWindow);
 			//HideButtonInGroup(_mainWindow.ButtonToggleAnimFeatures, _mainWindow.SubWindow);
 			HideButtonInGroup(_mainWindow.ButtonPlayStop, _mainWindow.SubWindow);
 			HideButtonInGroup(_mainWindow.ButtonSelectScenesFolder, _mainWindow.SubWindow);
@@ -1163,9 +1170,12 @@ namespace juniperD.StatefullServices
 				_mainWindow.ButtonNameLabel.buttonText.text = "Capture Selected";
 				_catalog.Entries.ForEach(e => e.UiBottomButtonGroup.transform.localScale = Vector3.one);
 				_mainWindow.ButtonCapture.buttonText.text = "";
+				ShowButtonInGroup(_mainWindow.ButtonCaptureEmpty, _mainWindow.SubPanelCapture);
 				ShowButtonInGroup(_mainWindow.ButtonCapture, _mainWindow.SubPanelCapture);
 				ShowButtonInGroup(_mainWindow.ButtonAddAtomToCapture, _mainWindow.SubPanelCapture);
+				ShowButtonInGroup(_mainWindow.ButtonAddActionToCapture, _mainWindow.SubPanelCapture);
 				_mainWindow.ButtonCapture.button.image.sprite = _mainWindow.IconForCaptureSelectedObject;
+				ShowButtonInGroup(_mainWindow.ButtonMergeEntries, _mainWindow.SubPanelCapture);
 				SetTooltipForDynamicButton(_mainWindow.ButtonCapture, () => "Capture Selected Object");
 				_mainWindow.ButtonCapture.button.onClick.AddListener(() =>
 				{
@@ -1188,7 +1198,7 @@ namespace juniperD.StatefullServices
 				_mainWindow.ButtonCapture.button.image.sprite = _mainWindow.IconForCaptureNone;
 				_mainWindow.ButtonCapture.button.onClick.AddListener(() => { });
 				ShowButtonInGroup(_mainWindow.ButtonPlayStop, _mainWindow.SubPanelCapture);
-				ShowButtonInGroup(_mainWindow.ButtonCreateMergedEntryGroup, _mainWindow.SubPanelCapture);
+				ShowButtonInGroup(_mainWindow.ButtonCreateMergedEntrySequenceGroup, _mainWindow.SubPanelCapture);
 				//ShowButtonInGroup(_mainWindow.ButtonToggleAnimFeatures, _mainWindow.SubPanelCapture);
 			}
 
@@ -1771,40 +1781,12 @@ namespace juniperD.StatefullServices
 
 		private void SelectInfoPanels(string infoPanelEnum)
 		{
-			_mainWindow.ButtonShowSubItemsPanel.buttonText.color = Color.white;
-			_mainWindow.ButtonShowAnimationsPanel.buttonText.color = Color.white;
-			_mainWindow.ButtonShowOptionsPanel.buttonText.color = Color.white;
+			if (_mainWindow.ButtonShowSubItemsPanel != null) _mainWindow.ButtonShowSubItemsPanel.buttonText.color = Color.white;
+			if (_mainWindow.ButtonShowAnimationsPanel != null) _mainWindow.ButtonShowAnimationsPanel.buttonText.color = Color.white;
 			_mainWindow.SelectedInfoPanel = infoPanelEnum;
-			if (infoPanelEnum == InfoPanelEnum.OPTIONS) _mainWindow.ButtonShowOptionsPanel.buttonText.color = Color.red;
 			if (infoPanelEnum == InfoPanelEnum.ANIMATION_ITEMS) _mainWindow.ButtonShowAnimationsPanel.buttonText.color = Color.red;
 			if (infoPanelEnum == InfoPanelEnum.ENTRY_SUB_ITEMS) _mainWindow.ButtonShowSubItemsPanel.buttonText.color = Color.red;
 			SelectCatalogEntry(_mainWindow.CurrentCatalogEntry);
-			//var checekdColor = new Color(0.7f, 0.2f, 0.2f);
-			//var uncheckedColor = new Color(0f, 0f, 0f);
-			////_mainWindow.SubItemPanelMinimized = !_mainWindow.SubItemPanelMinimized;
-			//var togglesPosition = _mainWindow.DynamicInfoTogglesPanel.transform.localPosition;
-			////_mainWindow.DynamicInfoTogglesPanel.transform.localPosition = new Vector3(_mainWindow.WindowWidth + 300, togglesPosition.y, togglesPosition.z);
-			//if (_mainWindow.SubItemPanelMinimized)
-			//{
-			//	//_mainWindow.DynamicInfoPanel.transform.localScale = Vector3.zero;
-			//	//_mainWindow.DynamicInfoTogglesPanel.transform.localPosition = new Vector3(_mainWindow.WindowWidth + 100, togglesPosition.y, togglesPosition.z);
-			//	//SetButtonColor(_mainWindow.ButtonMinimizeSubItemPanel, uncheckedColor);
-			//	//RemoveItemToggles();
-			//	//_mainWindow.ButtonMinimizeSubItemPanel.buttonText.text = "sub items";
-			//	//var pos = _mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition;
-			//	//_mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition = new Vector3((float)(_mainWindow.WindowWidth + 100), pos.y, pos.z);// _mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition - new Vector3(200, 0,0);
-			//	//_mainWindow.ButtonMinimizeSubItemPanel.transform.localRotation = Quaternion.Euler(new Vector3(0, 0, 0));
-			//}
-			//else
-			//{
-			//	//_mainWindow.DynamicInfoPanel.transform.localScale = Vector3.one;
-			//	//_mainWindow.DynamicInfoTogglesPanel.transform.localPosition = new Vector3(_mainWindow.WindowWidth + 300, togglesPosition.y, togglesPosition.z);
-			//	//SetButtonColor(_mainWindow.ButtonMinimizeSubItemPanel, checekdColor);
-			//	//_mainWindow.ButtonMinimizeSubItemPanel.buttonText.text = "SUB ITEMS";
-			//	//var pos = _mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition;
-			//	//_mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition = new Vector3((float)(_mainWindow.WindowWidth + 100 + 200), pos.y, pos.z); //_mainWindow.ButtonMinimizeSubItemPanel.transform.localPosition + new Vector3(200, 0, 0);
-			//	if (_mainWindow.CurrentCatalogEntry != null) SelectCatalogEntry(_mainWindow.CurrentCatalogEntry);
-			//}
 		}
 
 		private void SetButtonColor(UIDynamicButton button, Color color)
@@ -1869,7 +1851,7 @@ namespace juniperD.StatefullServices
 		private void ShowQuickLoadFileList()
 		{
 			var files = SuperController.singleton.GetFilesAtPath(_lastCatalogDirectory, "*." + _fileExtension);
-			Dictionary<string, UnityAction> filesToLoad = new Dictionary<string, UnityAction>();
+			var filesToLoad = new List<SelectListItem>();
 			foreach (var file in files)
 			{
 				var fileName = file.Replace("\\", "/").Replace(_lastCatalogDirectory + "/", "").Replace("." + _fileExtension, "");
@@ -1888,7 +1870,7 @@ namespace juniperD.StatefullServices
 						SuperController.LogError(e.ToString());
 					}
 				};
-				filesToLoad.Add(fileName, selectAction);
+				filesToLoad.Add(new SelectListItem(fileName, selectAction));
 			}
 			ShowSelectList(filesToLoad);
 		}
@@ -1902,16 +1884,16 @@ namespace juniperD.StatefullServices
 			}
 		}
 
-		private void CreateDynamicButton_Mode()
-		{
-			var texture = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/Mode.png");
-			var button = _catalogUi.CreateButton(_mainWindow.SubWindow, "", 35, 35, _mainWindow.WindowWidth, 0, new Color(1f, 0f, 0f, 0.5f), Color.red, new Color(1f, 1f, 1f), texture);
-			button.button.onClick.AddListener(() =>
-			{
-				ToggleMode();
-			});
-			SetTooltipForDynamicButton(button, () => _catalogMode.val);
-		}
+		//private void CreateDynamicButton_Mode()
+		//{
+		//	var texture = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/Mode.png");
+		//	var button = _catalogUi.CreateButton(_mainWindow.SubWindow, "", 35, 35, _mainWindow.WindowWidth, 0, new Color(1f, 0f, 0f, 0.5f), Color.red, new Color(1f, 1f, 1f), texture);
+		//	button.button.onClick.AddListener(() =>
+		//	{
+		//		ToggleMode();
+		//	});
+		//	SetTooltipForDynamicButton(button, () => _catalogMode.val);
+		//}
 
 		private void CreateDynamicButton_Modes()
 		{
@@ -1919,12 +1901,17 @@ namespace juniperD.StatefullServices
 			foreach (var mode in _catalogModes)
 			{
 				var iconFileName = "Mode.png";
+				var modeTooltip = mode;
 				if (mode == CatalogModeEnum.CATALOG_MODE_VIEW) iconFileName = "CaptureNone.png";
-				if (mode == CatalogModeEnum.CATALOG_MODE_SESSION) iconFileName = "CaptureSelected.png";
+				if (mode == CatalogModeEnum.CATALOG_MODE_SESSION) {
+					iconFileName = "CaptureSelected.png";
+					modeTooltip = "Misc";
+				}
 				if (mode == CatalogModeEnum.CATALOG_MODE_SCENE) iconFileName = "CaptureScenes.png";
 				if (mode == CatalogModeEnum.CATALOG_MODE_OBJECT) iconFileName = "CaptureObject.png";
 				if (mode == CatalogModeEnum.CATALOG_MODE_MUTATIONS) iconFileName = "CaptureFaceGen.png";
 				if (mode == CatalogModeEnum.CATALOG_MODE_CAPTURE) iconFileName = "CapturePerson.png";
+
 				var texture = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/" + iconFileName);
 				var button = _catalogUi.CreateButton(_mainWindow.SubPanelMode, "", -20, 35, 10, index++ * 40, Color.white, Color.white, new Color(1f, 1f, 1f), texture);
 				button.button.onClick.AddListener(() =>
@@ -1934,7 +1921,7 @@ namespace juniperD.StatefullServices
 					button.buttonColor = Color.red;
 				});
 				_mainWindow.ModeButtons.Add(mode, button);
-				SetTooltipForDynamicButton(button, () => mode);
+				SetTooltipForDynamicButton(button, () => modeTooltip);
 			}
 		}
 
@@ -2017,6 +2004,24 @@ namespace juniperD.StatefullServices
 			});
 		}
 
+		private void CreateDynamicButton_CreateEmptyCapture()
+		{
+			try
+			{
+				var texture = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/CaptureEmpty.png");
+				_mainWindow.ButtonCaptureEmpty = _catalogUi.CreateButton(_mainWindow.SubPanelCapture, "", 60, 60, 0, 0, new Color(1, 0.25f, 0.25f), new Color(1, 0.5f, 0.5f), new Color(1, 1, 1), texture);
+				_mainWindow.ButtonCaptureEmpty.button.onClick.AddListener(() =>
+				{
+					RequestNextCaptureSet(1, CaptureRequest.MUTATION_AQUISITION_MODE_CAPTURE);
+				});
+				SetTooltipForDynamicButton(_mainWindow.ButtonCaptureEmpty, () => "Create blank catalog entry");
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+			}
+		}
+
 		private void CreateDynamicButton_CaptureAdditionalAtom()
 		{
 			try
@@ -2025,24 +2030,7 @@ namespace juniperD.StatefullServices
 				_mainWindow.ButtonAddAtomToCapture = _catalogUi.CreateButton(_mainWindow.SubPanelCapture, "", 30, 30, 0, 0, new Color(1, 0.25f, 0.25f), new Color(1, 0.5f, 0.5f), new Color(1, 1, 1), texture);
 				_mainWindow.ButtonAddAtomToCapture.button.onClick.AddListener(() =>
 				{
-					if (_mainWindow.CurrentCatalogEntry == null)
-					{
-						ShowPopupMessage("Please select a catalog entry first", 2);
-						return;
-					}
-					var selectList = SuperController.singleton.GetAtomUIDs();
-					var atomNameAndSelectAction = new Dictionary<string, UnityAction>();
-					foreach (var atomUid in selectList)
-					{
-						UnityAction action = () =>
-						{
-							var atom = SuperController.singleton.GetAtomByUid(atomUid);
-							_mutationsService.CaptureAdditionalAtom(atom, _mainWindow.CurrentCatalogEntry);
-							SelectCatalogEntry(_mainWindow.CurrentCatalogEntry);
-						};
-						atomNameAndSelectAction.Add(atomUid, action);
-					}
-					ShowSelectList(atomNameAndSelectAction, _dynamicSelectList.transform.position);
+					SelectAndAddAtomToCapture();
 				});
 				SetTooltipForDynamicButton(_mainWindow.ButtonAddAtomToCapture, () => "Add atom to capture");
 			}
@@ -2052,22 +2040,163 @@ namespace juniperD.StatefullServices
 			}
 		}
 
-		private void CreateDynamicButton_MergeFavoritedEntries()
+		private void CreateDynamicButton_CaptureAdditionalAction()
+		{
+			try
+			{
+				var texture = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/Add.png");
+				_mainWindow.ButtonAddActionToCapture = _catalogUi.CreateButton(_mainWindow.SubPanelCapture, "", 30, 30, 0, 0, new Color(1, 0.25f, 0.25f), new Color(1, 0.5f, 0.5f), new Color(1, 1, 1), texture);
+				_mainWindow.ButtonAddActionToCapture.button.onClick.AddListener(() =>
+				{
+					SelectAddAtomActionToCapture();
+				});
+				SetTooltipForDynamicButton(_mainWindow.ButtonAddActionToCapture, () => "Add action to capture");
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+			}
+		}
+
+		private void SelectAndAddAtomToCapture()
+		{
+			if (_mainWindow.CurrentCatalogEntry == null)
+			{
+				ShowPopupMessage("Please select a catalog entry first", 2);
+				return;
+			}
+			var selectList = SuperController.singleton.GetAtomUIDs();
+			var atomNameAndSelectAction = new List<SelectListItem>();
+			foreach (var atomUid in selectList)
+			{
+				UnityAction action = () =>
+				{
+					var atom = SuperController.singleton.GetAtomByUid(atomUid);
+					_mutationsService.CaptureAdditionalAtom(atom, _mainWindow.CurrentCatalogEntry);
+					SelectCatalogEntry(_mainWindow.CurrentCatalogEntry);
+				};
+				atomNameAndSelectAction.Add(new SelectListItem(atomUid, action));
+			}
+			ShowSelectList(atomNameAndSelectAction, _dynamicSelectList.transform.position);
+		}
+
+		private void SelectAddAtomActionToCapture()
+		{
+			if (_mainWindow.CurrentCatalogEntry == null)
+			{
+				ShowPopupMessage("Please select a catalog entry first", 2);
+				return;
+			}
+
+			var frameInitiatorList = new List<string>() { StoredAction.ENUM_INITIATOR_FRAME_IN, StoredAction.ENUM_INITIATOR_FRAME_OUT };
+			var selectFrameInitiatorCallbacks = new List<SelectListItem>();
+			foreach (var frameInitiator in frameInitiatorList)
+			{
+				UnityAction onSelectFrameOption = () =>
+				{
+					var atomSelectList = SuperController.singleton.GetAtomUIDs();
+					var selectAtomCallbacks = new List<SelectListItem>();
+					foreach (var atomUid in atomSelectList)
+					{
+						UnityAction onSelectAtom = () =>
+						{
+							var selectedAtom = SuperController.singleton.GetAtomByUid(atomUid);
+							var actionSelectList = selectedAtom.GetActionNames();
+							var selectActionCallbacks = new List<SelectListItem>();
+							foreach (var atomActionName in actionSelectList)
+							{
+								UnityAction onSelectAction = () =>
+								{
+									_mutationsService.CaptureAtomAction(atomUid, atomActionName, frameInitiator, _mainWindow.CurrentCatalogEntry);
+								};
+								selectActionCallbacks.Add(new SelectListItem(atomActionName, onSelectAction));
+							}
+							ShowSelectList(selectActionCallbacks, _dynamicSelectList.transform.position);
+						};
+						selectAtomCallbacks.Add(new SelectListItem(atomUid, onSelectAtom));
+					}
+					ShowSelectList(selectAtomCallbacks, _dynamicSelectList.transform.position);
+				};
+				selectFrameInitiatorCallbacks.Add(new SelectListItem(frameInitiator, onSelectFrameOption));
+			}
+			ShowSelectList(selectFrameInitiatorCallbacks, _dynamicSelectList.transform.position);
+		}
+
+		//private void CreateNestedList(List<Dictionary<string,UnityAction>> tree)
+		//{
+		//	foreach 
+		//}
+
+		private void CreateDynamicButton_MergeFavoritedEntriesAsSequence()
 		{
 			try
 			{
 				var iconTexture = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/MergeHearts.png");
-				_mainWindow.ButtonCreateMergedEntryGroup = _catalogUi.CreateButton(_mainWindow.SubPanelCapture, "", 45, 45, 0, 0, new Color(1f, 0.5f, 0.05f, 0.5f), new Color(1f, 0.5f, 0.05f, 1f), new Color(1f, 1f, 1f), iconTexture);
-				_mainWindow.ButtonCreateMergedEntryGroup.button.onClick.AddListener(() =>
+				_mainWindow.ButtonCreateMergedEntrySequenceGroup = _catalogUi.CreateButton(_mainWindow.SubPanelCapture, "", 45, 45, 0, 0, new Color(1f, 0.5f, 0.05f, 0.5f), new Color(1f, 0.5f, 0.05f, 1f), new Color(1f, 1f, 1f), iconTexture);
+				_mainWindow.ButtonCreateMergedEntrySequenceGroup.button.onClick.AddListener(() =>
 				{
-					MergeFavoriteEntries();
+					MergeFavoriteEntriesAsSequence();
 				});
-				SetTooltipForDynamicButton(_mainWindow.ButtonCreateMergedEntryGroup, () => "Merge Favorite Entries");
+				SetTooltipForDynamicButton(_mainWindow.ButtonCreateMergedEntrySequenceGroup, () => "Merge favorite entries as sequence");
 			}
 			catch (Exception e) { SuperController.LogError(e.ToString()); }
 		}
 
-		private void MergeFavoriteEntries(bool asReferencedEntries = false)
+		private void CreateDynamicButton_MergeFavoritedEntriesAsOne()
+		{
+			try
+			{
+				var iconTexture = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/MergeHearts.png");
+				_mainWindow.ButtonMergeEntries = _catalogUi.CreateButton(_mainWindow.SubPanelCapture, "", 45, 45, 0, 0, new Color(1f, 0.5f, 0.05f, 0.5f), new Color(1f, 0.5f, 0.05f, 1f), new Color(1f, 1f, 1f), iconTexture);
+				_mainWindow.ButtonMergeEntries.button.onClick.AddListener(() =>
+				{
+					MergeFavoriteEntries();
+				});
+				SetTooltipForDynamicButton(_mainWindow.ButtonMergeEntries, () => "Merge favorite entries");
+			}
+			catch (Exception e) { SuperController.LogError(e.ToString()); }
+		}
+
+		private void MergeFavoriteEntries()
+		{
+			try
+			{
+				List<CatalogEntry> favoritedEntries = _catalog.Entries.Where(e => e.Favorited > 0).ToList();
+				if (GetSelectedCatalogEntryOrDefault() == null && !favoritedEntries.Any())
+				{
+					SuperController.LogMessage("WARNING: Please seelct a catalog entry");
+					return;
+				}
+
+				var selectedBaseEntry = !favoritedEntries.Any() ? GetSelectedCatalogEntryOrDefault() : favoritedEntries.Aggregate((a, b) => a.Favorited > b.Favorited ? a : b);
+				CatalogEntry newBaseEntry = CreateCloneEntry(selectedBaseEntry);
+				newBaseEntry.Favorited = 0;
+				foreach (var nextEntry in favoritedEntries.Skip(1).OrderBy(f =>f.Favorited).ToList())
+				{
+					MergeEntries(newBaseEntry, nextEntry);
+					if (nextEntry.TransitionTimeInSeconds > newBaseEntry.TransitionTimeInSeconds) newBaseEntry.TransitionTimeInSeconds = nextEntry.TransitionTimeInSeconds;
+					nextEntry.Favorited = 0;
+				}
+				//GenerateNewMasterCatalogEntryImage(masterCatalogEntry);
+				//RefreshCatalogPosition();
+			}
+			catch (Exception e) { SuperController.LogError(e.ToString()); }
+		}
+
+		private void MergeEntries(CatalogEntry baseEntry, CatalogEntry addEntry)
+		{
+			if (baseEntry.Mutation == null || addEntry.Mutation == null) return; 
+			baseEntry.Mutation.ActiveMorphs.AddRange(addEntry.Mutation.ActiveMorphs);
+			baseEntry.Mutation.ClothingItems.AddRange(addEntry.Mutation.ClothingItems);
+			baseEntry.Mutation.FaceGenMorphSet.AddRange(addEntry.Mutation.FaceGenMorphSet);
+			baseEntry.Mutation.HairItems.AddRange(addEntry.Mutation.HairItems);
+			baseEntry.Mutation.PoseMorphs.AddRange(addEntry.Mutation.PoseMorphs);
+			baseEntry.Mutation.Storables.AddRange(addEntry.Mutation.Storables);
+			baseEntry.Mutation.StoredActions.AddRange(addEntry.Mutation.StoredActions);
+			baseEntry.Mutation.StoredAtoms.AddRange(addEntry.Mutation.StoredAtoms);
+		}
+
+		private void MergeFavoriteEntriesAsSequence(bool asReferencedEntries = false)
 		{
 			try
 			{
@@ -2076,8 +2205,8 @@ namespace juniperD.StatefullServices
 				{
 					CreateCloneEntry(favoritedEntries.First());
 				}
-				else 
-				{ 
+				else
+				{
 					CatalogEntry masterCatalogEntry = CreateMasterCatalogEntry();
 					masterCatalogEntry.TransitionTimeInSeconds = 0;
 					foreach (var entry in favoritedEntries)
@@ -2098,10 +2227,11 @@ namespace juniperD.StatefullServices
 			catch (Exception e) { SuperController.LogError(e.ToString()); }
 		}
 
-		private void CreateCloneEntry(CatalogEntry catalogEntry)
+		private CatalogEntry CreateCloneEntry(CatalogEntry catalogEntry)
 		{
 			var cloneEntry = catalogEntry.Clone();
 			MakeCatalogEntry(cloneEntry);
+			return cloneEntry;
 		}
 
 		//private void CreateDynamicButton_ToggleAnimFeatures()
@@ -2373,7 +2503,8 @@ namespace juniperD.StatefullServices
 		{
 			var texture = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/RemoveAllFavorites.png");
 			_mainWindow.ButtonRemoveAllFavorites = _catalogUi.CreateButton(mainWindow.SubPanelManageCatalog, "", 35, 35, 0, 80, new Color(1f, 0.5f, 0.05f, 0.5f), new Color(1f, 0.5f, 0.05f, 1f), new Color(1f, 1f, 1f), texture);
-			_mainWindow.ButtonRemoveAllFavorites.button.onClick.AddListener(() => {
+			_mainWindow.ButtonRemoveAllFavorites.button.onClick.AddListener(() =>
+			{
 				foreach (var catalogEntry in _catalog.Entries)
 				{
 					ResetFavorite(catalogEntry);
@@ -2419,14 +2550,14 @@ namespace juniperD.StatefullServices
 			try
 			{
 				var atomNames = SuperController.singleton.GetAtomUIDs();
-				Dictionary<string, UnityAction> atomsToSelect = new Dictionary<string, UnityAction>();
+				var atomsToSelect = new List<SelectListItem>();
 				foreach (var atomName in atomNames)
 				{
 					UnityAction selectAction = () =>
 					{
 						whatToDoWithSelectedAtom.Invoke(atomName);
 					};
-					atomsToSelect.Add(atomName, selectAction);
+					atomsToSelect.Add(new SelectListItem(atomName, selectAction));
 				}
 				ShowSelectList(atomsToSelect);
 			}
@@ -2744,27 +2875,47 @@ namespace juniperD.StatefullServices
 			_mainWindow.InfoLabel.transform.localScale = Vector3.zero;
 		}
 
-		public void AddEntrySubItemToggle(EntrySubItem entryItem, UnityAction<bool> onToggle, UnityAction<string> stopTrackingAction, List<EntrySubItemAction> tooltip_iconName_action = null)
+		public UIDynamicButton AddFrameOptionButton(FrameOptionItem entryItem, UnityAction onClick)
 		{
-			//if (_mainWindow.SubItemPanelMinimized) return;
-
 			GameObject buttonRow = CreateButtonRow(_mainWindow.UiSubItemsPanel, 25);
 			entryItem.ButtonRow = buttonRow;
+
+			// item button
+			var currentTextColor = entryItem.CheckState ? new Color(1f, 0.3f, 0.3f, 1) : new Color(0.3f, 0.3f, 0.3f, 1);
+			var itemButton = _catalogUi.CreateButton(buttonRow, entryItem.Label ?? entryItem.ItemName, 160, 25, 0, 0, Color.clear, new Color(0.3f, 0.3f, 0.2f), new Color(1f, 0.3f, 0.3f, 1));
+			buttonRow.transform.SetParent(_mainWindow.UiSubItemsPanelLayout.transform, false);
+			itemButton.buttonText.fontSize = 15;
+			itemButton.buttonText.fontStyle = FontStyle.Italic;
+			itemButton.buttonText.alignment = TextAnchor.MiddleLeft;
+			itemButton.button.onClick.AddListener(() =>
+			{
+				onClick.Invoke();
+			});
+			entryItem.ItemActiveCheckbox = itemButton;
+			SetTooltipForDynamicButton(itemButton, () => itemButton.label);
+			return itemButton;
+		}
+
+		public void AddEntrySubItemToggle(CatalogEntry catalogEntry, EntrySubItem subItem, UnityAction<bool> onToggle, UnityAction<string> stopTrackingAction, List<EntrySubItemAction> extra_actions = null)
+		{
+
+			GameObject buttonRow = CreateButtonRow(_mainWindow.UiSubItemsPanel, 25);
+			subItem.ButtonRow = buttonRow;
 
 			// Add stop tracking button
 			var texture = _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/Delete3.png");
 			var stopTrackingButton = _catalogUi.CreateButton(buttonRow, "", 20, 20, 0, 0, Color.red, new Color(1f, 0.5f, 0.5f), Color.black, texture);
 			stopTrackingButton.button.onClick.AddListener(() =>
 			{
-				stopTrackingAction.Invoke(entryItem.ItemName);
-				RemoveUiCatalogSubItem(entryItem);
+				stopTrackingAction.Invoke(subItem.ItemName);
+				RemoveUiCatalogSubItem(subItem);
 			});
-			entryItem.StopTrackingItemButton = stopTrackingButton;
+			subItem.StopTrackingItemButton = stopTrackingButton;
 			SetTooltipForDynamicButton(stopTrackingButton, () => "Remove from catalog entry");
 
 			// Main item button
-			var currentTextColor = entryItem.CheckState ? new Color(1f, 0.3f, 0.3f, 1) : new Color(0.3f, 0.3f, 0.3f, 1);
-			var itemButton = _catalogUi.CreateButton(buttonRow, entryItem.Label ?? entryItem.ItemName, 160, 25, 0, 0, Color.clear, new Color(0.3f, 0.3f, 0.2f), currentTextColor);
+			var currentTextColor = subItem.CheckState ? new Color(1f, 0.3f, 0.3f, 1) : new Color(0.3f, 0.3f, 0.3f, 1);
+			var itemButton = _catalogUi.CreateButton(buttonRow, subItem.Label ?? subItem.ItemName, 160, 25, 0, 0, Color.clear, new Color(0.3f, 0.3f, 0.2f), currentTextColor);
 			buttonRow.transform.SetParent(_mainWindow.UiSubItemsPanelLayout.transform, false);
 			itemButton.buttonText.fontSize = 15;
 			itemButton.buttonText.fontStyle = FontStyle.Italic;
@@ -2775,14 +2926,14 @@ namespace juniperD.StatefullServices
 				itemButton.textColor = newValue ? new Color(1f, 0.3f, 0.3f, 1) : new Color(0.3f, 0.3f, 0.3f, 1);
 				onToggle.Invoke(newValue);
 			});
-			entryItem.ItemActiveCheckbox = itemButton;
+			subItem.ItemActiveCheckbox = itemButton;
 			SetTooltipForDynamicButton(itemButton, () => itemButton.label);
 
-			if (tooltip_iconName_action != null)
+			if (extra_actions != null)
 			{
-				foreach (var extraAction in tooltip_iconName_action)
+				foreach (var extraAction in extra_actions)
 				{
-					// Add stop tracking button
+					// Add Extra Action button
 					var buttonIcon = extraAction.IconName != null ? _imageLoaderService.GetFutureImageFromFileOrCached(GetPluginPath() + "/Resources/" + extraAction.IconName) : null;
 					var buttonText = extraAction.Text ?? "";
 					var button = _catalogUi.CreateButton(buttonRow, buttonText, extraAction.ButtonWidth, 20, 0, 0, extraAction.ButtonColor, Color.green, extraAction.TextColor, buttonIcon);
@@ -2791,21 +2942,24 @@ namespace juniperD.StatefullServices
 					button.buttonText.alignment = TextAnchor.MiddleLeft;
 					button.button.onClick.AddListener(() =>
 					{
-						extraAction.ClickAction.Invoke(entryItem);
+						extraAction.ClickAction.Invoke(subItem);
 					});
 					SetTooltipForDynamicButton(button, () => extraAction.Tooltip);
-					entryItem.ExtraButtons.Add(button);
+					subItem.ExtraButtons.Add(button);
 				}
 			}
+
+			catalogEntry.EntrySubItemToggles.Add(subItem);
 		}
 
-		public void ShowSelectList(Dictionary<string, UnityAction> itemList, Vector3? position = null)
+		public void ShowSelectList(List<SelectListItem> itemList, Vector3? position = null)
 		{
+			// Remove previous items...
 			foreach (var item in _dynamicListItems)
 			{
 				RemoveUiCatalogSubItem(item);
 			}
-			_dynamicListItems = itemList.Select(i => AddSelectButtonToPopupList(i.Key, i.Value)).ToList();
+			_dynamicListItems = itemList.Select(i => AddSelectButtonToPopupList(i.Label, i.OnClickAction)).ToList();
 			_dynamicSelectList.transform.localScale = Vector3.one;
 			if (position != null) _dynamicSelectList.transform.localPosition = position ?? Vector3.zero;
 		}
@@ -2822,8 +2976,8 @@ namespace juniperD.StatefullServices
 			button.buttonText.alignment = TextAnchor.MiddleLeft;
 			button.button.onClick.AddListener(() =>
 			{
-				onSelect.Invoke();
 				_dynamicSelectList.transform.localScale = Vector3.zero;
+				onSelect.Invoke();
 			});
 			labelXButtonAndGroup.ItemActiveCheckbox = button;
 
@@ -3337,7 +3491,7 @@ namespace juniperD.StatefullServices
 			if (!_useTransitionManager) return;
 			if (_mutationsService._transitionsInProgress.Any()) return;
 			if (!_mutationsService._transitionsWaiting.Any()) return;
-			
+
 			var nextTransitionGroup = _mutationsService._transitionsWaiting.First()?.GroupKey;
 			var allRelatedTransitions = _mutationsService._transitionsWaiting.Where(t => t.GroupKey == nextTransitionGroup).ToList();
 			// Remove all transitions in the next transition group
@@ -3386,14 +3540,14 @@ namespace juniperD.StatefullServices
 
 		private void CaptureSequenceIsCompleteCallback()
 		{
-			if (_catalogMode.val == CatalogModeEnum.CATALOG_MODE_OBJECT
-				|| _catalogMode.val == CatalogModeEnum.CATALOG_MODE_SESSION
-				|| _catalogMode.val == CatalogModeEnum.CATALOG_MODE_CAPTURE)
-			{
-				var lastEntry = _catalog.Entries.LastOrDefault();
-				//if (lastEntry != null) SelectCatalogEntry(_catalog.Entries.Last());
-			}
-			//RefreshCatalogPosition(); // ...After capture sequence
+			//if (_catalogMode.val == CatalogModeEnum.CATALOG_MODE_OBJECT
+			//	|| _catalogMode.val == CatalogModeEnum.CATALOG_MODE_SESSION
+			//	|| _catalogMode.val == CatalogModeEnum.CATALOG_MODE_CAPTURE)
+			//{
+			//	var lastEntry = _catalog.Entries.LastOrDefault();
+			//	//if (lastEntry != null) SelectCatalogEntry(_catalog.Entries.Last());
+			//}
+			////RefreshCatalogPosition(); // ...After capture sequence
 		}
 
 		private void ManageScreenshotCaptureSequence()
@@ -3439,7 +3593,8 @@ namespace juniperD.StatefullServices
 					if (_createCatalogEntry_Step == 2)
 					{
 						Mutation mutation = _nextMutation;
-						if (mutation != null) {
+						if (mutation != null)
+						{
 							var newCatalogEntry = TakeScreenshotAndCreateClickableCatalogEntry(mutation);
 							var selectedEntry = GetSelectedCatalogEntryOrDefault();
 							if (selectedEntry == null)
@@ -3451,7 +3606,6 @@ namespace juniperD.StatefullServices
 							{
 								var insertionIndex = _catalog.Entries.IndexOf(selectedEntry);
 								var scrollPositionIfOnSecondLastEntry = (_catalog.Entries.Count - 2) * GetTotalFrameSize();
-								//SuperController.LogMessage("GetCatalogCurrentScrollPosition(): " + GetCatalogCurrentScrollPosition() + ", scrollPositionIfOnSecondLastEntry: " + (scrollPositionIfOnSecondLastEntry));
 								var appendToEnd = GetCatalogCurrentScrollPosition() > scrollPositionIfOnSecondLastEntry;
 								if (appendToEnd) _catalog.Entries.Add(newCatalogEntry);
 								if (!appendToEnd) _catalog.Entries.Insert(insertionIndex, newCatalogEntry);
@@ -3564,10 +3718,9 @@ namespace juniperD.StatefullServices
 
 		void ApplyMasterCatalogEntry(CatalogEntry catalogEntry, bool withSelect = true, bool excludeUi = false, UnityAction onComplete = null)
 		{
-			_mutationsService.TimeSinceLastCheckpoint("ApplyMasterCatalogEntry");
+			//_mutationsService.TimeSinceLastCheckpoint("ApplyMasterCatalogEntry");
 			if (withSelect) SelectCatalogEntry(catalogEntry);
 			ApplyCatalogEntryItem(catalogEntry, 0, excludeUi, onComplete);
-			SuperController.LogMessage($"ApplyMasterCatalogEntry: {_mutationsService.TimeSinceLastCheckpoint("ApplyMasterCatalogEntry")}");
 		}
 
 		private void ApplyCatalogEntryItem(CatalogEntry catalogEntry, float startDelay = 0, bool excludeUi = false, UnityAction finalComplete = null)
@@ -3575,24 +3728,23 @@ namespace juniperD.StatefullServices
 			var completedComponents = new List<int>();
 			var allComponentsToCompleteSemaphore = 1 //...1 for this entry's mutation, 
 				+ catalogEntry.ChildEntries.Where(e => e.Active).Count();//...and 1 for each child entry
-			
+
 			UnityAction componentCompletedCallback = () =>
 			{
 				allComponentsToCompleteSemaphore = allComponentsToCompleteSemaphore - 1;
-				if (allComponentsToCompleteSemaphore <= 0) {
-					//SuperController.LogMessage("ApplyCatalogEntryItem final invoke");
-					finalComplete.Invoke();
+				if (allComponentsToCompleteSemaphore <= 0)
+				{
+					if (finalComplete != null) finalComplete.Invoke();
 				}
 			};
-			//SuperController.LogMessage("ApplyCatalogEntryItem allComponentsToComplete: " + allComponentsToCompleteSemaphore);
 			// This entry's mutation...
 			ApplyCatalogEntryMutation(catalogEntry, startDelay, excludeUi, componentCompletedCallback);
 			// Child entries...
-			float delayStartTime = startDelay;
+			//float delayStartTime = startDelay;
 			foreach (var childEntry in catalogEntry.ChildEntries)
 			{
-				ApplyCatalogEntryItem(childEntry, delayStartTime, excludeUi, componentCompletedCallback);
-				delayStartTime += GetCompositeDuration(childEntry);
+				ApplyCatalogEntryItem(childEntry, 0, excludeUi, componentCompletedCallback);
+				//delayStartTime += GetCompositeDuration(childEntry);
 			}
 
 			//componentCompletedCallback.Invoke();
@@ -3623,7 +3775,7 @@ namespace juniperD.StatefullServices
 		private float GetCompositeDuration(CatalogEntry entry)
 		{
 			if (entry.ChildEntries.Count == 0) return entry.TransitionTimeInSeconds;
-			return entry.ChildEntries.Select(e => e.TransitionTimeInSeconds).Aggregate((a,b) => a + b);
+			return entry.ChildEntries.Select(e => e.TransitionTimeInSeconds).Aggregate((a, b) => a + b);
 		}
 
 		private Mutation ApplyCatalogEntryMutation(CatalogEntry catalogEntry, float startDelay = 0, bool excludeUi = false, UnityAction onComplete = null)
@@ -3685,7 +3837,7 @@ namespace juniperD.StatefullServices
 
 		private void RemoveAnimationUi(CatalogEntry entry)
 		{
-			if (_mainWindow.UiAnimationPanel == null) return; 
+			if (_mainWindow.UiAnimationPanel == null) return;
 			_mainWindow.UiAnimationPanel.transform.localScale = Vector3.zero;
 			foreach (var animationItem in _mainWindow.UiAnimationItems)
 			{
@@ -3696,6 +3848,7 @@ namespace juniperD.StatefullServices
 
 		private void RemoveSubItemUi(CatalogEntry entry)
 		{
+			SuperController.LogMessage("Removing SubItems " + entry.EntrySubItemToggles.Count + " from " + entry.UniqueName);
 			if (_mainWindow.UiSubItemsPanel == null) return;
 			_mainWindow.UiSubItemsPanel.transform.localScale = Vector3.zero;
 			foreach (var infoToggle in entry.EntrySubItemToggles)
@@ -3709,27 +3862,29 @@ namespace juniperD.StatefullServices
 		{
 			_mainWindow.UiSubItemsPanel.transform.localScale = Vector3.one;
 
-			if (catalogEntry.CatalogEntryMode == CatalogModeEnum.CATALOG_MODE_SESSION || catalogEntry.CatalogEntryMode == CatalogModeEnum.CATALOG_MODE_OBJECT)
-			{
-				AddEntrySubItemTogglesForStoredAtoms(catalogEntry);
-			}
+			//if (catalogEntry.CatalogEntryMode == CatalogModeEnum.CATALOG_MODE_SESSION || catalogEntry.CatalogEntryMode == CatalogModeEnum.CATALOG_MODE_OBJECT)
+			//{
+			AddEntrySubItemTogglesForStoredAtoms(catalogEntry);
+			AddEntrySubItemTogglesForStoredActions(catalogEntry);
+			//}
 
-			if (catalogEntry.CatalogEntryMode == CatalogModeEnum.CATALOG_MODE_MUTATIONS || catalogEntry.CatalogEntryMode == CatalogModeEnum.CATALOG_MODE_CAPTURE)
-			{
-				AddEntrySubItemTogglesForMutations(catalogEntry);
-			}
+			//if (catalogEntry.CatalogEntryMode == CatalogModeEnum.CATALOG_MODE_MUTATIONS || catalogEntry.CatalogEntryMode == CatalogModeEnum.CATALOG_MODE_CAPTURE)
+			//{
+			AddEntrySubItemTogglesForMutations(catalogEntry);
+			//}
 
-			if (catalogEntry.CatalogEntryMode == CatalogModeEnum.CATALOG_MODE_SCENE)
-			{
-				AddEntrySubItemTogglesForScene(catalogEntry);
-			}
+			//if (catalogEntry.CatalogEntryMode == CatalogModeEnum.CATALOG_MODE_SCENE)
+			//{
+			AddEntrySubItemTogglesForScene(catalogEntry);
+			//}
+
 
 		}
 
 		private void AddEntrySubItemTogglesForMutations(CatalogEntry catalogEntry)
 		{
 			var parentMutation = catalogEntry.Mutation;
-			catalogEntry.EntrySubItemToggles = new List<EntrySubItem>();
+			//catalogEntry.EntrySubItemToggles = new List<EntrySubItem>();
 
 			// Add Child-Entry toggles...
 			for (var i = 0; i < catalogEntry.ChildEntries.Count; i++)
@@ -3746,8 +3901,8 @@ namespace juniperD.StatefullServices
 				EntrySubItem entrySubItem = new EntrySubItem();
 				entrySubItem.ItemName = childEntry.UniqueName;
 				entrySubItem.CheckState = childEntry.Active;
-				AddEntrySubItemToggle(entrySubItem, toggleAction, stopTracking);
-				catalogEntry.EntrySubItemToggles.Add(entrySubItem);
+				AddEntrySubItemToggle(catalogEntry, entrySubItem, toggleAction, stopTracking);
+
 			}
 
 			// Add Hair toggles...
@@ -3768,10 +3923,7 @@ namespace juniperD.StatefullServices
 				EntrySubItem entrySubItem = new EntrySubItem();
 				entrySubItem.ItemName = hairItem.Id;
 				entrySubItem.CheckState = hairItem.Active;
-				AddEntrySubItemToggle(entrySubItem, toggleAction, stopTracking);
-
-				//hairItem.DynamicCheckbox = entrySubItem;
-				catalogEntry.EntrySubItemToggles.Add(entrySubItem);
+				AddEntrySubItemToggle(catalogEntry, entrySubItem, toggleAction, stopTracking);
 			}
 
 			// Add Clothing toggles...
@@ -3792,10 +3944,8 @@ namespace juniperD.StatefullServices
 				EntrySubItem entrySubItem = new EntrySubItem();
 				entrySubItem.ItemName = clothingItem.Id;
 				entrySubItem.CheckState = clothingItem.Active;
-				AddEntrySubItemToggle(entrySubItem, toggleAction, stopTracking);
+				AddEntrySubItemToggle(catalogEntry, entrySubItem, toggleAction, stopTracking);
 
-				//clothingItem.DynamicCheckbox = entrySubItem;
-				catalogEntry.EntrySubItemToggles.Add(entrySubItem);
 			}
 
 			// Add Morph toggles...
@@ -3817,10 +3967,7 @@ namespace juniperD.StatefullServices
 				entrySubItem.ItemName = activeMorphItem.Id;
 				entrySubItem.Label = activeMorphItem.Id.Split('/').Last().Split('.').First();
 				entrySubItem.CheckState = activeMorphItem.Active;
-				AddEntrySubItemToggle(entrySubItem, toggleAction, stopTracking);
-
-				//activeMorphItem.DynamicCheckbox = entrySubItem;
-				catalogEntry.EntrySubItemToggles.Add(entrySubItem);
+				AddEntrySubItemToggle(catalogEntry, entrySubItem, toggleAction, stopTracking);
 			}
 
 			// Add Pose toggles...
@@ -3842,10 +3989,7 @@ namespace juniperD.StatefullServices
 				entrySubItem.ItemName = activeMorphItem.Id;
 				entrySubItem.Label = activeMorphItem.Id.Split('/').Last().Split('.').First();
 				entrySubItem.CheckState = activeMorphItem.Active;
-				AddEntrySubItemToggle(entrySubItem, toggleAction, stopTracking);
-
-				//activeMorphItem.DynamicCheckbox = entrySubItem;
-				catalogEntry.EntrySubItemToggles.Add(entrySubItem);
+				AddEntrySubItemToggle(catalogEntry, entrySubItem, toggleAction, stopTracking);
 			}
 
 			// Add FaceGen morph toggles...
@@ -3866,16 +4010,47 @@ namespace juniperD.StatefullServices
 				entrySubItem.ItemName = faceGenMorphItem.Id;
 				entrySubItem.Label = faceGenMorphItem.Id.Split('/').Last().Split('.').First();
 				entrySubItem.CheckState = faceGenMorphItem.Active;
-				AddEntrySubItemToggle(entrySubItem, toggleAction, stopTracking);
-
-				//faceGenMorphItem.DynamicCheckbox = entrySubItem;
-				catalogEntry.EntrySubItemToggles.Add(entrySubItem);
+				AddEntrySubItemToggle(catalogEntry, entrySubItem, toggleAction, stopTracking);
 			}
+		}
+
+		private void AddEntrySubItemTogglesForStoredActions(CatalogEntry catalogEntry)
+		{
+			try
+			{
+				//catalogEntry.EntrySubItemToggles = new List<EntrySubItem>();
+
+				for (var i = 0; i < catalogEntry.Mutation.StoredActions.Count; i++)
+				{
+					StoredAction storedAction = catalogEntry.Mutation.StoredActions[i];
+					UnityAction<bool> onToggleAction = (value) =>
+					{
+						storedAction.Active = value;
+					};
+					UnityAction<string> onStopTracking = (itemName) =>
+					{
+						catalogEntry.Mutation.StoredActions.Remove(storedAction);
+					};
+					var currentAtom = SuperController.singleton.GetAtomByUid(storedAction.AtomName);
+					var currentAction = currentAtom.GetAction(storedAction.ActionName);
+
+					EntrySubItem entrySubItem = new EntrySubItem();
+					entrySubItem.ItemName = $"{storedAction.AtomName}:{storedAction.ActionName}";
+					entrySubItem.CheckState = storedAction.Active;
+
+					var extraActionButtons = new List<EntrySubItemAction>();
+
+					SuperController.LogMessage("Adding Action subitem toggle...");
+					AddEntrySubItemToggle(catalogEntry, entrySubItem, onToggleAction, onStopTracking);
+				}
+			}
+			catch (Exception e) { SuperController.LogError(e.ToString()); }
+
 		}
 
 		private void AddEntrySubItemTogglesForStoredAtoms(CatalogEntry catalogEntry)
 		{
-			catalogEntry.EntrySubItemToggles = new List<EntrySubItem>();
+			//catalogEntry.EntrySubItemToggles = new List<EntrySubItem>();
 
 			for (var i = 0; i < catalogEntry.Mutation.StoredAtoms.Count; i++)
 			{
@@ -3922,16 +4097,14 @@ namespace juniperD.StatefullServices
 				var extraActionButtons = new List<EntrySubItemAction>();
 				//EntrySubItemAction selectSubstituteItemButton = AddSubstituteButton(storedAtom, selectSubstituteAtom, cancelSubsititute);
 				//extraActionButtons.Add(selectSubstituteItemButton);
-				AddEntrySubItemToggle(entrySubItem, onToggleAction, onStopTracking, extraActionButtons);
-
-				//storedAtom.EntrySubItemToggle = entrySubItem;
-				catalogEntry.EntrySubItemToggles.Add(entrySubItem);
+				AddEntrySubItemToggle(catalogEntry, entrySubItem, onToggleAction, onStopTracking, extraActionButtons);
 			}
 		}
 
 		private void AddEntrySubItemTogglesForScene(CatalogEntry catalogEntry)
 		{
-			catalogEntry.EntrySubItemToggles = new List<EntrySubItem>();
+			if (catalogEntry.Mutation.ScenePathToOpen == null) return;
+			//catalogEntry.EntrySubItemToggles = new List<EntrySubItem>();
 			string scenePath = catalogEntry.Mutation.ScenePathToOpen;
 			var sceneName = scenePath?.Replace("\\", "/").Split('/').Last();
 			UnityAction<bool> onToggleAction = (value) => { };
@@ -3940,10 +4113,9 @@ namespace juniperD.StatefullServices
 			EntrySubItem entrySubItem = new EntrySubItem();
 			entrySubItem.ItemName = sceneName;
 			entrySubItem.CheckState = true;
-			AddEntrySubItemToggle(entrySubItem, onToggleAction, onStopTracking);
-
-			catalogEntry.EntrySubItemToggles.Add(entrySubItem);
+			AddEntrySubItemToggle(catalogEntry, entrySubItem, onToggleAction, onStopTracking);
 		}
+
 
 		private void DeselectCatalogEntry(CatalogEntry catalogEntry)
 		{
@@ -4005,7 +4177,7 @@ namespace juniperD.StatefullServices
 				newCatalogEntry.ImageInfo = imageInfo;
 				newCatalogEntry.Mutation = mutation;
 				newCatalogEntry.TransitionTimeInSeconds = _defaultMorphTransitionTimeSeconds.val;
-				
+
 				//MakeCatalogEntry(newCatalogEntry); // ...Capturing and entry
 				_captureCamera.targetTexture = _originalCameraTexture;
 
@@ -4096,7 +4268,7 @@ namespace juniperD.StatefullServices
 
 		private List<AnimationElement> GetDisplayElementsFromAnimationTree(AnimationElement animatedElement)
 		{
-			List<AnimationElement> displayElements =  new List<AnimationElement>();
+			List<AnimationElement> displayElements = new List<AnimationElement>();
 			if (animatedElement.OnDisplay) displayElements.Add(animatedElement);
 			foreach (var childElement in animatedElement.ChildElements)
 			{
@@ -4154,7 +4326,7 @@ namespace juniperD.StatefullServices
 			label.buttonText.fontSize = 15;
 			label.buttonText.fontStyle = FontStyle.Italic;
 			parentElement.UiLabel = label;
-			
+
 			var itemBar = _catalogUi.CreateButton(barContainer, "", (int)CatalogEntryFrameSize.val - (handleButtonWidth * 2), 25, 25, 0, new Color(0.3f, 0.3f, 0.3f, 0.5f), new Color(0.3f, 0.3f, 0.3f, 0.5f), Color.white);
 			parentElement.UiActiveAreaBar = itemBar;
 			Action<DragHelper> onBeforeLabelDrag = (dragHelper) =>
@@ -4166,7 +4338,7 @@ namespace juniperD.StatefullServices
 				//dragHelper.LimitY = new Vector2(0.01f, 100);
 			};
 			var numberTracker = new GameObject();
-			Func<float, float, bool> whileDraggingUp = (newX, newY) => 
+			Func<float, float, bool> whileDraggingUp = (newX, newY) =>
 			{
 				int yUpperLimit = 10000;
 				int yLowerLimit = 0;
@@ -4227,7 +4399,7 @@ namespace juniperD.StatefullServices
 			return barContainer;
 		}
 
-		private void UpdateAnimElementAndUiCenterBarWidth(AnimationElement parentElement, UnityAction<float,float> onAdjustAnimationBarWithStartAndEndRatios = null)
+		private void UpdateAnimElementAndUiCenterBarWidth(AnimationElement parentElement, UnityAction<float, float> onAdjustAnimationBarWithStartAndEndRatios = null)
 		{
 			var rect = parentElement.UiActiveAreaBar.button.GetComponent<RectTransform>();
 			var newWidth = Mathf.Abs(Mathf.Abs(parentElement.UiRightHandle.button.transform.localPosition.x) - Mathf.Abs(parentElement.UiLeftHandle.button.transform.localPosition.x));
@@ -4260,11 +4432,11 @@ namespace juniperD.StatefullServices
 			var subElements = GetAnimationElementsForPoseMorphs(catalogEntry);
 			var newAnimationItem = new AnimationElement()
 			{
-				Name = catalogEntry.UniqueName, 
-				Curve = AnimationCurveEnum.GAUSSIAN, 
-				DirectionFlipped = false, 
+				Name = catalogEntry.UniqueName,
+				Curve = AnimationCurveEnum.GAUSSIAN,
+				DirectionFlipped = false,
 				StartAtRatio = catalogEntry.StartTimeRatio,
-				EndAtRatio = catalogEntry.EndTimeRatio, 
+				EndAtRatio = catalogEntry.EndTimeRatio,
 				TransitionTimeInSeconds = catalogEntry.TransitionTimeInSeconds,
 				ChildElements = childElements,
 				SubElements = subElements
@@ -4278,8 +4450,8 @@ namespace juniperD.StatefullServices
 			List<AnimationElement> rotationElements = GetAnimatedElementsFromVector("rot", poseController.Rotation);
 			var newAnimationElement = new AnimationElement()
 			{
-				Name = poseController.Id, 
-				StartAtRatio = poseController.StartAtTimeRatio, 
+				Name = poseController.Id,
+				StartAtRatio = poseController.StartAtTimeRatio,
 				EndAtRatio = poseController.EndAtTimeRatio,
 				SubElements = positionElements.Concat(rotationElements).ToList()
 			};
@@ -4330,7 +4502,7 @@ namespace juniperD.StatefullServices
 			GameObject buttonGroup = CreateButtonRow(catalogEntryPanel, btnHeight);
 			// Create container for sub-frame buttons...
 			catalogEntry.UiBottomButtonGroup = buttonGroup;
-			CatalogUiHelper.SetAnchors(catalogEntry.UiCatalogEntryPanel, catalogEntry.UiBottomButtonGroup, AnchorPositionEnum.BOTTOM , 0, 0);
+			CatalogUiHelper.SetAnchors(catalogEntry.UiCatalogEntryPanel, catalogEntry.UiBottomButtonGroup, AnchorPositionEnum.BOTTOM, 0, 0);
 			return buttonGroup;
 		}
 
@@ -4449,7 +4621,8 @@ namespace juniperD.StatefullServices
 			{
 				catalogEntry.Discarded = false;
 				catalogEntry.Favorited += 1;
-				if (catalogEntry.Favorited > 9) {
+				if (catalogEntry.Favorited > 9)
+				{
 					ResetFavorite(catalogEntry);
 					return;
 				}
@@ -4704,7 +4877,7 @@ namespace juniperD.StatefullServices
 
 		private IEnumerator RedrawCatalog()
 		{
-			
+
 			var totalFrameWidth = GetTotalFrameSize();
 			for (int i = 0; i < _catalog.Entries.Count; i++)
 			{
@@ -4717,7 +4890,6 @@ namespace juniperD.StatefullServices
 					yield return new WaitForFixedUpdate();
 					_catalog.Entries[i].UiCatalogEntryPanel.transform.localScale = Vector3.one;
 					// Fading out on the left...
-					//if (i == 0) SuperController.LogMessage("Fading off the left");
 					SetCatalogEntryOpacity(_catalog.Entries[i], 1);// ...SetRowStateBasedOnScrollPosition
 					_catalog.Entries[i].UiCatalogEntryPanel.transform.localRotation = Quaternion.Euler(0, 0, 0);// ...Rotation
 					_catalog.Entries[i].UiParentCatalogColumn.transform.localScale = Vector3.one;// ...Scale
@@ -4725,7 +4897,6 @@ namespace juniperD.StatefullServices
 				}
 				else if (entryPosition <= rowLeftOverflow && HackToPreventLastEntryFromDisapearing(i))
 				{
-					//if (i == 0) SuperController.LogMessage("Totally off the left");
 					// Totally off the left...
 					SetCatalogEntryOpacity(_catalog.Entries[i], 1 - 1);// ...SetRowStateBasedOnScrollPosition
 					_catalog.Entries[i].UiCatalogEntryPanel.transform.localRotation = Quaternion.Euler(0, 0, 0); // ...Rotation
@@ -4754,7 +4925,6 @@ namespace juniperD.StatefullServices
 				}
 				else
 				{
-					//if (i == 0) SuperController.LogMessage("Somewhere in the middle");
 					// Somewhere in the middle...
 					SetCatalogEntryOpacity(_catalog.Entries[i], 1); // ...SetRowStateBasedOnScrollPosition
 					_catalog.Entries[i].UiCatalogEntryPanel.transform.localRotation = Quaternion.Euler(0, 0, 0); // ...Rotation
@@ -4939,17 +5109,18 @@ namespace juniperD.StatefullServices
 
 		private void RemoveEntryFromCatalog(CatalogEntry catalogEntry)
 		{
-			try { 
-			var index = _catalog.Entries.IndexOf(catalogEntry);
-			_trashCatalog.Entries.Add(catalogEntry);
-			_mainWindow.CatalogColumns.Remove(catalogEntry.UiParentCatalogColumn);
-			_catalog.Entries.Remove(catalogEntry);
-			Destroy(catalogEntry.UiParentCatalogColumn);
-			Destroy(catalogEntry.UiCatalogEntryPanel);
+			try
+			{
+				var index = _catalog.Entries.IndexOf(catalogEntry);
+				_trashCatalog.Entries.Add(catalogEntry);
+				_mainWindow.CatalogColumns.Remove(catalogEntry.UiParentCatalogColumn);
+				_catalog.Entries.Remove(catalogEntry);
+				Destroy(catalogEntry.UiParentCatalogColumn);
+				Destroy(catalogEntry.UiCatalogEntryPanel);
 				//catalogEntry.UiCatalogEntryPanel.transform.SetParent(null);
 				StartCoroutine(RedrawCatalog());
-			//_mainWindow.CatalogColumnContainer.transform.localPosition.x
-			//SetCatalogPositionToCatalogEntry(GetCatalogCurrentScrollPosition());
+				//_mainWindow.CatalogColumnContainer.transform.localPosition.x
+				//SetCatalogPositionToCatalogEntry(GetCatalogCurrentScrollPosition());
 				//if (index > 0) StartCoroutine(SetCatalogPositionToCatalogEntry(index-1));
 
 				//StartCoroutine(RedrawCatalog());
@@ -5695,12 +5866,13 @@ namespace juniperD.StatefullServices
 				onComplete.Invoke();
 				return;
 			}
-			UnityAction onThisCompleted = () => {
+			UnityAction onThisCompleted = () =>
+			{
 				onComplete.Invoke();
 				var nextEntry = GetNextEntry();
 				//if (withSelect) SelectCatalogEntry(nextEntry);
 			};
-			ApplyMasterCatalogEntry(currentEntry, withSelect,  excludeUi, onThisCompleted);
+			ApplyMasterCatalogEntry(currentEntry, withSelect, excludeUi, onThisCompleted);
 		}
 
 		private CatalogEntry GetCurrentEntry()
@@ -5743,9 +5915,11 @@ namespace juniperD.StatefullServices
 			//{
 			yield return new WaitForSeconds(delay);
 
-			UnityAction onApplyCompleted = () => {
+			UnityAction onApplyCompleted = () =>
+			{
 				//if (GetContainingSelectedOrDefaultAtom() == null) _cycleEntriesOnInterval.val = false;
-				if (!_cycleEntriesOnInterval.val) {
+				if (!_cycleEntriesOnInterval.val)
+				{
 					if (onSequenceCompleted != null) onSequenceCompleted.Invoke();
 					return;
 				}

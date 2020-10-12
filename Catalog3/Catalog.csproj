@@ -118,6 +118,8 @@
     <Compile Include="Models\PoseMutation.cs" />
     <Compile Include="Models\MorphMutation.cs" />
     <Compile Include="Models\PathAnimation.cs" />
+    <Compile Include="Models\SelectListItem.cs" />
+    <Compile Include="Models\StoredAction.cs" />
     <Compile Include="Models\StoredAtom.cs" />
     <Compile Include="Models\EntrySubItem.cs" />
     <Compile Include="Models\PoseTransition.cs" />

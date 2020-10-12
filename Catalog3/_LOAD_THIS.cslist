@@ -21,7 +21,9 @@ Models/ActiveController.cs
 Models/VersionMessage.cs
 Models/CaptureRequest.cs
 Models/StoredAtom.cs
+Models/StoredAction.cs
 Models/ImageInfo.cs
+Models/SelectListItem.cs
 Models/EntrySubItem.cs
 Models/EntrySubItemAction.cs
 Models/DynamicDropdownField.cs
