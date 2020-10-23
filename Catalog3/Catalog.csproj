@@ -98,8 +98,11 @@
     <Compile Include="Contracts\Mappings.cs" />
     <Compile Include="Models\ActiveController.cs" />
     <Compile Include="Models\AnimationLinkStep.cs" />
+    <Compile Include="Models\Awaiter.cs" />
     <Compile Include="Models\BaseMutation.cs" />
     <Compile Include="Models\AnimationLink.cs" />
+    <Compile Include="Models\CatalogEntryQueueItem.cs" />
+    <Compile Include="Models\AwaiterRegistry.cs" />
     <Compile Include="Models\ControllerLink.cs" />
     <Compile Include="Models\Border.cs" />
     <Compile Include="Models\Catalog.cs" />

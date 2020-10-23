@@ -136,6 +136,7 @@ namespace juniperD.StatefullServices
 		protected Color _dynamicButtonCheckColor; //= Color.red;
 		protected Color _dynamicButtonUnCheckColor; //= Color.green;
 		private int _nextAtomIndex;
+		private List<CatalogEntryQueueItem> _appliedCatalogEntriesQueue = new List<CatalogEntryQueueItem>();
 
 		// Display-state...
 		Atom _parentAtom;
@@ -1903,7 +1904,8 @@ namespace juniperD.StatefullServices
 				var iconFileName = "Mode.png";
 				var modeTooltip = mode;
 				if (mode == CatalogModeEnum.CATALOG_MODE_VIEW) iconFileName = "CaptureNone.png";
-				if (mode == CatalogModeEnum.CATALOG_MODE_SESSION) {
+				if (mode == CatalogModeEnum.CATALOG_MODE_SESSION)
+				{
 					iconFileName = "CaptureSelected.png";
 					modeTooltip = "Misc";
 				}
@@ -2229,7 +2231,7 @@ namespace juniperD.StatefullServices
 				var selectedBaseEntry = !favoritedEntries.Any() ? GetSelectedCatalogEntryOrDefault() : favoritedEntries.Aggregate((a, b) => a.Favorited > b.Favorited ? a : b);
 				CatalogEntry newBaseEntry = CreateCloneEntry(selectedBaseEntry);
 				newBaseEntry.Favorited = 0;
-				foreach (var nextEntry in favoritedEntries.Skip(1).OrderBy(f =>f.Favorited).ToList())
+				foreach (var nextEntry in favoritedEntries.Skip(1).OrderBy(f => f.Favorited).ToList())
 				{
 					MergeEntries(newBaseEntry, nextEntry);
 					if (nextEntry.TransitionTimeInSeconds > newBaseEntry.TransitionTimeInSeconds) newBaseEntry.TransitionTimeInSeconds = nextEntry.TransitionTimeInSeconds;
@@ -3517,6 +3519,8 @@ namespace juniperD.StatefullServices
 
 				ManageTransitions();
 
+				ManageAppliedEntryQueue();
+
 				ManageScreenshotCaptureSequence();
 
 				if (_mainWindow.ButtonNameLabel.buttonText.text != _catalogName.val)
@@ -3542,6 +3546,16 @@ namespace juniperD.StatefullServices
 				SuperController.LogError("Catalog Update-loop disabled to prevent continuous stream of errors. Can be re-enabled in settings.");
 				_updateLoopEnabled = false;
 			}
+		}
+
+		private void ManageAppliedEntryQueue()
+		{
+			_appliedCatalogEntriesQueue = _appliedCatalogEntriesQueue.Where(q => !q.Complete && !q.Cancelled).ToList();
+			if (!_appliedCatalogEntriesQueue.Any()) return; //...there are no queued items
+			if (_appliedCatalogEntriesQueue.Any(q => q.Busy)) return; //...there are items in progress
+			var nextItemToStart = _appliedCatalogEntriesQueue.First();
+			SuperController.LogMessage("Starting: " + nextItemToStart.EntryKey);
+			nextItemToStart.Start(this); //...start the next queued item
 		}
 
 		private void ManageTransitions()
@@ -3778,64 +3792,81 @@ namespace juniperD.StatefullServices
 			atom.CallAction("Stop");
 		}
 
-		void ApplyMasterCatalogEntry(CatalogEntry catalogEntry, bool withSelect = true, bool excludeUi = false, UnityAction onComplete = null)
+		private void QueueCatalogEntry(CatalogEntry catalogEntry, bool excludeUi = false, bool withSelect = false, UnityAction finalComplete = null)
 		{
-			//_mutationsService.TimeSinceLastCheckpoint("ApplyMasterCatalogEntry");
-			if (withSelect) SelectCatalogEntry(catalogEntry);
-			ApplyCatalogEntryItem(catalogEntry, 0, excludeUi, onComplete);
-		}
-
-		private void ApplyCatalogEntryItem(CatalogEntry catalogEntry, float startDelay = 0, bool excludeUi = false, UnityAction finalComplete = null)
-		{
-
-			RunExitFrameRoutinesForPrevioslyAppliedCatalogEntry();
-
-			var completedComponents = new List<int>();
-			var allComponentsToCompleteSemaphore = 1 //...1 for this entry's mutation, 
-				+ catalogEntry.ChildEntries.Where(e => e.Active).Count();//...and 1 for each child entry
-
-			UnityAction componentCompletedCallback = () =>
+			var entryKey = Guid.NewGuid().ToString();
+			UnityAction whenCatalogEntryCompleted = () =>
 			{
-				allComponentsToCompleteSemaphore = allComponentsToCompleteSemaphore - 1;
-				if (allComponentsToCompleteSemaphore <= 0)
-				{
-					if (finalComplete != null) finalComplete.Invoke();
-				}
+				CatalogEntryQueueItem queueItem = _appliedCatalogEntriesQueue.SingleOrDefault(i => i.EntryKey == entryKey);
+				if (_appliedCatalogEntriesQueue != null) queueItem.MarkAsCompleted();
+				if (finalComplete != null) finalComplete.Invoke();
 			};
-			// This entry's mutation...
-			ApplyCatalogEntryMutation(catalogEntry, startDelay, excludeUi, componentCompletedCallback);
-			// Child entries...
-			//float delayStartTime = startDelay;
-			foreach (var childEntry in catalogEntry.ChildEntries)
-			{
-				ApplyCatalogEntryItem(childEntry, 0, excludeUi, componentCompletedCallback);
-				//delayStartTime += GetCompositeDuration(childEntry);
-			}
-			_catalog.PrevioslyAppliedEntry = catalogEntry;
-			//componentCompletedCallback.Invoke();
-
-			// Apply appropriate catalog entry action instead...
-			//if (catalogEntry.CatalogEntryMode == CatalogModeEnum.CATALOG_MODE_OBJECT)
-			//{
-			//	CreateAtomsForCatalogEntry(catalogEntry.mutation);
-			//	componentCompletedCallback.Invoke(); //...TODO: Push this into the CreateAtoms Method
-			//}
-			//else if (catalogEntry.CatalogEntryMode == CatalogModeEnum.CATALOG_MODE_SESSION)
-			//{
-			//	CreateAtomsForCatalogEntry(catalogEntry.mutation);
-			//	componentCompletedCallback.Invoke(); //...TODO: Push this into the CreateAtoms Method
-			//}
-			//else if (catalogEntry.Mutation?.ScenePathToOpen != null)
-			//{
-			//	SuperController.singleton.Load(catalogEntry.Mutation.ScenePathToOpen);
-			//	componentCompletedCallback.Invoke(); //...TODO: Push this into the Method
-			//}
-			//else
-			//{
-			//ApplyCatalogEntryMutation(catalogEntry, startDelay, excludeUi, componentCompletedCallback);
-			//}
-
+			UnityAction applyEntryAction = () => ApplyCatalogEntryItem(catalogEntry, excludeUi, withSelect, whenCatalogEntryCompleted);
+			var newQueueEntry = new CatalogEntryQueueItem(entryKey, catalogEntry.TransitionTimeInSeconds * 2, applyEntryAction);
+			_appliedCatalogEntriesQueue.Add(newQueueEntry);
 		}
+
+		private void ApplyCatalogEntryItem(CatalogEntry catalogEntry, bool excludeUi = false, bool withSelect = false, UnityAction finalComplete = null)
+		{
+			try
+			{
+
+				if (withSelect) SelectCatalogEntry(catalogEntry);
+				RunExitFrameRoutinesForPrevioslyAppliedCatalogEntry();
+
+				// Set up awaiters...
+				AwaiterRegistry actionAwaiter = new AwaiterRegistry(finalComplete);
+				var mutationHasBeenApplied = actionAwaiter.GetTicket();
+				var childrenHaveAllFinished = actionAwaiter.GetTicket();
+				var methodHasRunThrough = actionAwaiter.GetTicket();
+
+				// Execute this entry's mutation...
+				ApplyCatalogEntryMutation(catalogEntry, 0, excludeUi, mutationHasBeenApplied);
+
+				// Manage Child entries...
+				Queue<UnityAction> childQueue = new Queue<UnityAction>();
+				UnityAction whenChildFinished = () => {
+					var nextMethodToInvoke = childrenHaveAllFinished.OnComplete;
+					if (childQueue.Any()) nextMethodToInvoke = childQueue.Dequeue();
+					nextMethodToInvoke.Invoke();
+				};
+				foreach (var childCatalogEntry in catalogEntry.ChildEntries)
+				{
+					childQueue.Enqueue(() => ApplyCatalogEntryItem(childCatalogEntry, false, false, whenChildFinished));
+				}
+				var firstMethodToInvoke = childrenHaveAllFinished.OnComplete;
+				if (childQueue.Any()) firstMethodToInvoke = childQueue.Dequeue();
+				firstMethodToInvoke.Invoke();
+
+				// Finalization...
+				_catalog.PrevioslyAppliedEntry = catalogEntry;
+				methodHasRunThrough.Complete();
+
+			}
+			catch (Exception e)
+			{
+				SuperController.LogError(e.ToString());
+				finalComplete.Invoke();
+			}
+		}
+
+		//private void ShiftCatalogEntryQueue()
+		//{
+		//	_appliedCatalogEntriesQueue = _appliedCatalogEntriesQueue.Where(c => !c.Cancelled && !c.Complete).ToList();
+		//	if (_appliedCatalogEntriesQueue.Any(e => e.Busy)) return;
+		//	if (nextCatalogEntryApplyAction != null) _appliedCatalogEntriesQueue.Remove(nextCatalogEntryApplyAction);
+		//	if (_appliedCatalogEntriesQueue.Any()) _appliedCatalogEntriesQueue.First().ApplyCatalogEntryAction?.Invoke();
+		//}
+
+		//private void ApplyNextCatalogEntry(UnityAction finalComplete)
+		//{
+		//	if (!_appliedCatalogEntriesQueue.Any())
+		//	{
+		//		if (finalComplete != null) finalComplete.Invoke();
+		//		return;
+		//	}
+		//	//_appliedCatalogEntriesQueue.Dequeue().Invoke();
+		//}
 
 		private void RunExitFrameRoutinesForPrevioslyAppliedCatalogEntry()
 		{
@@ -3852,7 +3883,7 @@ namespace juniperD.StatefullServices
 			return entry.ChildEntries.Select(e => e.TransitionTimeInSeconds).Aggregate((a, b) => a + b);
 		}
 
-		private Mutation ApplyCatalogEntryMutation(CatalogEntry catalogEntry, float startDelay = 0, bool excludeUi = false, UnityAction onComplete = null)
+		private Mutation ApplyCatalogEntryMutation(CatalogEntry catalogEntry, float startDelay = 0, bool excludeUi = false, Awaiter onComplete = null)
 		{
 			float durationInSeconds = catalogEntry.TransitionTimeInSeconds;
 			var mutation = catalogEntry.Mutation;
@@ -3866,16 +3897,10 @@ namespace juniperD.StatefullServices
 			}
 			else
 			{
-				onComplete.Invoke();
+				if (onComplete != null) onComplete.Complete();
 			}
 
 			return mutation;
-		}
-
-		private IEnumerator ApplyChildCatalogEntry(CatalogEntry catalogEntry, float startDelay = 0, bool isChildEntry = false)
-		{
-			if (startDelay != 0) yield return new WaitForSeconds(startDelay);
-			ApplyCatalogEntryItem(catalogEntry, startDelay, isChildEntry);
 		}
 
 		void SelectCatalogEntry(CatalogEntry selectCatalogEntry)
@@ -4747,7 +4772,7 @@ namespace juniperD.StatefullServices
 			UIDynamicButton applyButton = _catalogUi.CreateButton(buttonGroup, "", btnWidth, btnHeight, 0, 0, baseButtonColor, applyButtonHighlightedColor, Color.white, applyButtonTexture);
 			catalogEntry.UiApplyButton = applyButton;
 			SetTooltipForDynamicButton(catalogEntry.UiApplyButton, () => "Apply");
-			catalogEntry.ApplyAction = (TheCatalogEntry) => ApplyMasterCatalogEntry(TheCatalogEntry);
+			catalogEntry.ApplyAction = (TheCatalogEntry) => QueueCatalogEntry(TheCatalogEntry);
 			catalogEntry.UiApplyButton.button.onClick.AddListener((UnityAction)(() =>
 			{
 				// Unhighlight the other apply button...
@@ -4755,7 +4780,7 @@ namespace juniperD.StatefullServices
 				// Highlight this apply button...
 				catalogEntry.UiApplyButton.buttonColor = new Color(1f, 0.647f, 0f, 1f);
 				// Apply...
-				this.ApplyMasterCatalogEntry((CatalogEntry)catalogEntry);
+				QueueCatalogEntry(catalogEntry);
 			}));
 		}
 
@@ -5284,8 +5309,9 @@ namespace juniperD.StatefullServices
 		//	return false;
 		//}
 
-		public void CreateAtomsForCatalogEntry(Mutation mutation)
+		public void CreateAtomsForCatalogEntry(Mutation mutation, List<Awaiter> awaiters)
 		{
+			if (!mutation.StoredAtoms.Any()) return;
 			try
 			{
 				ShowPopupMessage("Please Wait...");
@@ -5334,9 +5360,12 @@ namespace juniperD.StatefullServices
 				for (var i = 0; i < mutation.StoredAtoms.Count; i++)
 				{
 					var catalogAtom = mutation.StoredAtoms[i];
-					if (catalogAtom.SubstituteWithSceneAtom != null) continue;
+					if (!catalogAtom.Active || catalogAtom.SubstituteWithSceneAtom != null) {
+						awaiters[i].Complete();
+						continue;
+					}
 					var catalogSceneName = atomSceneNameToCatalogEntryMappings[i];
-					CreateAtom(catalogSceneName, catalogAtom, Vector3.zero, Quaternion.identity);
+					CreateAtom(catalogSceneName, catalogAtom, Vector3.zero, Quaternion.identity, awaiters[i]);
 				}
 
 			}
@@ -5344,6 +5373,7 @@ namespace juniperD.StatefullServices
 			{
 				SuperController.LogError(e.ToString());
 				HidePopupMessage();
+				awaiters.ForEach(a => a.OnComplete.Invoke());
 			}
 		}
 
@@ -5384,7 +5414,7 @@ namespace juniperD.StatefullServices
 		//	}
 		//}
 
-		private void CreateAtom(string newAtomName, StoredAtom storedAtom, Vector3 position, Quaternion rotation)
+		private void CreateAtom(string newAtomName, StoredAtom storedAtom, Vector3 position, Quaternion rotation, Awaiter onAtomLoaded)
 		{
 			this.StartCoroutine(this.CreateAtom(storedAtom.AtomType, newAtomName, position, rotation, newAtom =>
 			{
@@ -5944,7 +5974,7 @@ namespace juniperD.StatefullServices
 				var nextEntry = GetNextEntry();
 				//if (withSelect) SelectCatalogEntry(nextEntry);
 			};
-			ApplyMasterCatalogEntry(currentEntry, withSelect, excludeUi, onThisCompleted);
+			QueueCatalogEntry(currentEntry, excludeUi, withSelect, onThisCompleted);
 		}
 
 		private CatalogEntry GetCurrentEntry()
@@ -5971,14 +6001,14 @@ namespace juniperD.StatefullServices
 			if (_catalog.Entries.Count == 0) return;
 			var randomIndex = UnityEngine.Random.Range(0, _catalog.Entries.Count - 1);
 			var catalogEntry = _catalog.Entries.ElementAt(randomIndex);
-			ApplyMasterCatalogEntry(catalogEntry, withSelect, exludeUi, onComplete);
+			QueueCatalogEntry(catalogEntry, exludeUi, withSelect, onComplete);
 		}
 
-		public void ApplyEntryAt(int entryIndex, bool withSelect = true, bool exludeUi = false, UnityAction onComplete = null)
+		public void ApplyEntryAt(int entryIndex, bool withSelect = true, bool exludeUi = false)
 		{
 			if (entryIndex >= _catalog.Entries.Count) return;
 			var catalogEntry = _catalog.Entries.ElementAt(entryIndex);
-			ApplyMasterCatalogEntry(catalogEntry, withSelect, exludeUi, onComplete);
+			QueueCatalogEntry(catalogEntry, exludeUi, withSelect);
 		}
 
 		IEnumerator ApplyNextEntryAfterInterval(float delay, bool withSelect = true, bool exludeUi = false, UnityAction onSequenceCompleted = null)

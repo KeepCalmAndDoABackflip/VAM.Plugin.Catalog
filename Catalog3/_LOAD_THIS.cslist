@@ -37,6 +37,9 @@ Models/DynamicMannequinPicker.cs
 Models/DynamicMainWindow.cs
 Models/EntryAnimation.cs
 Models/TransitionInProgress.cs
+Models/AwaiterRegistry.cs
+Models/Awaiter.cs
+Models/CatalogEntryQueueItem.cs
 Resources/Icons.cs
 Services/DataCompressor.cs
 Services/CatalogFileManager.cs
