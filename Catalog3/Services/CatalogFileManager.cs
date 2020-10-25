@@ -22,12 +22,12 @@ namespace juniperD.Services
 			var catalogVersion = GetCatalogVersionFromFile(fileContents);
 			switch (catalogVersion)
 			{
-				case "3.0.0":
-					catalog = SerializerService_3_0_0.LoadCatalog(fileContents);
-					break;
-				case "3.0.1":
-					catalog = SerializerService_3_0_1.LoadCatalog(fileContents);
-					break;
+				//case "3.0.0":
+				//	catalog = SerializerService_3_0_0.LoadCatalog(fileContents);
+				//	break;
+				//case "3.0.1":
+				//	catalog = SerializerService_3_0_1.LoadCatalog(fileContents);
+				//	break;
 				case "3.0.2":
 					catalog = SerializerService_3_0_2.LoadCatalog(fileContents);
 					break;

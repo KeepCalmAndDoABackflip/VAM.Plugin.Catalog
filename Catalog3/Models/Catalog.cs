@@ -1,5 +1,6 @@
 ﻿using juniperD.Contracts;
 using System.Collections.Generic;
+using System.Linq;
 
 namespace juniperD.Models
 {
@@ -16,9 +17,33 @@ namespace juniperD.Models
 		public bool CaptureClothes { get; set; } = true;
 		public bool CaptureMorphs { get; set; } = true;
 		public bool CapturePose { get; set; } = true;
-		public CatalogEntry PrevioslyAppliedEntry { get; set; }
 
 		// Non-Serialized...
+		public CatalogEntry CurrentAppliedEntry { get; set; }
+		public CatalogEntry CurrentSelectedEntry { get; set; }
+
+		public void SetAppliedEntry(CatalogEntry selectCatalogEntry)
+		{
+			CurrentSelectedEntry = selectCatalogEntry;
+		}
+
+		public void SetCurrentAppliedEntry(int index)
+		{
+			if (!Entries.Any()) return;
+			CurrentAppliedEntry = Entries.ElementAt(index);
+		}
+
+		public void SetCurrentSelectedEntry(CatalogEntry selectCatalogEntry)
+		{
+			CurrentSelectedEntry = selectCatalogEntry;
+		}
+
+		public void SetCurrentSelectedEntry(int index)
+		{
+			if (!Entries.Any()) return;
+			CurrentSelectedEntry = Entries.ElementAt(index);
+		}
+
 	}
 }
 

@@ -40,12 +40,11 @@ Models/TransitionInProgress.cs
 Models/AwaiterRegistry.cs
 Models/Awaiter.cs
 Models/CatalogEntryQueueItem.cs
+Models/CancellationToken.cs
 Resources/Icons.cs
 Services/DataCompressor.cs
 Services/CatalogFileManager.cs
 Services/MannequinHelper.cs
-Services/CatalogSerializers/SerializerService_3_0_0.cs
-Services/CatalogSerializers/SerializerService_3_0_1.cs
 Services/CatalogSerializers/SerializerService_3_0_2.cs
 StatefullServices/MutationsService.cs
 StatefullServices/DebugService.cs

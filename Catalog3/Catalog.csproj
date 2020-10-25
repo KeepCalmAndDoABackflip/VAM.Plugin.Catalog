@@ -90,10 +90,10 @@
   <ItemGroup>
     <Compile Include="Contracts\AnimationCurveEnum.cs" />
     <Compile Include="Contracts\AnchorPositionEnum.cs" />
+    <Compile Include="Contracts\CatalogModeEnum.cs" />
     <Compile Include="Contracts\InfoPanelEnum.cs" />
     <Compile Include="Contracts\PointAddOptionEnum.cs" />
     <Compile Include="Contracts\LinkTypeEnum.cs" />
-    <Compile Include="Contracts\CatalogModeEnum.cs" />
     <Compile Include="Contracts\Global.cs" />
     <Compile Include="Contracts\Mappings.cs" />
     <Compile Include="Models\ActiveController.cs" />
@@ -101,6 +101,7 @@
     <Compile Include="Models\Awaiter.cs" />
     <Compile Include="Models\BaseMutation.cs" />
     <Compile Include="Models\AnimationLink.cs" />
+    <Compile Include="Models\CancellationToken.cs" />
     <Compile Include="Models\CatalogEntryQueueItem.cs" />
     <Compile Include="Models\AwaiterRegistry.cs" />
     <Compile Include="Models\ControllerLink.cs" />
@@ -132,7 +133,6 @@
     <Compile Include="CatalogPlugin.cs" />
     <Compile Include="Resources\Icons.cs" />
     <Compile Include="Services\CatalogFileManager.cs" />
-    <Compile Include="Services\CatalogSerializers\SerializerService_3_0_0.cs" />
     <Compile Include="Services\CatalogSerializers\SerializerService_3_0_2.cs" />
     <Compile Include="Services\DataCompressor.cs" />
     <Compile Include="Models\Mutation.cs" />
@@ -141,7 +141,6 @@
     <Compile Include="StatefullServices\CatalogUi.cs" />
     <Compile Include="StatefullServices\DebugService.cs" />
     <Compile Include="StatefullServices\DragHelper.cs" />
-    <Compile Include="Services\CatalogSerializers\SerializerService_3_0_1.cs" />
     <Compile Include="StatefullServices\DynamicUiExtensionMethods.cs" />
     <Compile Include="StatefullServices\MutationsService.cs" />
     <Compile Include="PredefinedMorphSets.cs" />

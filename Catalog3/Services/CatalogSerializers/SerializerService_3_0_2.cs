@@ -112,6 +112,19 @@ namespace juniperD.Services.CatalogSerializers
 			newJson.Add("CaptureHair", new JSONData(catalog.CaptureHair));
 			newJson.Add("CaptureClothes", new JSONData(catalog.CaptureClothes));
 			newJson.Add("CaptureMorphs", new JSONData(catalog.CaptureMorphs));
+			newJson.Add("CapturePose", new JSONData(catalog.CapturePose));
+
+			if (catalog.CurrentSelectedEntry != null)
+			{
+				var entryIndex = catalog.Entries.IndexOf(catalog.CurrentSelectedEntry);
+				newJson.Add("CurrentSelectedEntry", new JSONData(entryIndex));
+			}
+
+			if (catalog.CurrentAppliedEntry != null)
+			{
+				var entryIndex = catalog.Entries.IndexOf(catalog.CurrentAppliedEntry);
+				newJson.Add("CurrentAppliedEntry", new JSONData(entryIndex));
+			}
 
 			JSONArray versionMessages = new JSONArray();
 			catalog.VersionMessages.Select(ce => SerializeVersionMessage(ce)).ToList().ForEach(versionMessages.Add);
@@ -161,23 +174,27 @@ namespace juniperD.Services.CatalogSerializers
 			var pluginVersion = LoadStringFromJsonStringProperty(inputObject, "PluginVersion", CATALOG_SYMANTIC_VERSION);
 			var deapVersion = LoadStringFromJsonStringProperty(inputObject, "DeapVersion", CATALOG_DEAP_VERSION);
 			var versionMessages = LoadObjectArrayFromJsonArrayProperty<VersionMessage>(inputObject, "VersionMessages", nameof(VersionMessage));
-
 			var activeVersionMessage = DetermineCatalogVersionCompatibility(deapVersion, versionMessages);
-
+			
 			var newCatalog = new Catalog()
 			{
 				DeapVersion = deapVersion,
 				PluginVersion = pluginVersion,
 				VersionMessages = versionMessages,
 				ActiveVersionMessage = activeVersionMessage,
-				CaptureClothes = DeserializeBoolStringIntoBool(inputObject, "CaptureClothes", true),
-				CaptureHair = DeserializeBoolStringIntoBool(inputObject, "CaptureHair", true),
-				CaptureMorphs = DeserializeBoolStringIntoBool(inputObject, "CaptureMorphs", true),
+				CaptureClothes = DeserializeBoolStringIntoBool(inputObject, "CaptureClothes", false),
+				CaptureHair = DeserializeBoolStringIntoBool(inputObject, "CaptureHair", false),
+				CaptureMorphs = DeserializeBoolStringIntoBool(inputObject, "CaptureMorphs", false),
+				CapturePose = DeserializeBoolStringIntoBool(inputObject, "CapturePose", false),
 				Entries = inputObject.Childs.ElementAt(keys.IndexOf("Entries"))
 					.Childs
 					.Select(i => DeserializeIntoCatalogEntry(i.AsObject))
-					.ToList()
+					.ToList(), 
 			};
+
+			if (inputObject["CurrentSelectedEntry"] != null) newCatalog.SetCurrentSelectedEntry((int)DeserializeFloat(inputObject, "CurrentSelectedEntry", 0f));
+			if (inputObject["CurrentAppliedEntry"] != null) newCatalog.SetCurrentAppliedEntry((int)DeserializeFloat(inputObject, "CurrentAppliedEntry", 0f));
+
 			return newCatalog;
 		}
 
@@ -514,6 +531,19 @@ namespace juniperD.Services.CatalogSerializers
 			newVector3.y = float.Parse(parentObject[propertyName]["y"].Value);
 			newVector3.z = float.Parse(parentObject[propertyName]["z"].Value);
 			return newVector3;
+		}
+
+		public static float DeserializeFloat(JSONClass parentObject, string propertyName, float defaultValue)
+		{
+			var stringVal = parentObject["propertyName"]?.Value ?? "0";
+			if (string.IsNullOrEmpty(stringVal.Trim())) return defaultValue;
+			return float.Parse(stringVal);
+		}
+
+		public static float DeserializeFloatFromString(string input, float defaultValue)
+		{
+			if (string.IsNullOrEmpty(input.Trim())) return defaultValue;
+			return float.Parse(input);
 		}
 
 		public static MorphMutation DeserializeIntoActiveMorphMutation(JSONClass inputObject)

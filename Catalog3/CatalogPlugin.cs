@@ -21,9 +21,6 @@ namespace juniperD.StatefullServices
 
 	public class CatalogPlugin : MVRScript
 	{
-		const string EXPAND_WITH_MORE_ROWS = "rows";
-		const string EXPAND_WITH_MORE_COLUMNS = "columns";
-
 		const string ATOM_TYPE_SESSION = "SessionPluginManager";
 		const string ATOM_TYPE_PERSON = "Person";
 		const string ATOM_TYPE_OBJECT = "Other";
@@ -111,7 +108,6 @@ namespace juniperD.StatefullServices
 		protected JSONStorableBool _catalogCaptureClothes;
 		protected JSONStorableBool _catalogCaptureMorphs;
 		protected JSONStorableBool _catalogCapturePose;
-		protected JSONStorableBool _catalogCaptureDynamicItems;
 
 		// Controls-state...
 		protected JSONStorableBool _uiVisible;
@@ -127,6 +123,7 @@ namespace juniperD.StatefullServices
 		protected UIDynamicPopup _cameraSelector;
 		public JSONStorableBool _cycleEntriesOnInterval;
 		public JSONStorableFloat _cycleEntriesInterval;
+		public JSONStorableFloat _catalogQueueOverflow;
 		public JSONStorableBool _playOnce;
 		public int _currentCatalogEntryIndexToPlay = 0;
 		public int _numberOfEntriesToPlay;
@@ -191,7 +188,8 @@ namespace juniperD.StatefullServices
 					_catalog = LoadCatalogFromFile(filePath, false);
 					if (containingAtom.type == "Person")
 					{
-						//ApplyPreviouslyActiveMutation();
+						SetBaseMorphsForCatalogAndPerson();
+						//ApplyPreviousltyActiveMutation();
 					}
 				}
 
@@ -210,6 +208,37 @@ namespace juniperD.StatefullServices
 
 			SetMinimizedState();
 			UpdateUiForMode();
+		}
+
+		private void SetBaseMorphsForCatalogAndPerson()
+		{
+			var trackingKey = _mutationsService.GetTrackingKeyForCurrentAtom();
+			foreach (var catalogEntry in _catalog.Entries)
+			{
+				SetBaseMorphsForCatalogEntry(trackingKey, catalogEntry);
+			}
+		}
+		/// <summary>
+		/// When you save, the active-morphs may get saved in a half transitioned state,
+		/// this state will then get set as base-values for those morphs on the next load, 
+		/// the effect will be unwanted stacking of morphs. To avoid this, 
+		/// we must detect what morphs were appleid when the save occurred, 
+		/// then reset those morphs on the load to their original base values, 
+		/// so that their base-values get set properly on the next apply.
+		/// </summary>
+		private void SetBaseMorphsForCatalogEntry(string trackingKey, CatalogEntry catalogEntry)
+		{
+			foreach (var morphItem in catalogEntry.Mutation.ActiveMorphs)
+			{
+				float? currentMorphValue = _mutationsService.GetMorphValueOrDefaultForSelectedPersonOrDefault(morphItem.Id);
+				if (currentMorphValue == null) continue;
+				if (currentMorphValue != morphItem.PreviousValue)
+				{
+					SuperController.LogMessage($"Resetting Morph \"{morphItem.Id}\" value to: " + morphItem.PreviousValue);
+				}
+				SuperController.LogMessage($"Set \"{morphItem.Id}\" to: " + morphItem.PreviousValue);
+				_mutationsService.InitializeBaseMorphForPerson(trackingKey, morphItem.Id, morphItem.PreviousValue);
+			}
 		}
 
 		private string GetLocalCatalogFilePath(string filename)
@@ -792,6 +821,14 @@ namespace juniperD.StatefullServices
 			_entrySelectionMethod = new JSONStorableString("Entry Selection Method", SELECTION_METHOD_SEQUENCE);
 			RegisterString(_entrySelectionMethod);
 
+			var applyEntry = new JSONStorableAction("Apply entry move next", () => { ApplyEntryMoveNext(); });
+			RegisterAction(applyEntry);
+			CreateButton("Apply entry and move next").button.onClick.AddListener(() =>
+			{
+				ApplyEntryMoveNext(); // ...Reset catalog (from settings)
+				_entrySelectionMethod.val = SELECTION_METHOD_SEQUENCE;
+			});
+
 			var applyEntryMoveNextAction = new JSONStorableAction("Apply entry move next", () => { ApplyEntryMoveNext(); });
 			RegisterAction(applyEntryMoveNextAction);
 			CreateButton("Apply entry and move next").button.onClick.AddListener(() =>
@@ -853,6 +890,13 @@ namespace juniperD.StatefullServices
 
 			CreateSpacer();
 
+			_catalogQueueOverflow = new JSONStorableFloat("Max queue size", 1, 10, 100);
+			RegisterFloat(_catalogQueueOverflow);
+			var _catalogQueueOverflowSlider = CreateSlider(_catalogQueueOverflow);
+			_catalogQueueOverflowSlider.valueFormat = "F1";
+
+			CreateSpacer();
+
 			_catalogColumnsCountJSON = new JSONStorableFloat("Catalog Columns", _defaultNumberOfCatalogColumns, 1f, 10f);
 			_catalogColumnsCountJSON.storeType = JSONStorableParam.StoreType.Full;
 			RegisterFloat(_catalogColumnsCountJSON);
@@ -863,7 +907,6 @@ namespace juniperD.StatefullServices
 			{
 				RebuildCatalogFromEntriesCollection(); //...changing column count
 			});
-
 
 			_catalogRowsCountJSON = new JSONStorableFloat("Catalog Rows", _defaultNumberOfCatalogRows, 1f, 10f);
 			_catalogRowsCountJSON.storeType = JSONStorableParam.StoreType.Full;
@@ -3283,6 +3326,7 @@ namespace juniperD.StatefullServices
 					CaptureClothes = _catalogCaptureClothes.val,
 					CaptureHair = _catalogCaptureHair.val,
 					CaptureMorphs = _catalogCaptureMorphs.val,
+					CapturePose = _catalogCapturePose.val,
 					//DeapVersion = FileLoadManagement.CATALOG_DEAP_VERSION,
 					Entries = _catalog.Entries,
 				};
@@ -3554,13 +3598,14 @@ namespace juniperD.StatefullServices
 			if (!_appliedCatalogEntriesQueue.Any()) return; //...there are no queued items
 			if (_appliedCatalogEntriesQueue.Any(q => q.Busy)) return; //...there are items in progress
 			var nextItemToStart = _appliedCatalogEntriesQueue.First();
-			SuperController.LogMessage("Starting: " + nextItemToStart.EntryKey);
 			nextItemToStart.Start(this); //...start the next queued item
 		}
 
 		private void ManageTransitions()
 		{
 			if (!_useTransitionManager) return;
+			_mutationsService._transitionsInProgress.RemoveAll(t => t.IsCancelled);
+			_mutationsService._transitionsWaiting.RemoveAll(t => t.IsCancelled);
 			if (_mutationsService._transitionsInProgress.Any()) return;
 			if (!_mutationsService._transitionsWaiting.Any()) return;
 
@@ -3569,8 +3614,8 @@ namespace juniperD.StatefullServices
 			// Remove all transitions in the next transition group
 			foreach (var transition in allRelatedTransitions)
 			{
-				_mutationsService._transitionsWaiting.Remove(transition); // ...Remove from waiting queue
-				_mutationsService._transitionsInProgress.Add(transition); // ...Add to in-progress list
+				_mutationsService._transitionsWaiting.Remove(transition); // ...Remove next from waiting queue
+				_mutationsService._transitionsInProgress.Add(transition); // ...add put into the in-progress list
 				StartCoroutine(transition.Transition); //...start transition
 				StartCoroutine(TransitionTimeoutFallback(transition)); //... start transition timeout (in case an exception prevents the transition from removed naturally)
 			}
@@ -3792,25 +3837,38 @@ namespace juniperD.StatefullServices
 			atom.CallAction("Stop");
 		}
 
-		private void QueueCatalogEntry(CatalogEntry catalogEntry, bool excludeUi = false, bool withSelect = false, UnityAction finalComplete = null)
+		private CancellationToken QueueCatalogEntry(CatalogEntry catalogEntry, bool excludeUi = false, bool withSelect = false, Awaiter finalComplete = null)
 		{
+			if (_appliedCatalogEntriesQueue.Count >= _catalogQueueOverflow.val) return null;
+			
 			var entryKey = Guid.NewGuid().ToString();
-			UnityAction whenCatalogEntryCompleted = () =>
+			Awaiter whenCatalogEntryCompleted = new Awaiter(() =>
 			{
 				CatalogEntryQueueItem queueItem = _appliedCatalogEntriesQueue.SingleOrDefault(i => i.EntryKey == entryKey);
-				if (_appliedCatalogEntriesQueue != null) queueItem.MarkAsCompleted();
-				if (finalComplete != null) finalComplete.Invoke();
-			};
-			UnityAction applyEntryAction = () => ApplyCatalogEntryItem(catalogEntry, excludeUi, withSelect, whenCatalogEntryCompleted);
-			var newQueueEntry = new CatalogEntryQueueItem(entryKey, catalogEntry.TransitionTimeInSeconds * 2, applyEntryAction);
+				if (queueItem != null) queueItem.MarkAsCompleted();
+				finalComplete?.Complete();
+			});
+			CancellationToken cancellationToken = new CancellationToken();
+			UnityAction applyEntryAction = () => ApplyCatalogEntryItem(catalogEntry, excludeUi, withSelect, whenCatalogEntryCompleted, cancellationToken);
+
+			var timeout = GetReasonableTimeoutForCatalogEntry(catalogEntry);
+			var newQueueEntry = new CatalogEntryQueueItem(entryKey, timeout, applyEntryAction);
 			_appliedCatalogEntriesQueue.Add(newQueueEntry);
+			return cancellationToken;
 		}
 
-		private void ApplyCatalogEntryItem(CatalogEntry catalogEntry, bool excludeUi = false, bool withSelect = false, UnityAction finalComplete = null)
+		private float GetReasonableTimeoutForCatalogEntry(CatalogEntry catalogEntry)
+		{
+			List<float> timeouts = new List<float>();
+			float transitionTimeout = catalogEntry.TransitionTimeInSeconds * 2;
+			float atomCreation = catalogEntry.Mutation.StoredAtoms.Count() * 60;
+			return transitionTimeout + atomCreation;
+		}
+
+		private void ApplyCatalogEntryItem(CatalogEntry catalogEntry, bool excludeUi = false, bool withSelect = false, Awaiter finalComplete = null, CancellationToken cancellationToken = null)
 		{
 			try
 			{
-
 				if (withSelect) SelectCatalogEntry(catalogEntry);
 				RunExitFrameRoutinesForPrevioslyAppliedCatalogEntry();
 
@@ -3820,16 +3878,18 @@ namespace juniperD.StatefullServices
 				var childrenHaveAllFinished = actionAwaiter.GetTicket();
 				var methodHasRunThrough = actionAwaiter.GetTicket();
 
+				_catalog.SetAppliedEntry(catalogEntry);
+
 				// Execute this entry's mutation...
-				ApplyCatalogEntryMutation(catalogEntry, 0, excludeUi, mutationHasBeenApplied);
+				ApplyCatalogEntryMutation(catalogEntry, 0, excludeUi, mutationHasBeenApplied, cancellationToken);
 
 				// Manage Child entries...
 				Queue<UnityAction> childQueue = new Queue<UnityAction>();
-				UnityAction whenChildFinished = () => {
+				Awaiter whenChildFinished = new Awaiter(() => {
 					var nextMethodToInvoke = childrenHaveAllFinished.OnComplete;
 					if (childQueue.Any()) nextMethodToInvoke = childQueue.Dequeue();
 					nextMethodToInvoke.Invoke();
-				};
+				});
 				foreach (var childCatalogEntry in catalogEntry.ChildEntries)
 				{
 					childQueue.Enqueue(() => ApplyCatalogEntryItem(childCatalogEntry, false, false, whenChildFinished));
@@ -3839,14 +3899,14 @@ namespace juniperD.StatefullServices
 				firstMethodToInvoke.Invoke();
 
 				// Finalization...
-				_catalog.PrevioslyAppliedEntry = catalogEntry;
+				_catalog.CurrentAppliedEntry = catalogEntry;
 				methodHasRunThrough.Complete();
 
 			}
 			catch (Exception e)
 			{
 				SuperController.LogError(e.ToString());
-				finalComplete.Invoke();
+				finalComplete.Complete();
 			}
 		}
 
@@ -3870,9 +3930,9 @@ namespace juniperD.StatefullServices
 
 		private void RunExitFrameRoutinesForPrevioslyAppliedCatalogEntry()
 		{
-			if (_catalog.PrevioslyAppliedEntry != null)
+			if (_catalog.CurrentAppliedEntry != null)
 			{
-				_mutationsService.RunExitFrameRoutines(_catalog.PrevioslyAppliedEntry.Mutation);
+				_mutationsService.RunExitFrameRoutines(_catalog.CurrentAppliedEntry.Mutation);
 				//_catalog.PrevioslyAppliedEntry.Mutation.Remo
 			}
 		}
@@ -3883,7 +3943,7 @@ namespace juniperD.StatefullServices
 			return entry.ChildEntries.Select(e => e.TransitionTimeInSeconds).Aggregate((a, b) => a + b);
 		}
 
-		private Mutation ApplyCatalogEntryMutation(CatalogEntry catalogEntry, float startDelay = 0, bool excludeUi = false, Awaiter onComplete = null)
+		private Mutation ApplyCatalogEntryMutation(CatalogEntry catalogEntry, float startDelay = 0, bool excludeUi = false, Awaiter onComplete = null, CancellationToken cancellationToken = null)
 		{
 			float durationInSeconds = catalogEntry.TransitionTimeInSeconds;
 			var mutation = catalogEntry.Mutation;
@@ -3893,7 +3953,7 @@ namespace juniperD.StatefullServices
 			if (catalogEntry.Mutation != null)
 			{
 				var transitionGroupId = Guid.NewGuid().ToString();
-				_mutationsService.ApplyMutation(ref mutation, transitionGroupId, startDelay, durationInSeconds, excludeUi, onComplete);
+				_mutationsService.ApplyMutation(ref mutation, transitionGroupId, startDelay, durationInSeconds, excludeUi, onComplete, cancellationToken);
 			}
 			else
 			{
@@ -3916,12 +3976,14 @@ namespace juniperD.StatefullServices
 			// Select entry...
 			if (selectCatalogEntry == null) return;
 			selectCatalogEntry.Selected = true;
-			UpdateCatalogEntryBorderColorBasedOnState(selectCatalogEntry);
+			_catalog.SetCurrentSelectedEntry(selectCatalogEntry);
 			_mainWindow.CurrentCatalogEntry = selectCatalogEntry;
+			UpdateCatalogEntryBorderColorBasedOnState(selectCatalogEntry);
 			// Rebuild info-panel...
 			if (_mainWindow.SelectedInfoPanel == InfoPanelEnum.ENTRY_SUB_ITEMS) AddSubItemUi(selectCatalogEntry);
 			if (_mainWindow.SelectedInfoPanel == InfoPanelEnum.ANIMATION_ITEMS) AddAnimationUi(selectCatalogEntry);
 			if (_mainWindow.SelectedInfoPanel == InfoPanelEnum.OPTIONS) AddFrameOptionsUi(selectCatalogEntry);
+			
 		}
 
 		private void RemoveFrameOptionsUi(CatalogEntry entry)
@@ -5420,11 +5482,11 @@ namespace juniperD.StatefullServices
 			{
 				newAtom.collisionEnabledJSON.SetVal(false);
 				_atomsIncubatingQueue.Remove(_atomsIncubatingQueue.First(a => a == storedAtom.AtomName)); // ...Remove this atom from the incubation queue (there might still be others though)
-				this.StartCoroutine(RestoreAfterIncubation(storedAtom, newAtom, newAtomName));
+				this.StartCoroutine(RestoreAfterIncubation(storedAtom, newAtom, newAtomName, onAtomLoaded));
 			}));
 		}
 
-		private IEnumerator RestoreAfterIncubation(StoredAtom storedAtom, Atom newAtom, string newAtomName)
+		private IEnumerator RestoreAfterIncubation(StoredAtom storedAtom, Atom newAtom, string newAtomName, Awaiter onAtomLoaded)
 		{
 			// Wait for ALL atoms to be incubated before restoring ANY of them...
 			int overflow = 0;
@@ -5438,10 +5500,14 @@ namespace juniperD.StatefullServices
 				yield return new WaitForEndOfFrame();
 			}
 
+			AwaiterRegistry waitForAllTheThings = new AwaiterRegistry(onAtomLoaded);
+			Awaiter awaitRestore = waitForAllTheThings.GetTicket();
+			Awaiter awaitCollisionEnable = waitForAllTheThings.GetTicket();
+
 			if (storedAtom.FullAtom != null)
 			{
 				newAtom.Restore(storedAtom.FullAtom);
-				RestoreAtomFromJSON(newAtom, storedAtom.FullAtom, newAtom.transform.position, newAtom.transform.rotation);
+				RestoreAtomFromJSON(newAtom, storedAtom.FullAtom, awaitRestore, newAtom.transform.position, newAtom.transform.rotation);
 			}
 			//else
 			//{
@@ -5453,7 +5519,7 @@ namespace juniperD.StatefullServices
 
 			SuperController.singleton.SelectController(newAtom.mainController);
 			HidePopupMessage();
-			StartCoroutine(EnableCollisions(newAtom));
+			StartCoroutine(EnableCollisions(newAtom, awaitCollisionEnable));
 		}
 
 		private void RestoreAtomStorables(StoredAtom storedAtom, Atom newAtom)
@@ -5574,7 +5640,7 @@ namespace juniperD.StatefullServices
 			}
 		}
 
-		public void RestoreAtomFromJSON(Atom atom, JSONClass atomJSON, Vector3 position, Quaternion rotation, bool applyPresets = false)
+		public void RestoreAtomFromJSON(Atom atom, JSONClass atomJSON, Awaiter onComplete, Vector3 position, Quaternion rotation, bool applyPresets = false)
 		{
 			atom.RestoreFromJSON(atomJSON);
 			atom.PreRestore();
@@ -5582,118 +5648,119 @@ namespace juniperD.StatefullServices
 			atom.Restore(atomJSON);
 			atom.LateRestore(atomJSON);
 			atom.PostRestore();
-
+			if (onComplete != null) onComplete.Complete();
 			//if (atom != null)
 			//{
 			//	JSONClass atomsJSON = SuperController.singleton.GetSaveJSON(atom);
 			//	JSONArray atomsArrayJSON = atomsJSON["atoms"].AsArray;
 			//	JSONClass atomJSON = (JSONClass)atomsArrayJSON[0];
 
-			//atomJSON["position"]["x"].AsFloat = position.x;
-			//atomJSON["position"]["y"].AsFloat = position.y;
-			//atomJSON["position"]["z"].AsFloat = position.z;
-			//atomJSON["containerPosition"]["x"].AsFloat = position.x;
-			//atomJSON["containerPosition"]["y"].AsFloat = position.y;
-			//atomJSON["containerPosition"]["z"].AsFloat = position.z;
-			//atomJSON["rotation"]["x"].AsFloat = rotation.eulerAngles.x;
-			//atomJSON["rotation"]["y"].AsFloat = rotation.eulerAngles.y;
-			//atomJSON["rotation"]["z"].AsFloat = rotation.eulerAngles.z;
-			//atomJSON["containerRotation"]["x"].AsFloat = rotation.eulerAngles.x;
-			//atomJSON["containerRotation"]["y"].AsFloat = rotation.eulerAngles.y;
-			//atomJSON["containerRotation"]["z"].AsFloat = rotation.eulerAngles.z;
+				//atomJSON["position"]["x"].AsFloat = position.x;
+				//atomJSON["position"]["y"].AsFloat = position.y;
+				//atomJSON["position"]["z"].AsFloat = position.z;
+				//atomJSON["containerPosition"]["x"].AsFloat = position.x;
+				//atomJSON["containerPosition"]["y"].AsFloat = position.y;
+				//atomJSON["containerPosition"]["z"].AsFloat = position.z;
+				//atomJSON["rotation"]["x"].AsFloat = rotation.eulerAngles.x;
+				//atomJSON["rotation"]["y"].AsFloat = rotation.eulerAngles.y;
+				//atomJSON["rotation"]["z"].AsFloat = rotation.eulerAngles.z;
+				//atomJSON["containerRotation"]["x"].AsFloat = rotation.eulerAngles.x;
+				//atomJSON["containerRotation"]["y"].AsFloat = rotation.eulerAngles.y;
+				//atomJSON["containerRotation"]["z"].AsFloat = rotation.eulerAngles.z;
 
-			//Dictionary<string, int> storablesIndexDict = new Dictionary<string, int>();
-			//JSONArray storablesArrayJSON = new JSONArray();
-			//storables.ForEach(storablesArrayJSON.Add);
-			//for (int i = 0; i < storablesArrayJSON.Count; i++)
-			//{
-			//	JSONClass storableJSON = (JSONClass)storablesArrayJSON[i];
-			//	storablesIndexDict.Add(storableJSON["id"].Value, i);
-			//	if (storableJSON["id"].Value == "control")
-			//	{
-			//		atomJSON["storables"][i]["position"]["x"].AsFloat = position.x;
-			//		atomJSON["storables"][i]["position"]["y"].AsFloat = position.y;
-			//		atomJSON["storables"][i]["position"]["z"].AsFloat = position.z;
-			//	}
-			//	if (storableJSON["id"].Value == "hip")
-			//	{
-			//		atomJSON["storables"][i]["rootPosition"]["x"].AsFloat = position.x;
-			//		atomJSON["storables"][i]["rootPosition"]["y"].AsFloat = atomJSON["storables"][i]["rootPosition"]["y"].AsFloat + position.y;
-			//		atomJSON["storables"][i]["rootPosition"]["z"].AsFloat = position.z;
-			//	}
-			//	if (storableJSON["id"].Value.StartsWith("hair"))
-			//	{
-			//		atomJSON["storables"][i]["position"]["x"].AsFloat = atomJSON["storables"][i]["position"]["x"].AsFloat + position.x;
-			//		atomJSON["storables"][i]["position"]["y"].AsFloat = atomJSON["storables"][i]["position"]["y"].AsFloat + position.y;
-			//		atomJSON["storables"][i]["position"]["z"].AsFloat = atomJSON["storables"][i]["position"]["z"].AsFloat + position.z;
-			//	}
+				//Dictionary<string, int> storablesIndexDict = new Dictionary<string, int>();
+				//JSONArray storablesArrayJSON = new JSONArray();
+				//storables.ForEach(storablesArrayJSON.Add);
+				//for (int i = 0; i < storablesArrayJSON.Count; i++)
+				//{
+				//	JSONClass storableJSON = (JSONClass)storablesArrayJSON[i];
+				//	storablesIndexDict.Add(storableJSON["id"].Value, i);
+				//	if (storableJSON["id"].Value == "control")
+				//	{
+				//		atomJSON["storables"][i]["position"]["x"].AsFloat = position.x;
+				//		atomJSON["storables"][i]["position"]["y"].AsFloat = position.y;
+				//		atomJSON["storables"][i]["position"]["z"].AsFloat = position.z;
+				//	}
+				//	if (storableJSON["id"].Value == "hip")
+				//	{
+				//		atomJSON["storables"][i]["rootPosition"]["x"].AsFloat = position.x;
+				//		atomJSON["storables"][i]["rootPosition"]["y"].AsFloat = atomJSON["storables"][i]["rootPosition"]["y"].AsFloat + position.y;
+				//		atomJSON["storables"][i]["rootPosition"]["z"].AsFloat = position.z;
+				//	}
+				//	if (storableJSON["id"].Value.StartsWith("hair"))
+				//	{
+				//		atomJSON["storables"][i]["position"]["x"].AsFloat = atomJSON["storables"][i]["position"]["x"].AsFloat + position.x;
+				//		atomJSON["storables"][i]["position"]["y"].AsFloat = atomJSON["storables"][i]["position"]["y"].AsFloat + position.y;
+				//		atomJSON["storables"][i]["position"]["z"].AsFloat = atomJSON["storables"][i]["position"]["z"].AsFloat + position.z;
+				//	}
 
-			//	if (storableJSON["id"].Value == "control" || storableJSON["id"].Value == "hip" || storableJSON["id"].Value.StartsWith("hair"))
-			//	{
-			//		string rotationKeyName = "";
-			//		if (storableJSON["id"].Value == "hip") rotationKeyName = "rootRotation";
-			//		else rotationKeyName = "rotation";
-			//		atomJSON["storables"][i][rotationKeyName]["x"].AsFloat = rotation.eulerAngles.x;
-			//		atomJSON["storables"][i][rotationKeyName]["y"].AsFloat = rotation.eulerAngles.y;
-			//		atomJSON["storables"][i][rotationKeyName]["z"].AsFloat = rotation.eulerAngles.z;
-			//	}
-			//}
-			//if (applyPresets)
-			//{
-			//	if (FileManagerSecure.FileExists(_selectedPreset1File))
-			//	{
-			//		JSONNode presetJSON = _mvrScript.LoadJSON(_selectedPreset1File);
-			//		JSONArray presetStorablesJSON = presetJSON["storables"]?.AsArray;
-			//		if (presetStorablesJSON != null)
-			//		{
-			//			for (int i = 0; i < presetStorablesJSON.Count; i++)
-			//			{
-			//				if (storablesIndexDict.ContainsKey(presetStorablesJSON[i]["id"]))
-			//				{
-			//					atomJSON["storables"][storablesIndexDict[presetStorablesJSON[i]["id"]]] = presetStorablesJSON[i];
-			//				}
-			//				else
-			//				{
-			//					atomJSON["storables"].Add(presetStorablesJSON[i]);
-			//				}
-			//			}
-			//		}
-			//	}
-			//	if (FileManagerSecure.FileExists(_selectedPreset3File))
-			//	{
-			//		JSONNode presetJSON = _mvrScript.LoadJSON(_selectedPreset3File);
-			//		JSONArray presetStorablesJSON = presetJSON["storables"]?.AsArray;
-			//		if (presetStorablesJSON != null)
-			//		{
-			//			for (int i = 0; i < presetStorablesJSON.Count; i++)
-			//			{
-			//				if (storablesIndexDict.ContainsKey(presetStorablesJSON[i]["id"]))
-			//				{
-			//					atomJSON["storables"][storablesIndexDict[presetStorablesJSON[i]["id"]]] = presetStorablesJSON[i];
-			//				}
-			//				else
-			//				{
-			//					atomJSON["storables"].Add(presetStorablesJSON[i]);
-			//				}
-			//			}
-			//		}
-			//	}
-			//}
+				//	if (storableJSON["id"].Value == "control" || storableJSON["id"].Value == "hip" || storableJSON["id"].Value.StartsWith("hair"))
+				//	{
+				//		string rotationKeyName = "";
+				//		if (storableJSON["id"].Value == "hip") rotationKeyName = "rootRotation";
+				//		else rotationKeyName = "rotation";
+				//		atomJSON["storables"][i][rotationKeyName]["x"].AsFloat = rotation.eulerAngles.x;
+				//		atomJSON["storables"][i][rotationKeyName]["y"].AsFloat = rotation.eulerAngles.y;
+				//		atomJSON["storables"][i][rotationKeyName]["z"].AsFloat = rotation.eulerAngles.z;
+				//	}
+				//}
+				//if (applyPresets)
+				//{
+				//	if (FileManagerSecure.FileExists(_selectedPreset1File))
+				//	{
+				//		JSONNode presetJSON = _mvrScript.LoadJSON(_selectedPreset1File);
+				//		JSONArray presetStorablesJSON = presetJSON["storables"]?.AsArray;
+				//		if (presetStorablesJSON != null)
+				//		{
+				//			for (int i = 0; i < presetStorablesJSON.Count; i++)
+				//			{
+				//				if (storablesIndexDict.ContainsKey(presetStorablesJSON[i]["id"]))
+				//				{
+				//					atomJSON["storables"][storablesIndexDict[presetStorablesJSON[i]["id"]]] = presetStorablesJSON[i];
+				//				}
+				//				else
+				//				{
+				//					atomJSON["storables"].Add(presetStorablesJSON[i]);
+				//				}
+				//			}
+				//		}
+				//	}
+				//	if (FileManagerSecure.FileExists(_selectedPreset3File))
+				//	{
+				//		JSONNode presetJSON = _mvrScript.LoadJSON(_selectedPreset3File);
+				//		JSONArray presetStorablesJSON = presetJSON["storables"]?.AsArray;
+				//		if (presetStorablesJSON != null)
+				//		{
+				//			for (int i = 0; i < presetStorablesJSON.Count; i++)
+				//			{
+				//				if (storablesIndexDict.ContainsKey(presetStorablesJSON[i]["id"]))
+				//				{
+				//					atomJSON["storables"][storablesIndexDict[presetStorablesJSON[i]["id"]]] = presetStorablesJSON[i];
+				//				}
+				//				else
+				//				{
+				//					atomJSON["storables"].Add(presetStorablesJSON[i]);
+				//				}
+				//			}
+				//		}
+				//	}
+				//}
 
-			//}
+				//}
 
 		}
 
-		private IEnumerator RestoreFromJson(JSONStorable storable, JSONClass stored)
-		{
-			yield return new WaitForEndOfFrame();
-			storable.RestoreFromJSON(stored);
-		}
+		//private IEnumerator RestoreFromJson(JSONStorable storable, JSONClass stored)
+		//{
+		//	yield return new WaitForEndOfFrame();
+		//	storable.RestoreFromJSON(stored);
+		//}
 
-		IEnumerator EnableCollisions(Atom atom)
+		IEnumerator EnableCollisions(Atom atom, Awaiter onComplete)
 		{
 			yield return new WaitForSeconds(2);
 			atom.collisionEnabledJSON.SetVal(true);
+			onComplete.Complete();
 		}
 
 		//private void CreateAtom(List<JSONClass> storables, string atomType, string atomName, Vector3 position, Quaternion rotation)
@@ -5958,22 +6025,35 @@ namespace juniperD.StatefullServices
 			return pathToScriptFolder;
 		}
 
-		public void ApplyEntryMoveNext(UnityAction onComplete = null, bool withSelect = true, bool excludeUi = false)
+		public void MoveNext(bool withSelect = true)
+		{
+			if (_catalog.Entries.Count == 0) return;
+			var nextEntry = GetNextEntry();
+			if (withSelect) SelectCatalogEntry(nextEntry);
+		}
+
+		public void ApplyCurrentEntry(Awaiter onComplete = null, bool withSelect = true, bool excludeUi = false)
+		{
+			if (_catalog.Entries.Count == 0) return;
+			CatalogEntry currentEntry = GetCurrentEntry();
+			QueueCatalogEntry(currentEntry, excludeUi, withSelect, onComplete);
+		}
+
+		public void ApplyEntryMoveNext(Awaiter onComplete = null, bool withSelect = true, bool excludeUi = false)
 		{
 			if (_catalog.Entries.Count == 0) return;
 			CatalogEntry currentEntry = GetCurrentEntry();
 			if (_playOnce.val == true && _numberOfEntriesToPlay-- == 0)
 			{
 				_cycleEntriesOnInterval.val = false;
-				onComplete.Invoke();
+				if (onComplete != null) onComplete.Complete();
 				return;
 			}
-			UnityAction onThisCompleted = () =>
+			Awaiter onThisCompleted = new Awaiter(() =>
 			{
-				onComplete.Invoke();
-				var nextEntry = GetNextEntry();
-				//if (withSelect) SelectCatalogEntry(nextEntry);
-			};
+				if (onComplete != null) onComplete.Complete();
+				MoveNext();
+			});
 			QueueCatalogEntry(currentEntry, excludeUi, withSelect, onThisCompleted);
 		}
 
@@ -5996,7 +6076,7 @@ namespace juniperD.StatefullServices
 			return nextEntry;
 		}
 
-		public void ApplyRandomEntry(UnityAction onComplete = null, bool withSelect = true, bool exludeUi = false)
+		public void ApplyRandomEntry(Awaiter onComplete = null, bool withSelect = true, bool exludeUi = false)
 		{
 			if (_catalog.Entries.Count == 0) return;
 			var randomIndex = UnityEngine.Random.Range(0, _catalog.Entries.Count - 1);
@@ -6017,7 +6097,7 @@ namespace juniperD.StatefullServices
 			//{
 			yield return new WaitForSeconds(delay);
 
-			UnityAction onApplyCompleted = () =>
+			var onApplyCompleted = new Awaiter(() =>
 			{
 				//if (GetContainingSelectedOrDefaultAtom() == null) _cycleEntriesOnInterval.val = false;
 				if (!_cycleEntriesOnInterval.val)
@@ -6026,7 +6106,7 @@ namespace juniperD.StatefullServices
 					return;
 				}
 				StartCoroutine(ApplyNextEntryAfterInterval(_cycleEntriesInterval.val, withSelect, exludeUi, onSequenceCompleted));
-			};
+			});
 
 			switch (_entrySelectionMethod.val)
 			{

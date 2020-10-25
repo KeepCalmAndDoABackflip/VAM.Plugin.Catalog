@@ -11,7 +11,7 @@ namespace juniperD.Models
 
 		public string EntryKey { get; private set; }
 		public UnityAction ApplyCatalogEntryAction { get; private set; }
-		public float Timeout { get; private set; } = 1;
+		public float Timeout { get; private set; } = 60;
 		public bool Cancelled { get; private set; } = false;
 		public bool Complete { get; private set; } = false;
 		public bool Busy { get; private set; } = false;
